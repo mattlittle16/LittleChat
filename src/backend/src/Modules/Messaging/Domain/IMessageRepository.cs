@@ -8,4 +8,5 @@ public interface IMessageRepository
     Task<Message?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<MessagePage> GetPageAsync(Guid roomId, DateTime? before, Guid? beforeId, int limit, CancellationToken ct = default);
     Task<bool> IsMemberAsync(Guid roomId, Guid userId, CancellationToken ct = default);
+    Task UpdateLastReadAtAsync(Guid roomId, Guid userId, CancellationToken ct = default);
 }

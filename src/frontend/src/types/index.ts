@@ -11,6 +11,8 @@ export interface Room {
   name: string
   isDm: boolean
   unreadCount: number
+  hasMention: boolean
+  lastMessagePreview: string | null
   createdAt: string // ISO8601
 }
 
