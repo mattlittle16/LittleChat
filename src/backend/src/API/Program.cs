@@ -4,6 +4,7 @@ using Identity.API;
 using Identity.Infrastructure;
 using Messaging.API;
 using Messaging.Application.Handlers;
+using RealTime.Application.Handlers;
 using Messaging.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -167,6 +168,7 @@ builder.Services.AddMessagingInfrastructure(builder.Configuration);
 
 // RealTime event handlers (registered at composition root)
 builder.Services.AddScoped<IIntegrationEventHandler<UserFirstLoginIntegrationEvent>, UserFirstLoginHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MessageSentIntegrationEvent>, MessageSentHandler>();
 
 // Other modules
 builder.Services.AddPresenceModule();
@@ -182,6 +184,7 @@ var app = builder.Build();
 // ── Event Bus subscriptions ───────────────────────────────────────────────────
 var eventBus = app.Services.GetRequiredService<IEventBus>();
 eventBus.Subscribe<UserFirstLoginIntegrationEvent, UserFirstLoginHandler>();
+eventBus.Subscribe<MessageSentIntegrationEvent, MessageSentHandler>();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();

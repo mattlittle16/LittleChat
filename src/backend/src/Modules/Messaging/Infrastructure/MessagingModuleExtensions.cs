@@ -18,6 +18,7 @@ public static class MessagingModuleExtensions
                 npgsql => npgsql.MigrationsAssembly(typeof(LittleChatDbContext).Assembly.GetName().Name)));
 
         services.AddScoped<IRoomRepository, RoomRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
 
         return services;
     }

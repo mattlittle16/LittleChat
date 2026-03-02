@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr'
 import { getAccessToken } from './apiClient'
+import { useOutboxStore } from '../stores/outboxStore'
 
 let _connection: signalR.HubConnection | null = null
 
@@ -29,9 +30,19 @@ export async function startConnection(
 
   _connection = buildConnection(roomId)
 
-  _connection.onreconnecting(() => onReconnecting())
-  _connection.onreconnected(() => onReconnected())
-  _connection.onclose(() => onClose())
+  _connection.onreconnecting(() => {
+    onReconnecting()
+  })
+
+  _connection.onreconnected(() => {
+    onReconnected()
+    // Drain any messages that queued up while disconnected (Constitution Principle V)
+    useOutboxStore.getState().drainOutbox()
+  })
+
+  _connection.onclose(() => {
+    onClose()
+  })
 
   await _connection.start()
   return _connection
