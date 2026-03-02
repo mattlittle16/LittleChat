@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
+import { TypingIndicator } from '../chat/TypingIndicator'
 import { SearchModal } from '../search/SearchModal'
 import { useRoomStore } from '../../stores/roomStore'
 import { useSignalR } from '../../hooks/useSignalR'
@@ -68,6 +69,7 @@ export function ChatLayout() {
         {activeRoomId ? (
           <>
             <MessageList roomId={activeRoomId} />
+            <TypingIndicator roomId={activeRoomId} />
             <MessageInput roomId={activeRoomId} disabled={isDisconnected} />
           </>
         ) : (
