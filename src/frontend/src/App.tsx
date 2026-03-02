@@ -1,15 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
+import { ChatLayout } from './components/layout/ChatLayout'
 import { isAuthenticated, login, restoreSession } from './services/authService'
-
-// Placeholder — replaced in Phase 4 (US2) with the real chat layout
-function ChatLayout() {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <p className="text-lg font-medium">Welcome to LittleChat</p>
-    </div>
-  )
-}
 
 function LandingPage() {
   return (
