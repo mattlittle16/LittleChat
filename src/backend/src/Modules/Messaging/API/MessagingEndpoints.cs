@@ -83,6 +83,32 @@ public static class MessagingEndpoints
                 }
             });
 
+        // POST /api/rooms/dm — get or create a DM conversation
+        app.MapPost("/api/rooms/dm",
+            [Authorize] async (DmBody body, HttpContext ctx, ISender sender) =>
+            {
+                var sub = ctx.User.FindFirst("sub")?.Value;
+                if (!Guid.TryParse(sub, out var userId))
+                    return Results.Unauthorized();
+
+                try
+                {
+                    var (room, isNew) = await sender.Send(
+                        new CreateOrGetDmCommand(userId, body.TargetUserId), ctx.RequestAborted);
+
+                    var dto = new RoomDto(
+                        room.Id, Name: string.Empty, IsDm: true,
+                        UnreadCount: 0, HasMention: false, LastMessagePreview: null,
+                        room.CreatedAt == default ? DateTime.UtcNow : room.CreatedAt);
+
+                    return isNew ? Results.Created($"/api/rooms/{room.Id}", dto) : Results.Ok(dto);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+            });
+
         // POST /api/rooms/{roomId}/messages — REST fallback for message send
         app.MapPost("/api/rooms/{roomId:guid}/messages",
             [Authorize] async (Guid roomId, SendMessageBody body, HttpContext ctx, ISender sender) =>
@@ -123,3 +149,4 @@ public static class MessagingEndpoints
 
 internal sealed record SendMessageBody(Guid? MessageId, string Content);
 internal sealed record CreateRoomBody(string Name);
+internal sealed record DmBody(Guid TargetUserId);

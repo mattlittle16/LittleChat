@@ -33,6 +33,37 @@ public sealed class UserRepository : IUserRepository
         return result is true;
     }
 
+    public async Task<IReadOnlyList<User>> GetAllAsync(string? nameFilter, CancellationToken cancellationToken = default)
+    {
+        // Both SQL strings are compile-time constants; user input is always bound as a parameter ($1),
+        // never interpolated into SQL — no injection risk.
+        const string allSql      = "SELECT id, display_name, avatar_url, created_at FROM users ORDER BY display_name";
+        const string filteredSql = "SELECT id, display_name, avatar_url, created_at FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
+
+        var hasFilter = !string.IsNullOrWhiteSpace(nameFilter);
+        await using var cmd = _dataSource.CreateCommand(hasFilter ? filteredSql : allSql);
+        if (hasFilter)
+        {
+            // Wrap with LIKE wildcards here (not in SQL) so the parameter value stays typed/escaped
+            cmd.Parameters.AddWithValue("%" + nameFilter + "%");
+        }
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
+        var users = new List<User>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            users.Add(new User(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetDateTime(3)
+            ));
+        }
+
+        return users;
+    }
+
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         const string sql = "SELECT id, display_name, avatar_url, created_at FROM users WHERE id = $1";

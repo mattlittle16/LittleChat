@@ -85,7 +85,7 @@ public sealed class RoomRepository : IRoomRepository
     public async Task<IReadOnlyList<RoomSummary>> GetForUserAsync(Guid userId, CancellationToken ct = default)
     {
         var results = await _db.RoomMemberships
-            .Where(rm => rm.UserId == userId && !rm.Room.IsDm)
+            .Where(rm => rm.UserId == userId)
             .Select(rm => new
             {
                 rm.Room.Id,
@@ -98,15 +98,71 @@ public sealed class RoomRepository : IRoomRepository
                     .OrderByDescending(m => m.CreatedAt)
                     .Select(m => m.Content)
                     .FirstOrDefault(),
+                // For DMs: find the other member
+                OtherUserId = rm.Room.IsDm
+                    ? rm.Room.Memberships
+                        .Where(other => other.UserId != userId)
+                        .Select(other => (Guid?)other.UserId)
+                        .FirstOrDefault()
+                    : null,
+                OtherUserDisplayName = rm.Room.IsDm
+                    ? rm.Room.Memberships
+                        .Where(other => other.UserId != userId)
+                        .Select(other => other.User.DisplayName)
+                        .FirstOrDefault()
+                    : null,
+                OtherUserAvatarUrl = rm.Room.IsDm
+                    ? rm.Room.Memberships
+                        .Where(other => other.UserId != userId)
+                        .Select(other => other.User.AvatarUrl)
+                        .FirstOrDefault()
+                    : null,
             })
-            .OrderBy(r => r.Name)
+            .OrderBy(r => r.IsDm
+                ? (r.OtherUserDisplayName ?? string.Empty)
+                : r.Name)
             .ToListAsync(ct);
 
         return results.Select(r => new RoomSummary(
             Room: new Room(r.Id, r.Name, r.IsDm, r.CreatedBy, r.CreatedAt),
             UnreadCount: r.UnreadCount,
             HasMention: false, // implemented in US8
-            LastMessagePreview: r.LastPreview
+            LastMessagePreview: r.LastPreview,
+            OtherUserId: r.OtherUserId,
+            OtherUserDisplayName: r.OtherUserDisplayName,
+            OtherUserAvatarUrl: r.OtherUserAvatarUrl
         )).ToList();
+    }
+
+    public async Task<Guid?> FindDmAsync(Guid userA, Guid userB, CancellationToken ct = default)
+    {
+        return await _db.Rooms
+            .Where(r => r.IsDm &&
+                r.Memberships.Any(m => m.UserId == userA) &&
+                r.Memberships.Any(m => m.UserId == userB))
+            .Select(r => (Guid?)r.Id)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<Room> CreateDmAsync(Guid userA, Guid userB, CancellationToken ct = default)
+    {
+        var entity = new RoomEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = string.Empty,
+            IsDm = true,
+            CreatedBy = userA,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.Rooms.Add(entity);
+        _db.RoomMemberships.AddRange([
+            new RoomMembershipEntity { UserId = userA, RoomId = entity.Id, LastReadAt = DateTime.UtcNow, JoinedAt = DateTime.UtcNow },
+            new RoomMembershipEntity { UserId = userB, RoomId = entity.Id, LastReadAt = DateTime.UtcNow, JoinedAt = DateTime.UtcNow },
+        ]);
+
+        await _db.SaveChangesAsync(ct);
+
+        return new Room(entity.Id, entity.Name, entity.IsDm, entity.CreatedBy, entity.CreatedAt);
     }
 }

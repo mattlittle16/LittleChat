@@ -14,6 +14,17 @@ export interface Room {
   hasMention: boolean
   lastMessagePreview: string | null
   createdAt: string // ISO8601
+  // DM-only fields
+  otherUserId: string | null
+  otherUserDisplayName: string | null
+  otherUserAvatarUrl: string | null
+}
+
+export interface UserSearchResult {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  isOnline: boolean
 }
 
 export interface Attachment {
