@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { useOutboxStore } from '../../stores/outboxStore'
 import { getConnection } from '../../services/signalrClient'
 import { getAccessToken } from '../../services/apiClient'
@@ -15,6 +16,7 @@ interface MessageInputProps {
 
 export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   const [content, setContent] = useState('')
+  const [preview, setPreview] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -172,19 +174,50 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
           📎
         </button>
 
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={e => { setContent(e.target.value); notifyTyping() }}
-          onKeyDown={handleKeyDown}
-          disabled={isDisabled || isUploading}
-          rows={1}
-          placeholder={isDisabled ? 'Reconnecting…' : 'Message'}
-          className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm
-                     placeholder:text-muted-foreground focus:outline-none focus:ring-2
-                     focus:ring-ring disabled:opacity-50"
-          style={{ minHeight: '2.5rem', maxHeight: '10rem' }}
-        />
+        <div className="flex-1 min-w-0">
+          {/* Preview/edit toggle */}
+          <div className="flex gap-1 mb-1">
+            <button
+              type="button"
+              onClick={() => setPreview(false)}
+              className={`text-xs px-2 py-0.5 rounded ${!preview ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreview(true)}
+              disabled={!content.trim()}
+              className={`text-xs px-2 py-0.5 rounded disabled:opacity-40 ${preview ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Preview
+            </button>
+          </div>
+
+          {preview ? (
+            <div
+              className="min-h-[2.5rem] max-h-40 overflow-y-auto rounded-md border bg-background
+                         px-3 py-2 text-sm prose prose-sm dark:prose-invert max-w-none"
+            >
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={e => { setContent(e.target.value); notifyTyping() }}
+              onKeyDown={handleKeyDown}
+              disabled={isDisabled || isUploading}
+              rows={1}
+              placeholder={isDisabled ? 'Reconnecting…' : 'Message (supports **markdown**)'}
+              className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm
+                         placeholder:text-muted-foreground focus:outline-none focus:ring-2
+                         focus:ring-ring disabled:opacity-50"
+              style={{ minHeight: '2.5rem', maxHeight: '10rem' }}
+            />
+          )}
+        </div>
+
         <button
           onClick={submit}
           disabled={isDisabled || isUploading || (!content.trim() && !selectedFile) || overLimit}

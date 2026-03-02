@@ -1,10 +1,12 @@
 using MediatR;
 using Messaging.Application.Commands;
+using Messaging.Application.Options;
 using Messaging.Application.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 using Shared.Contracts.DTOs;
 
 namespace Messaging.API;
@@ -50,16 +52,19 @@ public static class MessagingEndpoints
         // GET /api/rooms/{roomId}/messages — paginated message history
         app.MapGet("/api/rooms/{roomId:guid}/messages",
             [Authorize] async (Guid roomId, HttpContext ctx, ISender sender,
-                DateTime? before, Guid? beforeId, int limit = 50) =>
+                IOptions<MessagingOptions> opts,
+                DateTime? before, Guid? beforeId, int? limit) =>
             {
                 var sub = ctx.User.FindFirst("sub")?.Value;
                 if (!Guid.TryParse(sub, out var userId))
                     return Results.Unauthorized();
 
+                var pageSize = Math.Clamp(limit ?? opts.Value.MessagePageSize, 1, 100);
+
                 try
                 {
                     var page = await sender.Send(
-                        new GetMessagesQuery(roomId, userId, before, beforeId, Math.Clamp(limit, 1, 100)),
+                        new GetMessagesQuery(roomId, userId, before, beforeId, pageSize),
                         ctx.RequestAborted);
 
                     var dtos = page.Messages.Select(m => new MessageDto(
