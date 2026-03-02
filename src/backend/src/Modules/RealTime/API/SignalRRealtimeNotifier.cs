@@ -21,10 +21,10 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
         return eventName switch
         {
             "ReceiveMessage" => group.ReceiveMessage((MessageDto)payload),
-            "MessageEdited" when payload is (Guid msgId, Guid rId, string content, DateTime editedAt) =>
-                group.MessageEdited(msgId, rId, content, editedAt),
-            "MessageDeleted" when payload is (Guid dMsgId, Guid dRId) =>
-                group.MessageDeleted(dMsgId, dRId),
+            "MessageEdited" when payload is MessageEditedIntegrationEvent me =>
+                group.MessageEdited(me.MessageId, me.RoomId, me.Content, me.EditedAt),
+            "MessageDeleted" when payload is MessageDeletedIntegrationEvent md =>
+                group.MessageDeleted(md.MessageId, md.RoomId),
             "ReactionUpdated" when payload is ReactionUpdatedIntegrationEvent e =>
                 group.ReactionUpdated(e.MessageId, e.RoomId, e.Emoji, e.Count, e.Added, e.Users),
             _ => Task.CompletedTask,

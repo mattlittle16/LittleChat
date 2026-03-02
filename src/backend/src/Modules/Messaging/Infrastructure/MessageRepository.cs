@@ -103,6 +103,28 @@ public sealed class MessageRepository : IMessageRepository
         }
     }
 
+    public async Task<DateTime> EditAsync(Guid messageId, Guid userId, string newContent, CancellationToken ct = default)
+    {
+        var entity = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId, ct);
+        if (entity is null) throw new InvalidOperationException("Message not found.");
+        if (entity.UserId != userId) throw new UnauthorizedAccessException("Cannot edit another user's message.");
+
+        entity.Content = newContent;
+        entity.EditedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return entity.EditedAt!.Value;
+    }
+
+    public async Task DeleteAsync(Guid messageId, Guid userId, CancellationToken ct = default)
+    {
+        var entity = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId, ct);
+        if (entity is null) throw new InvalidOperationException("Message not found.");
+        if (entity.UserId != userId) throw new UnauthorizedAccessException("Cannot delete another user's message.");
+
+        _db.Messages.Remove(entity);
+        await _db.SaveChangesAsync(ct);
+    }
+
     private static Message ToMessage(MessageEntity e) => new(
         Id: e.Id,
         RoomId: e.RoomId,
