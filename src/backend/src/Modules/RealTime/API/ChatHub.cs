@@ -11,6 +11,8 @@ namespace RealTime.API;
 public sealed record SendMessageRequest(Guid MessageId, Guid RoomId, string Content);
 public sealed record AddReactionRequest(Guid MessageId, Guid RoomId, string Emoji);
 public sealed record StartTypingRequest(Guid RoomId);
+public sealed record EditMessageRequest(Guid MessageId, Guid RoomId, string Content);
+public sealed record DeleteMessageRequest(Guid MessageId, Guid RoomId);
 
 [Authorize]
 public sealed class ChatHub : Hub<IChatHubClient>
@@ -77,6 +79,40 @@ public sealed class ChatHub : Hub<IChatHubClient>
             UserId: userId,
             DisplayName: displayName,
             Emoji: request.Emoji));
+    }
+
+    public async Task EditMessage(EditMessageRequest request)
+    {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId))
+            throw new HubException("Unauthorized");
+
+        try
+        {
+            await _sender.Send(new EditMessageCommand(
+                request.MessageId, request.RoomId, userId, request.Content));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new HubException("You can only edit your own messages.");
+        }
+    }
+
+    public async Task DeleteMessage(DeleteMessageRequest request)
+    {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId))
+            throw new HubException("Unauthorized");
+
+        try
+        {
+            await _sender.Send(new DeleteMessageCommand(
+                request.MessageId, request.RoomId, userId));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new HubException("You can only delete your own messages.");
+        }
     }
 
     public async Task StartTyping(StartTypingRequest request)

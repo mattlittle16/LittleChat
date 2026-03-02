@@ -13,6 +13,8 @@ const HEARTBEAT_INTERVAL_MS = 15_000
 export function useSignalR(roomId: string | null) {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const addMessage = useMessageStore(s => s.addMessage)
+  const updateMessage = useMessageStore(s => s.updateMessage)
+  const removeMessage = useMessageStore(s => s.removeMessage)
   const updateReactions = useMessageStore(s => s.updateReactions)
   const { updateUnread, activeRoomId } = useRoomStore()
   const { setOnline, setOffline } = usePresenceStore()
@@ -53,6 +55,16 @@ export function useSignalR(roomId: string | null) {
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)
         else setOffline(userId)
+      })
+
+      // T093: wire edit and delete events
+      connection.on('MessageEdited', (messageId: string, _roomId: string, content: string, editedAt: string) => {
+        const existing = useMessageStore.getState().messages.get(messageId)
+        if (existing) updateMessage({ ...existing, content, editedAt })
+      })
+
+      connection.on('MessageDeleted', (messageId: string) => {
+        removeMessage(messageId)
       })
 
       // T084: wire reaction and typing events
