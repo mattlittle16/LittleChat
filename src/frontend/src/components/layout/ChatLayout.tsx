@@ -4,6 +4,7 @@ import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
 import { TypingIndicator } from '../chat/TypingIndicator'
 import { SearchModal } from '../search/SearchModal'
+import { MentionToastContainer } from '../chat/MentionToast'
 import { useRoomStore } from '../../stores/roomStore'
 import { useSignalR } from '../../hooks/useSignalR'
 
@@ -80,6 +81,7 @@ export function ChatLayout() {
       </div>
 
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+      <MentionToastContainer />
     </div>
   )
 }

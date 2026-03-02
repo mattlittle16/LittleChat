@@ -94,6 +94,9 @@ public sealed class RoomRepository : IRoomRepository
                 rm.Room.CreatedBy,
                 rm.Room.CreatedAt,
                 UnreadCount = rm.Room.Messages.Count(m => m.CreatedAt > rm.LastReadAt),
+                HasMention = rm.Room.Messages.Any(m =>
+                    m.CreatedAt > rm.LastReadAt &&
+                    m.Content.Contains("@" + rm.User.DisplayName)),
                 LastPreview = rm.Room.Messages
                     .OrderByDescending(m => m.CreatedAt)
                     .Select(m => m.Content)
@@ -126,7 +129,7 @@ public sealed class RoomRepository : IRoomRepository
         return results.Select(r => new RoomSummary(
             Room: new Room(r.Id, r.Name, r.IsDm, r.CreatedBy, r.CreatedAt),
             UnreadCount: r.UnreadCount,
-            HasMention: false, // implemented in US8
+            HasMention: r.HasMention,
             LastMessagePreview: r.LastPreview,
             OtherUserId: r.OtherUserId,
             OtherUserDisplayName: r.OtherUserDisplayName,

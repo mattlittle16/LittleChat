@@ -11,6 +11,7 @@ interface RoomState {
   setActiveRoom: (id: string | null) => void
   markRead: (roomId: string) => void
   updateUnread: (roomId: string, count: number) => void
+  setMention: (roomId: string) => void
 }
 
 export const useRoomStore = create<RoomState>((set) => ({
@@ -43,6 +44,14 @@ export const useRoomStore = create<RoomState>((set) => ({
     set(s => ({
       rooms: s.rooms.map(r =>
         r.id === roomId ? { ...r, unreadCount: r.unreadCount + count } : r
+      ),
+    }))
+  },
+
+  setMention: (roomId) => {
+    set(s => ({
+      rooms: s.rooms.map(r =>
+        r.id === roomId ? { ...r, hasMention: true } : r
       ),
     }))
   },
