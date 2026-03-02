@@ -1,3 +1,4 @@
+using Messaging.Domain;
 using Messaging.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,8 @@ public static class MessagingModuleExtensions
         services.AddDbContext<LittleChatDbContext>(options =>
             options.UseNpgsql(connectionString,
                 npgsql => npgsql.MigrationsAssembly(typeof(LittleChatDbContext).Assembly.GetName().Name)));
+
+        services.AddScoped<IRoomRepository, RoomRepository>();
 
         return services;
     }
