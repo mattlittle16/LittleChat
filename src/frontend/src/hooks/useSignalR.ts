@@ -4,6 +4,7 @@ import { useMessageStore } from '../stores/messageStore'
 import { useRoomStore } from '../stores/roomStore'
 import { usePresenceStore } from '../stores/presenceStore'
 import { useTypingStore } from '../stores/typingStore'
+import { showMentionToast } from '../components/chat/MentionToast'
 import type { Message } from '../types'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
@@ -16,7 +17,7 @@ export function useSignalR(roomId: string | null) {
   const updateMessage = useMessageStore(s => s.updateMessage)
   const removeMessage = useMessageStore(s => s.removeMessage)
   const updateReactions = useMessageStore(s => s.updateReactions)
-  const { updateUnread, activeRoomId } = useRoomStore()
+  const { updateUnread, activeRoomId, setMention } = useRoomStore()
   const { setOnline, setOffline } = usePresenceStore()
   const { setTyping } = useTypingStore()
   const prevRoomRef = useRef<string | null>(null)
@@ -77,6 +78,18 @@ export function useSignalR(roomId: string | null) {
 
       connection.on('UserTyping', (roomId: string, _userId: string, displayName: string) => {
         setTyping(roomId, _userId, displayName)
+      })
+
+      connection.on('MentionNotification', (
+        _messageId: string,
+        roomId: string,
+        roomName: string,
+        _fromUserId: string,
+        fromDisplayName: string,
+        contentPreview: string
+      ) => {
+        setMention(roomId.toString())
+        showMentionToast({ roomId: roomId.toString(), roomName, fromDisplayName, contentPreview })
       })
 
       // T072: send heartbeat every 15s to keep presence key alive (30s TTL)

@@ -33,7 +33,12 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
 
     public Task SendToUserAsync(string userId, string eventName, object payload, CancellationToken cancellationToken = default)
     {
-        // Used for user-targeted events (MentionNotification etc.)
-        return Task.CompletedTask;
+        var user = _hubContext.Clients.User(userId);
+        return eventName switch
+        {
+            "MentionNotification" when payload is MentionDetectedIntegrationEvent e =>
+                user.MentionNotification(e.MessageId, e.RoomId, e.RoomName, e.FromUserId, e.FromDisplayName, e.ContentPreview),
+            _ => Task.CompletedTask,
+        };
     }
 }

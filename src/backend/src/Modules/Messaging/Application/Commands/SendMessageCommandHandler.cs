@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using MediatR;
 using Messaging.Domain;
 using Shared.Contracts.Events;
@@ -8,19 +9,23 @@ namespace Messaging.Application.Commands;
 public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Guid>
 {
     private const int MaxContentLength = 4_000;
+    private static readonly Regex MentionRegex = new(@"@(\w+)", RegexOptions.Compiled);
 
     private readonly IMessageRepository _messages;
     private readonly IEventBus _eventBus;
     private readonly IFileStorageService? _fileStorage;
+    private readonly IUserLookupService? _userLookup;
 
     public SendMessageCommandHandler(
         IMessageRepository messages,
         IEventBus eventBus,
-        IFileStorageService? fileStorage = null)
+        IFileStorageService? fileStorage = null,
+        IUserLookupService? userLookup = null)
     {
         _messages = messages;
         _eventBus = eventBus;
         _fileStorage = fileStorage;
+        _userLookup = userLookup;
     }
 
     public async Task<Guid> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -83,6 +88,36 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
             FileSize = message.FileSize,
             CreatedAt = message.CreatedAt,
         }, cancellationToken);
+
+        // Detect @mentions and publish one event per unique mentioned user
+        if (_userLookup is not null)
+        {
+            var mentions = MentionRegex.Matches(message.Content)
+                .Select(m => m.Groups[1].Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            string? roomName = null;
+            foreach (var displayName in mentions)
+            {
+                var mentionedId = await _userLookup.FindIdByDisplayNameAsync(displayName, cancellationToken);
+                if (mentionedId is null || mentionedId == message.UserId) continue;
+
+                roomName ??= await _messages.GetRoomNameAsync(message.RoomId, cancellationToken) ?? string.Empty;
+
+                await _eventBus.PublishAsync(new MentionDetectedIntegrationEvent
+                {
+                    MessageId = message.Id,
+                    RoomId = message.RoomId,
+                    RoomName = roomName,
+                    MentionedUserId = mentionedId.Value,
+                    FromUserId = message.UserId,
+                    FromDisplayName = message.AuthorDisplayName,
+                    ContentPreview = message.Content.Length > 100
+                        ? message.Content[..100] + "…"
+                        : message.Content,
+                }, cancellationToken);
+            }
+        }
 
         return message.Id;
     }
