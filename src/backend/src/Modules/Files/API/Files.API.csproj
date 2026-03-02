@@ -3,7 +3,12 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Application\Files.Application.csproj" />
+    <ProjectReference Include="..\Infrastructure\Files.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\Shared.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="8.0.3" />
   </ItemGroup>
 
   <PropertyGroup>

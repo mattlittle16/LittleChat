@@ -8,5 +8,8 @@ public sealed record SendMessageCommand(
     Guid UserId,
     string AuthorDisplayName,
     string? AuthorAvatarUrl,
-    string Content
+    string Content,
+    Stream? FileStream = null,
+    string? OriginalFileName = null,
+    long? FileSize = null
 ) : IRequest<Guid>;

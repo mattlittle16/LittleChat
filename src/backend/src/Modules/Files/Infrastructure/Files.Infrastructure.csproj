@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Application\Files.Application.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\Shared.Contracts.csproj" />
   </ItemGroup>

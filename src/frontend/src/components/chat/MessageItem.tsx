@@ -193,18 +193,29 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
           </div>
         )}
 
-        {message.attachment && (
-          <a
-            href={message.attachment.url}
-            download={message.attachment.fileName}
-            className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            📎 {message.attachment.fileName}
-            <span className="text-muted-foreground">
-              ({(message.attachment.fileSize / 1024).toFixed(1)} KB)
-            </span>
-          </a>
-        )}
+        {message.attachment && (() => {
+          const isImage = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(message.attachment.fileName)
+          return isImage ? (
+            <a href={message.attachment.url} target="_blank" rel="noreferrer" className="mt-1 block">
+              <img
+                src={message.attachment.url}
+                alt={message.attachment.fileName}
+                className="max-w-xs max-h-64 rounded-md border object-contain"
+              />
+            </a>
+          ) : (
+            <a
+              href={message.attachment.url}
+              download={message.attachment.fileName}
+              className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              📎 {message.attachment.fileName}
+              <span className="text-muted-foreground">
+                ({(message.attachment.fileSize / 1024).toFixed(1)} KB)
+              </span>
+            </a>
+          )
+        })()}
 
         <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions} />
       </div>
