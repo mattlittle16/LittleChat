@@ -12,5 +12,9 @@ public sealed record RoomSummary(
     Room Room,
     int UnreadCount,
     bool HasMention,
-    string? LastMessagePreview
+    string? LastMessagePreview,
+    // Populated for DM rooms only
+    Guid? OtherUserId = null,
+    string? OtherUserDisplayName = null,
+    string? OtherUserAvatarUrl = null
 );

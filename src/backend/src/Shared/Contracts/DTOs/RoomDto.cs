@@ -7,5 +7,9 @@ public record RoomDto(
     int UnreadCount,
     bool HasMention,
     string? LastMessagePreview,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    // Populated for DM rooms only
+    Guid? OtherUserId = null,
+    string? OtherUserDisplayName = null,
+    string? OtherUserAvatarUrl = null
 );

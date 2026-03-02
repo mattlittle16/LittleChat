@@ -20,12 +20,15 @@ public sealed class GetRoomsQueryHandler : IRequestHandler<GetRoomsQuery, IReadO
         return summaries
             .Select(s => new RoomDto(
                 Id: s.Room.Id,
-                Name: s.Room.Name,
+                Name: s.Room.IsDm ? (s.OtherUserDisplayName ?? "Unknown") : s.Room.Name,
                 IsDm: s.Room.IsDm,
                 UnreadCount: s.UnreadCount,
                 HasMention: s.HasMention,
                 LastMessagePreview: s.LastMessagePreview,
-                CreatedAt: s.Room.CreatedAt))
+                CreatedAt: s.Room.CreatedAt,
+                OtherUserId: s.OtherUserId,
+                OtherUserDisplayName: s.OtherUserDisplayName,
+                OtherUserAvatarUrl: s.OtherUserAvatarUrl))
             .ToList();
     }
 }

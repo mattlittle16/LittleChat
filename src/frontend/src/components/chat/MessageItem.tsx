@@ -2,7 +2,9 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import type { Message } from '../../types'
+import { api } from '../../services/apiClient'
+import { useRoomStore } from '../../stores/roomStore'
+import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
 interface MessageItemProps {
@@ -17,6 +19,13 @@ function isOutbox(m: Message | OutboxMessage): m is OutboxMessage {
 function formatTime(isoOrTs: string | number): string {
   const date = typeof isoOrTs === 'number' ? new Date(isoOrTs) : new Date(isoOrTs)
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+async function openDmWithUser(userId: string) {
+  const { loadRooms, setActiveRoom } = useRoomStore.getState()
+  const room = await api.post<Room>('/api/rooms/dm', { targetUserId: userId })
+  await loadRooms()
+  setActiveRoom(room.id)
 }
 
 export function MessageItem({ message, isPending = false }: MessageItemProps) {
@@ -40,7 +49,11 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
 
   return (
     <div className={`flex gap-3 px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}>
-      <div className="flex-shrink-0">
+      <button
+        className="flex-shrink-0 hover:opacity-80 transition-opacity"
+        onClick={() => openDmWithUser(message.author.id)}
+        title={`DM ${message.author.displayName}`}
+      >
         {message.author.avatarUrl ? (
           <img
             src={message.author.avatarUrl}
@@ -52,10 +65,15 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
             {message.author.displayName.charAt(0).toUpperCase()}
           </div>
         )}
-      </div>
+      </button>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold">{message.author.displayName}</span>
+          <button
+            className="text-sm font-semibold hover:underline"
+            onClick={() => openDmWithUser(message.author.id)}
+          >
+            {message.author.displayName}
+          </button>
           <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
           {message.editedAt && (
             <span className="text-xs text-muted-foreground">(edited)</span>
