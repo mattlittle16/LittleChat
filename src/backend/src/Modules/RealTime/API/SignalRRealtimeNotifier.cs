@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using RealTime.Domain;
 using Shared.Contracts.DTOs;
+using Shared.Contracts.Events;
 using Shared.Contracts.Interfaces;
 
 namespace RealTime.API;
@@ -24,6 +25,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 group.MessageEdited(msgId, rId, content, editedAt),
             "MessageDeleted" when payload is (Guid dMsgId, Guid dRId) =>
                 group.MessageDeleted(dMsgId, dRId),
+            "ReactionUpdated" when payload is ReactionUpdatedIntegrationEvent e =>
+                group.ReactionUpdated(e.MessageId, e.RoomId, e.Emoji, e.Count, e.Added, e.Users),
             _ => Task.CompletedTask,
         };
     }

@@ -5,6 +5,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api } from '../../services/apiClient'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
+import { ReactionBar } from './ReactionBar'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
@@ -127,6 +128,11 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
             </span>
           </a>
         )}
+        <ReactionBar
+          messageId={message.id}
+          roomId={message.roomId}
+          reactions={message.reactions}
+        />
       </div>
     </div>
   )

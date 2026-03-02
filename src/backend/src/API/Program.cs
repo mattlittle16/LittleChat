@@ -170,6 +170,7 @@ builder.Services.AddMessagingInfrastructure(builder.Configuration);
 // RealTime event handlers (registered at composition root)
 builder.Services.AddScoped<IIntegrationEventHandler<UserFirstLoginIntegrationEvent>, UserFirstLoginHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageSentIntegrationEvent>, MessageSentHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<ReactionUpdatedIntegrationEvent>, ReactionChangedHandler>();
 
 // Other modules
 builder.Services.AddPresenceModule();
@@ -187,6 +188,7 @@ var app = builder.Build();
 var eventBus = app.Services.GetRequiredService<IEventBus>();
 eventBus.Subscribe<UserFirstLoginIntegrationEvent, UserFirstLoginHandler>();
 eventBus.Subscribe<MessageSentIntegrationEvent, MessageSentHandler>();
+eventBus.Subscribe<ReactionUpdatedIntegrationEvent, ReactionChangedHandler>();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -198,6 +200,7 @@ app.UseAuthorization();
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 app.MapIdentityEndpoints();
 app.MapMessagingEndpoints();
+app.MapReactionsEndpoints();
 app.MapSearchEndpoints();
 app.MapFilesEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();

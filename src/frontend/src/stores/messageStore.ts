@@ -13,6 +13,7 @@ interface MessageState {
   addMessage: (msg: Message) => void
   updateMessage: (msg: Message) => void
   removeMessage: (id: string) => void
+  updateReactions: (messageId: string, emoji: string, count: number, users: string[]) => void
   loadPage: (roomId: string, before?: { createdAt: string; id: string }) => Promise<void>
   clearRoom: (roomId: string) => void
 }
@@ -41,6 +42,18 @@ export const useMessageStore = create<MessageState>((set) => ({
     set(s => {
       const next = new Map(s.messages)
       next.delete(id)
+      return { messages: next }
+    })
+  },
+
+  updateReactions: (messageId, emoji, count, users) => {
+    set(s => {
+      const msg = s.messages.get(messageId)
+      if (!msg) return {}
+      const reactions = msg.reactions.filter(r => r.emoji !== emoji)
+      if (count > 0) reactions.push({ emoji, count, users })
+      const next = new Map(s.messages)
+      next.set(messageId, { ...msg, reactions })
       return { messages: next }
     })
   },

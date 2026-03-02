@@ -2,12 +2,15 @@ using MediatR;
 using Messaging.Application.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Reactions.Application.Commands;
 using RealTime.Domain;
 using Shared.Contracts.Interfaces;
 
 namespace RealTime.API;
 
 public sealed record SendMessageRequest(Guid MessageId, Guid RoomId, string Content);
+public sealed record AddReactionRequest(Guid MessageId, Guid RoomId, string Emoji);
+public sealed record StartTypingRequest(Guid RoomId);
 
 [Authorize]
 public sealed class ChatHub : Hub<IChatHubClient>
@@ -59,6 +62,34 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public Task JoinRoom(string roomId)
         => Groups.AddToGroupAsync(Context.ConnectionId, $"room:{roomId}");
+
+    public async Task<(bool Added, int Count)> AddReaction(AddReactionRequest request)
+    {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId))
+            throw new HubException("Unauthorized");
+
+        var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
+
+        return await _sender.Send(new AddReactionCommand(
+            MessageId: request.MessageId,
+            RoomId: request.RoomId,
+            UserId: userId,
+            DisplayName: displayName,
+            Emoji: request.Emoji));
+    }
+
+    public async Task StartTyping(StartTypingRequest request)
+    {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId)) return;
+
+        var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
+
+        // Broadcast to all others in the room (excluding the sender)
+        await Clients.OthersInGroup($"room:{request.RoomId}")
+            .UserTyping(request.RoomId, userId, displayName);
+    }
 
     public async Task SendMessage(SendMessageRequest request)
     {
