@@ -1,0 +1,37 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'src/backend/**'
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: src/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Restore
+        run: dotnet restore MattLab.Chat.slnx
+
+      - name: Build
+        run: dotnet build MattLab.Chat.slnx --no-restore -c Release
+
+      - name: Architecture tests
+        run: dotnet test tests/Architecture/ --no-build -c Release
+
+      - name: Unit tests
+        run: dotnet test tests/Unit/ --no-build -c Release

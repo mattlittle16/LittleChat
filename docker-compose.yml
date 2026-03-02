@@ -1,0 +1,70 @@
+services:
+  chat-backend:
+    build:
+      context: src/backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src/backend:/app
+      - backend-nuget:/root/.nuget/packages
+      - ${UPLOAD_PATH:-/tmp/littlechat-uploads}:/uploads
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - AUTHENTIK_AUTHORITY=${AUTHENTIK_AUTHORITY}
+      - AUTHENTIK_CLIENT_ID=${AUTHENTIK_CLIENT_ID}
+      - AUTHENTIK_CLIENT_SECRET=${AUTHENTIK_CLIENT_SECRET}
+      - POSTGRES_CONNECTION_STRING=Host=chat-db;Database=${POSTGRES_DB:-littlechat};Username=postgres;Password=${POSTGRES_PASSWORD}
+      - VALKEY_CONNECTION_STRING=valkey:6379
+      - UPLOAD_PATH=/uploads
+      - MESSAGE_PAGE_SIZE=${MESSAGE_PAGE_SIZE:-100}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      chat-db:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+    restart: unless-stopped
+
+  chat-db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-littlechat}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-littlechat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  chat-frontend:
+    build:
+      context: src/frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src/frontend:/app
+      - frontend-node-modules:/app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5000
+    depends_on:
+      - chat-backend
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  backend-nuget:
+  frontend-node-modules:
