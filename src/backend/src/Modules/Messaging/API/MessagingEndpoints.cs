@@ -109,10 +109,16 @@ public static class MessagingEndpoints
                 }
             });
 
-        // POST /api/rooms/{roomId}/messages — REST fallback for message send
+        // POST /api/rooms/{roomId}/messages — REST fallback / file upload path (multipart/form-data)
         app.MapPost("/api/rooms/{roomId:guid}/messages",
-            [Authorize] async (Guid roomId, SendMessageBody body, HttpContext ctx, ISender sender) =>
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
             {
+                // Raise per-request body size limit to 200 MB for file uploads
+                const long maxBytes = 200L * 1024 * 1024;
+                var bodySizeFeature = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+                if (bodySizeFeature is not null)
+                    bodySizeFeature.MaxRequestBodySize = maxBytes;
+
                 var sub = ctx.User.FindFirst("sub")?.Value;
                 if (!Guid.TryParse(sub, out var userId))
                     return Results.Unauthorized();
@@ -120,15 +126,50 @@ public static class MessagingEndpoints
                 var displayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Unknown";
                 var avatarUrl = ctx.User.FindFirst("picture")?.Value;
 
+                // Support both multipart/form-data (with optional file) and JSON fallback
+                string? content;
+                Guid? messageId;
+                IFormFile? file = null;
+
+                if (ctx.Request.HasFormContentType)
+                {
+                    var form = await ctx.Request.ReadFormAsync(ctx.RequestAborted);
+                    content = form["content"].FirstOrDefault();
+                    messageId = Guid.TryParse(form["id"].FirstOrDefault(), out var fid) ? fid : (Guid?)null;
+                    file = form.Files.GetFile("file");
+                }
+                else
+                {
+                    // JSON body fallback
+                    var body = await ctx.Request.ReadFromJsonAsync<SendMessageBody>(ctx.RequestAborted);
+                    content = body?.Content;
+                    messageId = body?.MessageId;
+                }
+
+                if (string.IsNullOrWhiteSpace(content))
+                    return Results.BadRequest("content is required.");
+
+                // 200 MB limit validated server-side
+                if (file is not null && file.Length > maxBytes)
+                    return Results.BadRequest("File exceeds the 200 MB limit.");
+
+                // Reject multi-file attempts
+                if (ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 1)
+                    return Results.BadRequest("Only one file attachment per message is allowed.");
+
                 try
                 {
+                    Stream? fileStream = file?.OpenReadStream();
                     var id = await sender.Send(new SendMessageCommand(
-                        MessageId: body.MessageId ?? Guid.NewGuid(),
+                        MessageId: messageId ?? Guid.NewGuid(),
                         RoomId: roomId,
                         UserId: userId,
                         AuthorDisplayName: displayName,
                         AuthorAvatarUrl: avatarUrl,
-                        Content: body.Content
+                        Content: content,
+                        FileStream: fileStream,
+                        OriginalFileName: file?.FileName,
+                        FileSize: file?.Length
                     ), ctx.RequestAborted);
 
                     return Results.Ok(new { id });
@@ -141,7 +182,7 @@ public static class MessagingEndpoints
                 {
                     return Results.Forbid();
                 }
-            });
+            }).DisableRequestTimeout();
 
         // PATCH /api/rooms/{roomId}/messages/{messageId} — edit own message
         app.MapPatch("/api/rooms/{roomId:guid}/messages/{messageId:guid}",
