@@ -6,4 +6,5 @@ public interface IUserRepository
     Task<bool> UpsertAsync(Guid id, string displayName, string? avatarUrl, CancellationToken cancellationToken = default);
 
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<User>> GetAllAsync(string? nameFilter, CancellationToken cancellationToken = default);
 }
