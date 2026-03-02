@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { useOutboxStore } from '../../stores/outboxStore'
 import { getConnection } from '../../services/signalrClient'
 
+const TYPING_DEBOUNCE_MS = 500
+
 const MAX_LENGTH = 4_000
 
 interface MessageInputProps {
@@ -12,10 +14,23 @@ interface MessageInputProps {
 export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   const [content, setContent] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { enqueue, messages: outboxMessages, retryAll } = useOutboxStore()
   const hasFailed = outboxMessages.some(m => m.status === 'failed')
   const isConnected = getConnection()?.state === 'Connected'
   const isDisabled = disabled || !isConnected
+
+  function notifyTyping() {
+    const connection = getConnection()
+    if (connection?.state !== 'Connected') return
+
+    // Debounce: at most one StartTyping per 500ms
+    if (typingTimerRef.current) return
+    connection.invoke('StartTyping', { roomId }).catch(() => {})
+    typingTimerRef.current = setTimeout(() => {
+      typingTimerRef.current = null
+    }, TYPING_DEBOUNCE_MS)
+  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -52,7 +67,7 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
         <textarea
           ref={textareaRef}
           value={content}
-          onChange={e => setContent(e.target.value)}
+          onChange={e => { setContent(e.target.value); notifyTyping() }}
           onKeyDown={handleKeyDown}
           disabled={isDisabled}
           rows={1}

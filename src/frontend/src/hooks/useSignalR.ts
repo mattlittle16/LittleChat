@@ -3,6 +3,7 @@ import { startConnection, getConnection } from '../services/signalrClient'
 import { useMessageStore } from '../stores/messageStore'
 import { useRoomStore } from '../stores/roomStore'
 import { usePresenceStore } from '../stores/presenceStore'
+import { useTypingStore } from '../stores/typingStore'
 import type { Message } from '../types'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
@@ -12,8 +13,10 @@ const HEARTBEAT_INTERVAL_MS = 15_000
 export function useSignalR(roomId: string | null) {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const addMessage = useMessageStore(s => s.addMessage)
+  const updateReactions = useMessageStore(s => s.updateReactions)
   const { updateUnread, activeRoomId } = useRoomStore()
   const { setOnline, setOffline } = usePresenceStore()
+  const { setTyping } = useTypingStore()
   const prevRoomRef = useRef<string | null>(null)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -50,6 +53,18 @@ export function useSignalR(roomId: string | null) {
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)
         else setOffline(userId)
+      })
+
+      // T084: wire reaction and typing events
+      connection.on('ReactionUpdated', (
+        messageId: string, _roomId: string, emoji: string,
+        count: number, _added: boolean, users: string[]
+      ) => {
+        updateReactions(messageId, emoji, count, users)
+      })
+
+      connection.on('UserTyping', (roomId: string, _userId: string, displayName: string) => {
+        setTyping(roomId, _userId, displayName)
       })
 
       // T072: send heartbeat every 15s to keep presence key alive (30s TTL)

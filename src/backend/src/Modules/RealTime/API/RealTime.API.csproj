@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Domain\RealTime.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\Messaging\Application\Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\Reactions\Application\Reactions.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
