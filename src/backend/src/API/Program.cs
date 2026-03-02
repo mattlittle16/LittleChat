@@ -1,4 +1,6 @@
+using API.Services;
 using Files.API;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Identity.API;
 using Identity.Infrastructure;
@@ -155,6 +157,8 @@ builder.Services
     });
 
 // ── Problem Details / RFC 7807 ────────────────────────────────────────────────
+builder.Services.AddHostedService<MessageCleanupService>();
+
 builder.Services.AddProblemDetails();
 
 // ── Module Registrations ──────────────────────────────────────────────────────
@@ -196,6 +200,14 @@ eventBus.Subscribe<ReactionUpdatedIntegrationEvent, ReactionChangedHandler>();
 eventBus.Subscribe<MessageEditedIntegrationEvent, MessageEditedHandler>();
 eventBus.Subscribe<MessageDeletedIntegrationEvent, MessageDeletedHandler>();
 eventBus.Subscribe<MentionDetectedIntegrationEvent, UserMentionedHandler>();
+
+// T114: auto-migrate in development (prod migrations run via dotnet-ef in CI/CD)
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<Messaging.Infrastructure.Persistence.LittleChatDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
