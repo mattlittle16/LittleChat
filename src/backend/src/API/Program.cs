@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Notifications.Infrastructure;
 using Presence.API;
+using Presence.Infrastructure;
 using Reactions.API;
 using RealTime.API;
 using RealTime.Infrastructure;
@@ -172,6 +173,7 @@ builder.Services.AddScoped<IIntegrationEventHandler<MessageSentIntegrationEvent>
 
 // Other modules
 builder.Services.AddPresenceModule();
+builder.Services.AddPresenceInfrastructure();
 builder.Services.AddReactionsModule();
 builder.Services.AddSearchModule();
 builder.Services.AddFilesModule(builder.Configuration);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRoomStore } from '../../stores/roomStore'
+import { usePresenceStore } from '../../stores/presenceStore'
 import { api } from '../../services/apiClient'
 import { ComposeDialog } from './ComposeDialog'
 import type { Room } from '../../types'
@@ -135,6 +136,7 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
 function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; onClick: () => void }) {
   const name = room.otherUserDisplayName ?? room.name
   const avatar = room.otherUserAvatarUrl
+  const online = usePresenceStore(s => room.otherUserId ? s.isOnline(room.otherUserId) : false)
 
   return (
     <button
@@ -142,13 +144,18 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
       className={`w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left hover:bg-muted/60
         ${isActive ? 'bg-muted font-medium' : ''}`}
     >
-      {avatar ? (
-        <img src={avatar} alt={name} className="w-5 h-5 rounded-full flex-shrink-0 object-cover" />
-      ) : (
-        <div className="w-5 h-5 rounded-full bg-primary/20 flex-shrink-0 flex items-center justify-center text-xs font-semibold">
-          {name.charAt(0).toUpperCase()}
-        </div>
-      )}
+      <div className="relative flex-shrink-0">
+        {avatar ? (
+          <img src={avatar} alt={name} className="w-5 h-5 rounded-full object-cover" />
+        ) : (
+          <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
+            {name.charAt(0).toUpperCase()}
+          </div>
+        )}
+        {online && (
+          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 ring-1 ring-background" />
+        )}
+      </div>
       <span className="flex-1 truncate">{name}</span>
       <UnreadBadge room={room} />
     </button>

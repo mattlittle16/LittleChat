@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using StackExchange.Redis;
+using Shared.Contracts.Interfaces;
 
 namespace Identity.API;
 
@@ -43,14 +43,13 @@ public static class IdentityEndpoints
 
         // Authenticated — returns all users with online status; supports ?q= name filter
         app.MapGet("/api/users", [Authorize] async (HttpContext ctx, IUserRepository users,
-            IConnectionMultiplexer redis, string? q) =>
+            IPresenceService presence, string? q) =>
         {
             var sub = ctx.User.FindFirst("sub")?.Value;
             if (!Guid.TryParse(sub, out var currentUserId))
                 return Results.Unauthorized();
 
             var allUsers = await users.GetAllAsync(q, ctx.RequestAborted);
-            var db = redis.GetDatabase();
 
             var result = new List<object>(allUsers.Count);
             foreach (var user in allUsers)
@@ -58,7 +57,7 @@ public static class IdentityEndpoints
                 // Skip self from the list
                 if (user.Id == currentUserId) continue;
 
-                var isOnline = await db.KeyExistsAsync($"presence:{user.Id}");
+                var isOnline = await presence.IsOnlineAsync(user.Id, ctx.RequestAborted);
                 result.Add(new
                 {
                     id = user.Id,
