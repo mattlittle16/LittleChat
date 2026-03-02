@@ -2,15 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { startConnection, getConnection } from '../services/signalrClient'
 import { useMessageStore } from '../stores/messageStore'
 import { useRoomStore } from '../stores/roomStore'
+import { usePresenceStore } from '../stores/presenceStore'
 import type { Message } from '../types'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
+
+const HEARTBEAT_INTERVAL_MS = 15_000
 
 export function useSignalR(roomId: string | null) {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const addMessage = useMessageStore(s => s.addMessage)
   const { updateUnread, activeRoomId } = useRoomStore()
+  const { setOnline, setOffline } = usePresenceStore()
   const prevRoomRef = useRef<string | null>(null)
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!roomId) return
@@ -22,7 +27,13 @@ export function useSignalR(roomId: string | null) {
       roomId,
       () => setStatus('reconnecting'),
       () => setStatus('connected'),
-      () => setStatus('disconnected'),
+      () => {
+        setStatus('disconnected')
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current)
+          heartbeatRef.current = null
+        }
+      },
     ).then(connection => {
       if (cancelled) return
       setStatus('connected')
@@ -34,12 +45,31 @@ export function useSignalR(roomId: string | null) {
           updateUnread(msg.roomId, 1)
         }
       })
+
+      // T071: wire presence updates from server
+      connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
+        if (isOnline) setOnline(userId)
+        else setOffline(userId)
+      })
+
+      // T072: send heartbeat every 15s to keep presence key alive (30s TTL)
+      heartbeatRef.current = setInterval(() => {
+        if (connection.state === 'Connected') {
+          connection.invoke('Heartbeat').catch(() => {
+            // Not fatal — TTL will expire naturally if disconnected
+          })
+        }
+      }, HEARTBEAT_INTERVAL_MS)
     }).catch(() => {
       if (!cancelled) setStatus('disconnected')
     })
 
     return () => {
       cancelled = true
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current)
+        heartbeatRef.current = null
+      }
     }
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 

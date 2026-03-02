@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api } from '../../services/apiClient'
 import { useRoomStore } from '../../stores/roomStore'
+import { usePresenceStore } from '../../stores/presenceStore'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
@@ -29,6 +30,9 @@ async function openDmWithUser(userId: string) {
 }
 
 export function MessageItem({ message, isPending = false }: MessageItemProps) {
+  const authorId = isOutbox(message) ? null : message.author.id
+  const isAuthorOnline = usePresenceStore(s => authorId ? s.isOnline(authorId) : false)
+
   if (isOutbox(message)) {
     return (
       <div className={`flex gap-3 px-4 py-1 ${message.status === 'failed' ? 'opacity-60' : 'opacity-50'}`}>
@@ -50,7 +54,7 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   return (
     <div className={`flex gap-3 px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}>
       <button
-        className="flex-shrink-0 hover:opacity-80 transition-opacity"
+        className="relative flex-shrink-0 hover:opacity-80 transition-opacity"
         onClick={() => openDmWithUser(message.author.id)}
         title={`DM ${message.author.displayName}`}
       >
@@ -64,6 +68,9 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
             {message.author.displayName.charAt(0).toUpperCase()}
           </div>
+        )}
+        {isAuthorOnline && (
+          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 ring-1 ring-background" />
         )}
       </button>
       <div className="flex-1 min-w-0">
