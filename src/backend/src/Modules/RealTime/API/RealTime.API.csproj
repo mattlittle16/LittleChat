@@ -4,6 +4,11 @@
     <ProjectReference Include="..\Application\RealTime.Application.csproj" />
     <ProjectReference Include="..\Domain\RealTime.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\Messaging\Application\Messaging.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
   </ItemGroup>
 
   <ItemGroup>
