@@ -3,6 +3,7 @@ using Messaging.Application.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using RealTime.Domain;
+using Shared.Contracts.Interfaces;
 
 namespace RealTime.API;
 
@@ -12,18 +13,48 @@ public sealed record SendMessageRequest(Guid MessageId, Guid RoomId, string Cont
 public sealed class ChatHub : Hub<IChatHubClient>
 {
     private readonly ISender _sender;
+    private readonly IPresenceService _presence;
 
-    public ChatHub(ISender sender)
+    public ChatHub(ISender sender, IPresenceService presence)
     {
         _sender = sender;
+        _presence = presence;
     }
 
     public override async Task OnConnectedAsync()
     {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (Guid.TryParse(sub, out var userId))
+        {
+            await _presence.SetOnlineAsync(userId);
+            await Clients.All.PresenceUpdate(userId, isOnline: true);
+        }
+
         var roomId = Context.GetHttpContext()?.Request.Query["roomId"].ToString();
         if (!string.IsNullOrWhiteSpace(roomId))
             await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{roomId}");
+
         await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (Guid.TryParse(sub, out var userId))
+        {
+            await _presence.SetOfflineAsync(userId);
+            await Clients.All.PresenceUpdate(userId, isOnline: false);
+        }
+
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    // Clients call this every 15 seconds to keep the presence key alive (30s TTL)
+    public async Task Heartbeat()
+    {
+        var sub = Context.User?.FindFirst("sub")?.Value;
+        if (Guid.TryParse(sub, out var userId))
+            await _presence.SetOnlineAsync(userId);
     }
 
     public Task JoinRoom(string roomId)
