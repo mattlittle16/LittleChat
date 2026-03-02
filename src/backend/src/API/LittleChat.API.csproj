@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\Contracts\Shared.Contracts.csproj" />
+    <ProjectReference Include="..\Shared\Infrastructure\Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Identity\Infrastructure\Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Identity\API\Identity.API.csproj" />
+    <ProjectReference Include="..\Modules\Messaging\Infrastructure\Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Messaging\API\Messaging.API.csproj" />
+    <ProjectReference Include="..\Modules\Presence\Infrastructure\Presence.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Presence\API\Presence.API.csproj" />
+    <ProjectReference Include="..\Modules\Reactions\Infrastructure\Reactions.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Reactions\API\Reactions.API.csproj" />
+    <ProjectReference Include="..\Modules\Search\Infrastructure\Search.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Search\API\Search.API.csproj" />
+    <ProjectReference Include="..\Modules\Files\Infrastructure\Files.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Files\API\Files.API.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Infrastructure\Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\RealTime\Infrastructure\RealTime.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\RealTime\API\RealTime.API.csproj" />
+  </ItemGroup>
+
+</Project>

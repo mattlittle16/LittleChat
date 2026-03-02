@@ -1,0 +1,6 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+WORKDIR /app
+COPY . .
+RUN dotnet restore MattLab.Chat.slnx
+EXPOSE 5000
+CMD ["dotnet", "watch", "--project", "src/API/LittleChat.API", "run", "--no-hot-reload"]

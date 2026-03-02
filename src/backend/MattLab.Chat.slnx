@@ -1,0 +1,125 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/API/">
+    <Project Path="src/API/LittleChat.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Files/" />
+  <Folder Name="/src/Modules/Files/API/">
+    <Project Path="src/Modules/Files/API/Files.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Files/Application/">
+    <Project Path="src/Modules/Files/Application/Files.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Files/Domain/">
+    <Project Path="src/Modules/Files/Domain/Files.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Files/Infrastructure/">
+    <Project Path="src/Modules/Files/Infrastructure/Files.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/" />
+  <Folder Name="/src/Modules/Identity/API/">
+    <Project Path="src/Modules/Identity/API/Identity.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/Application/">
+    <Project Path="src/Modules/Identity/Application/Identity.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/Domain/">
+    <Project Path="src/Modules/Identity/Domain/Identity.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/Infrastructure/">
+    <Project Path="src/Modules/Identity/Infrastructure/Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Messaging/" />
+  <Folder Name="/src/Modules/Messaging/API/">
+    <Project Path="src/Modules/Messaging/API/Messaging.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Messaging/Application/">
+    <Project Path="src/Modules/Messaging/Application/Messaging.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Messaging/Domain/">
+    <Project Path="src/Modules/Messaging/Domain/Messaging.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Messaging/Infrastructure/">
+    <Project Path="src/Modules/Messaging/Infrastructure/Messaging.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notifications/" />
+  <Folder Name="/src/Modules/Notifications/Application/">
+    <Project Path="src/Modules/Notifications/Application/Notifications.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notifications/Domain/">
+    <Project Path="src/Modules/Notifications/Domain/Notifications.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notifications/Infrastructure/">
+    <Project Path="src/Modules/Notifications/Infrastructure/Notifications.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Presence/" />
+  <Folder Name="/src/Modules/Presence/API/">
+    <Project Path="src/Modules/Presence/API/Presence.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Presence/Application/">
+    <Project Path="src/Modules/Presence/Application/Presence.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Presence/Domain/">
+    <Project Path="src/Modules/Presence/Domain/Presence.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Presence/Infrastructure/">
+    <Project Path="src/Modules/Presence/Infrastructure/Presence.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reactions/" />
+  <Folder Name="/src/Modules/Reactions/API/">
+    <Project Path="src/Modules/Reactions/API/Reactions.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reactions/Application/">
+    <Project Path="src/Modules/Reactions/Application/Reactions.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reactions/Domain/">
+    <Project Path="src/Modules/Reactions/Domain/Reactions.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reactions/Infrastructure/">
+    <Project Path="src/Modules/Reactions/Infrastructure/Reactions.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/RealTime/" />
+  <Folder Name="/src/Modules/RealTime/API/">
+    <Project Path="src/Modules/RealTime/API/RealTime.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/RealTime/Application/">
+    <Project Path="src/Modules/RealTime/Application/RealTime.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/RealTime/Domain/">
+    <Project Path="src/Modules/RealTime/Domain/RealTime.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/RealTime/Infrastructure/">
+    <Project Path="src/Modules/RealTime/Infrastructure/RealTime.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Search/" />
+  <Folder Name="/src/Modules/Search/API/">
+    <Project Path="src/Modules/Search/API/Search.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Search/Application/">
+    <Project Path="src/Modules/Search/Application/Search.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Search/Domain/">
+    <Project Path="src/Modules/Search/Domain/Search.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Search/Infrastructure/">
+    <Project Path="src/Modules/Search/Infrastructure/Search.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/" />
+  <Folder Name="/src/Shared/Contracts/">
+    <Project Path="src/Shared/Contracts/Shared.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/Infrastructure/">
+    <Project Path="src/Shared/Infrastructure/Shared.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Architecture/">
+    <Project Path="tests/Architecture/Tests.Architecture.csproj" />
+  </Folder>
+  <Folder Name="/tests/Integration/">
+    <Project Path="tests/Integration/Tests.Integration.csproj" />
+  </Folder>
+  <Folder Name="/tests/Unit/">
+    <Project Path="tests/Unit/Tests.Unit.csproj" />
+  </Folder>
+</Solution>
