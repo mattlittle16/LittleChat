@@ -1,9 +1,10 @@
 using Identity.Domain;
 using Npgsql;
+using Shared.Contracts.Interfaces;
 
 namespace Identity.Infrastructure;
 
-public sealed class UserRepository : IUserRepository
+public sealed class UserRepository : IUserRepository, IUserLookupService
 {
     private readonly NpgsqlDataSource _dataSource;
 
@@ -62,6 +63,15 @@ public sealed class UserRepository : IUserRepository
         }
 
         return users;
+    }
+
+    public async Task<Guid?> FindIdByDisplayNameAsync(string displayName, CancellationToken ct = default)
+    {
+        const string sql = "SELECT id FROM users WHERE display_name = $1 LIMIT 1";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(displayName);
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return result is Guid id ? id : null;
     }
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

@@ -163,6 +163,14 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
 }
 
 function UnreadBadge({ room }: { room: Room }) {
+  if (room.hasMention && room.unreadCount === 0) {
+    // Mention with no new messages (e.g. message was read but mention badge not cleared)
+    return (
+      <span className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold bg-destructive text-destructive-foreground">
+        @
+      </span>
+    )
+  }
   if (room.unreadCount === 0) return null
   return (
     <span className={`ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold

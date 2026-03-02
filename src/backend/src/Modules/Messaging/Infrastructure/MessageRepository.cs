@@ -91,6 +91,14 @@ public sealed class MessageRepository : IMessageRepository
             .AnyAsync(m => m.RoomId == roomId && m.UserId == userId, ct);
     }
 
+    public async Task<string?> GetRoomNameAsync(Guid roomId, CancellationToken ct = default)
+    {
+        return await _db.Rooms
+            .Where(r => r.Id == roomId)
+            .Select(r => r.Name)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task UpdateLastReadAtAsync(Guid roomId, Guid userId, CancellationToken ct = default)
     {
         var membership = await _db.RoomMemberships

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Notifications.Application.Handlers;
 using Notifications.Infrastructure;
 using Presence.API;
 using Presence.Infrastructure;
@@ -173,6 +174,7 @@ builder.Services.AddScoped<IIntegrationEventHandler<MessageSentIntegrationEvent>
 builder.Services.AddScoped<IIntegrationEventHandler<ReactionUpdatedIntegrationEvent>, ReactionChangedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageEditedIntegrationEvent>, MessageEditedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageDeletedIntegrationEvent>, MessageDeletedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MentionDetectedIntegrationEvent>, UserMentionedHandler>();
 
 // Other modules
 builder.Services.AddPresenceModule();
@@ -193,6 +195,7 @@ eventBus.Subscribe<MessageSentIntegrationEvent, MessageSentHandler>();
 eventBus.Subscribe<ReactionUpdatedIntegrationEvent, ReactionChangedHandler>();
 eventBus.Subscribe<MessageEditedIntegrationEvent, MessageEditedHandler>();
 eventBus.Subscribe<MessageDeletedIntegrationEvent, MessageDeletedHandler>();
+eventBus.Subscribe<MentionDetectedIntegrationEvent, UserMentionedHandler>();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
