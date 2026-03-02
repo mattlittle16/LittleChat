@@ -143,10 +143,60 @@ public static class MessagingEndpoints
                 }
             });
 
+        // PATCH /api/rooms/{roomId}/messages/{messageId} — edit own message
+        app.MapPatch("/api/rooms/{roomId:guid}/messages/{messageId:guid}",
+            [Authorize] async (Guid roomId, Guid messageId, EditMessageBody body,
+                HttpContext ctx, ISender sender) =>
+            {
+                var sub = ctx.User.FindFirst("sub")?.Value;
+                if (!Guid.TryParse(sub, out var userId))
+                    return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new EditMessageCommand(messageId, roomId, userId, body.Content),
+                        ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return Results.Forbid();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+            });
+
+        // DELETE /api/rooms/{roomId}/messages/{messageId} — hard delete own message
+        app.MapDelete("/api/rooms/{roomId:guid}/messages/{messageId:guid}",
+            [Authorize] async (Guid roomId, Guid messageId, HttpContext ctx, ISender sender) =>
+            {
+                var sub = ctx.User.FindFirst("sub")?.Value;
+                if (!Guid.TryParse(sub, out var userId))
+                    return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new DeleteMessageCommand(messageId, roomId, userId),
+                        ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return Results.Forbid();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+            });
+
         return app;
     }
 }
 
 internal sealed record SendMessageBody(Guid? MessageId, string Content);
+internal sealed record EditMessageBody(string Content);
 internal sealed record CreateRoomBody(string Name);
 internal sealed record DmBody(Guid TargetUserId);

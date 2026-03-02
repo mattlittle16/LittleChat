@@ -41,6 +41,18 @@ export function isAuthenticated(): boolean {
   return getToken() !== null
 }
 
+/** Decodes the JWT payload and returns the sub claim (current user ID). */
+export function getCurrentUserId(): string | null {
+  const token = getToken()
+  if (!token) return null
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.sub ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Called on app startup — restores token from localStorage into in-memory store. */
 export function restoreSession(): boolean {
   const token = getToken()

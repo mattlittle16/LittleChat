@@ -171,6 +171,8 @@ builder.Services.AddMessagingInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IIntegrationEventHandler<UserFirstLoginIntegrationEvent>, UserFirstLoginHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageSentIntegrationEvent>, MessageSentHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<ReactionUpdatedIntegrationEvent>, ReactionChangedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MessageEditedIntegrationEvent>, MessageEditedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MessageDeletedIntegrationEvent>, MessageDeletedHandler>();
 
 // Other modules
 builder.Services.AddPresenceModule();
@@ -189,6 +191,8 @@ var eventBus = app.Services.GetRequiredService<IEventBus>();
 eventBus.Subscribe<UserFirstLoginIntegrationEvent, UserFirstLoginHandler>();
 eventBus.Subscribe<MessageSentIntegrationEvent, MessageSentHandler>();
 eventBus.Subscribe<ReactionUpdatedIntegrationEvent, ReactionChangedHandler>();
+eventBus.Subscribe<MessageEditedIntegrationEvent, MessageEditedHandler>();
+eventBus.Subscribe<MessageDeletedIntegrationEvent, MessageDeletedHandler>();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
