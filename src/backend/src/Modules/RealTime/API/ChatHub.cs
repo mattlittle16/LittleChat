@@ -26,6 +26,9 @@ public sealed class ChatHub : Hub<IChatHubClient>
         await base.OnConnectedAsync();
     }
 
+    public Task JoinRoom(string roomId)
+        => Groups.AddToGroupAsync(Context.ConnectionId, $"room:{roomId}");
+
     public async Task SendMessage(SendMessageRequest request)
     {
         var sub = Context.User?.FindFirst("sub")?.Value;

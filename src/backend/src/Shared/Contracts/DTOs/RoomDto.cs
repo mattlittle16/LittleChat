@@ -5,5 +5,7 @@ public record RoomDto(
     string Name,
     bool IsDm,
     int UnreadCount,
+    bool HasMention,
+    string? LastMessagePreview,
     DateTime CreatedAt
 );

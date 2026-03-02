@@ -91,6 +91,18 @@ public sealed class MessageRepository : IMessageRepository
             .AnyAsync(m => m.RoomId == roomId && m.UserId == userId, ct);
     }
 
+    public async Task UpdateLastReadAtAsync(Guid roomId, Guid userId, CancellationToken ct = default)
+    {
+        var membership = await _db.RoomMemberships
+            .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId, ct);
+
+        if (membership is not null)
+        {
+            membership.LastReadAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
     private static Message ToMessage(MessageEntity e) => new(
         Id: e.Id,
         RoomId: e.RoomId,
