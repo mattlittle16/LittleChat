@@ -59,6 +59,16 @@ export interface OutboxMessage {
   status: 'pending' | 'sending' | 'failed'
 }
 
+// Search result shape from GET /api/search
+export interface SearchResultDto {
+  messageId: string
+  roomId: string
+  roomName: string
+  authorDisplayName: string
+  content: string
+  createdAt: string // ISO8601
+}
+
 // Pagination cursor for message history
 export interface MessagePage {
   messages: Message[]
