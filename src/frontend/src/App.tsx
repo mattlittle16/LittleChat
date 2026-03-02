@@ -1,35 +1,55 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
+import { isAuthenticated, login, restoreSession } from './services/authService'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+// Placeholder — replaced in Phase 4 (US2) with the real chat layout
+function ChatLayout() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="flex min-h-screen items-center justify-center">
+      <p className="text-lg font-medium">Welcome to LittleChat</p>
+    </div>
   )
 }
 
-export default App
+function LandingPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+      <h1 className="text-3xl font-bold">LittleChat</h1>
+      <p className="text-muted-foreground">A private chat for your group.</p>
+      <button
+        onClick={login}
+        className="rounded-md bg-primary px-6 py-2 text-primary-foreground hover:opacity-90"
+      >
+        Sign In
+      </button>
+    </div>
+  )
+}
+
+export default function App() {
+  const path = window.location.pathname
+
+  // Handle OIDC callback before anything else
+  if (path === '/auth/callback') {
+    return <AuthCallbackPage />
+  }
+
+  return <AuthenticatedApp />
+}
+
+function AuthenticatedApp() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    // Restore token from localStorage on load (survives browser close/reopen per US1)
+    const hasSession = restoreSession()
+    setAuthenticated(hasSession || isAuthenticated())
+  }, [])
+
+  if (authenticated === null) {
+    // Brief flash while we check localStorage — render nothing
+    return null
+  }
+
+  return authenticated ? <ChatLayout /> : <LandingPage />
+}
