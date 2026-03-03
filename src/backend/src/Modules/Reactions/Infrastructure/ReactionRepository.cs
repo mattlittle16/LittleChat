@@ -58,9 +58,13 @@ public sealed class ReactionRepository : IReactionRepository
         countCmd.Parameters.AddWithValue(emoji);
 
         var users = new List<string>();
-        await using var reader = await countCmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
-            users.Add(reader.GetString(0));
+        // Reader must be fully consumed and closed before the transaction can commit;
+        // scoping it here ensures disposal happens before CommitAsync is called.
+        await using (var reader = await countCmd.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+                users.Add(reader.GetString(0));
+        }
 
         await tx.CommitAsync(ct);
         return (added, users.Count, users);
