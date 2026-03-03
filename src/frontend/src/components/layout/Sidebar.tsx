@@ -247,12 +247,10 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
               {name.charAt(0).toUpperCase()}
             </div>
           )}
-          {online && (
-            <span
-              className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400"
-              style={{ boxShadow: '0 0 0 2px hsl(var(--sidebar-bg))' }}
-            />
-          )}
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ${online ? 'bg-green-400' : 'bg-red-400'}`}
+            style={{ boxShadow: '0 0 0 2px hsl(var(--sidebar-bg))' }}
+          />
         </div>
         <span className="flex-1 truncate">{name}</span>
         <UnreadBadge room={room} />

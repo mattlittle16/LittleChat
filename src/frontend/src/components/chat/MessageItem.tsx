@@ -125,9 +125,7 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
             onClick={() => openDmWithUser(message.author.id)}
             title={`DM ${message.author.displayName}`}
           >
-            {isAuthorOnline && (
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-            )}
+            <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
             {message.author.displayName}
           </button>
           <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
