@@ -62,18 +62,15 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
 
   if (isOutbox(message)) {
     return (
-      <div className={`flex gap-3 px-4 py-1 ${message.status === 'failed' ? 'opacity-60' : 'opacity-50'}`}>
-        <div className="w-8 h-8 rounded-full bg-muted flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm font-semibold">You</span>
-            <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
-            <span className="text-xs text-muted-foreground">
-              {message.status === 'sending' ? '· Sending…' : message.status === 'failed' ? '· Failed' : '· Pending'}
-            </span>
-          </div>
-          <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{message.content}</p>
+      <div className={`px-4 py-1 ${message.status === 'failed' ? 'opacity-60' : 'opacity-50'}`}>
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold">You</span>
+          <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
+          <span className="text-xs text-muted-foreground">
+            {message.status === 'sending' ? '· Sending…' : message.status === 'failed' ? '· Failed' : '· Pending'}
+          </span>
         </div>
+        <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{message.content}</p>
       </div>
     )
   }
@@ -120,34 +117,17 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   }
 
   return (
-    <div className={`group relative flex gap-3 px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}>
-      <button
-        className="relative flex-shrink-0 hover:opacity-80 transition-opacity"
-        onClick={() => openDmWithUser(message.author.id)}
-        title={`DM ${message.author.displayName}`}
-      >
-        {message.author.avatarUrl ? (
-          <img
-            src={message.author.avatarUrl}
-            alt={message.author.displayName}
-            className="w-8 h-8 rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
-            {message.author.displayName.charAt(0).toUpperCase()}
-          </div>
-        )}
-        {isAuthorOnline && (
-          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 ring-1 ring-background" />
-        )}
-      </button>
-
-      <div className="flex-1 min-w-0">
+    <div className={`group relative px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}>
+      <div className="min-w-0">
         <div className="flex items-baseline gap-2">
           <button
-            className="text-sm font-semibold hover:underline"
+            className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
             onClick={() => openDmWithUser(message.author.id)}
+            title={`DM ${message.author.displayName}`}
           >
+            {isAuthorOnline && (
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            )}
             {message.author.displayName}
           </button>
           <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
