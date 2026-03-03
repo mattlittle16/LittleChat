@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { ChatLayout } from './components/layout/ChatLayout'
 import { isAuthenticated, login, restoreSession } from './services/authService'
+import { useTheme } from './hooks/useTheme'
 
 function LandingPage() {
   return (
@@ -19,6 +20,7 @@ function LandingPage() {
 }
 
 export default function App() {
+  useTheme()
   const path = window.location.pathname
 
   // Handle OIDC callback before anything else
