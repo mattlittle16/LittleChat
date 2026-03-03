@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { ChatLayout } from './components/layout/ChatLayout'
 import { isAuthenticated, login, restoreSession } from './services/authService'
@@ -30,18 +30,9 @@ export default function App() {
 }
 
 function AuthenticatedApp() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    // Restore token from localStorage on load (survives browser close/reopen per US1)
-    const hasSession = restoreSession()
-    setAuthenticated(hasSession || isAuthenticated())
-  }, [])
-
-  if (authenticated === null) {
-    // Brief flash while we check localStorage — render nothing
-    return null
-  }
+  // Lazy initializer: restoreSession() and isAuthenticated() are synchronous localStorage
+  // reads, so we can compute the initial value without a useEffect.
+  const [authenticated] = useState<boolean>(() => restoreSession() || isAuthenticated())
 
   return authenticated ? <ChatLayout /> : <LandingPage />
 }

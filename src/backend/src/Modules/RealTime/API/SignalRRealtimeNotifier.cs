@@ -27,6 +27,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 group.MessageDeleted(md.MessageId, md.RoomId),
             "ReactionUpdated" when payload is ReactionUpdatedIntegrationEvent e =>
                 group.ReactionUpdated(e.MessageId, e.RoomId, e.Emoji, e.Count, e.Added, e.Users),
+            "DmDeleted" when payload is DmDeletedIntegrationEvent d =>
+                group.DmDeleted(d.RoomId),
             _ => Task.CompletedTask,
         };
     }
@@ -38,6 +40,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
         {
             "MentionNotification" when payload is MentionDetectedIntegrationEvent e =>
                 user.MentionNotification(e.MessageId, e.RoomId, e.RoomName, e.FromUserId, e.FromDisplayName, e.ContentPreview),
+            "DmCreated" when payload is DmCreatedIntegrationEvent c =>
+                user.DmCreated(c.RoomId),
             _ => Task.CompletedTask,
         };
     }
