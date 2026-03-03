@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
@@ -12,6 +12,9 @@ export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
   const { status } = useSignalR(activeRoomId)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [dmMenuOpen, setDmMenuOpen] = useState(false)
+  const [dmConfirming, setDmConfirming] = useState(false)
+  const dmMenuRef = useRef<HTMLDivElement>(null)
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const roomName = activeRoom
@@ -21,6 +24,26 @@ export function ChatLayout() {
     : null
 
   const isDisconnected = status === 'disconnected' || status === 'reconnecting'
+
+  // Close DM menu when clicking outside
+  useEffect(() => {
+    if (!dmMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (dmMenuRef.current && !dmMenuRef.current.contains(e.target as Node)) {
+        setDmMenuOpen(false)
+        setDmConfirming(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [dmMenuOpen])
+
+  async function handleDeleteDm() {
+    if (!activeRoomId) return
+    setDmMenuOpen(false)
+    setDmConfirming(false)
+    await useRoomStore.getState().deleteRoom(activeRoomId)
+  }
 
   // Ctrl+K / Cmd+K shortcut to open search
   useEffect(() => {
@@ -51,6 +74,50 @@ export function ChatLayout() {
                 {status === 'reconnecting' ? 'Reconnecting…' : 'Disconnected'}
               </span>
             )}
+
+            {/* DM actions menu — only shown when viewing a DM */}
+            {activeRoom?.isDm && (
+              <div className="relative" ref={dmMenuRef}>
+                <button
+                  onClick={() => { setDmMenuOpen(o => !o); setDmConfirming(false) }}
+                  title="DM options"
+                  className="rounded px-1.5 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                >
+                  ⋯
+                </button>
+                {dmMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded border bg-background shadow-md text-sm">
+                    {!dmConfirming ? (
+                      <button
+                        onClick={() => setDmConfirming(true)}
+                        className="w-full px-3 py-2 text-left text-destructive hover:bg-muted/60"
+                      >
+                        Delete conversation
+                      </button>
+                    ) : (
+                      <div className="px-3 py-2 flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Are you sure?</span>
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            onClick={handleDeleteDm}
+                            className="flex-1 rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground hover:opacity-90"
+                          >
+                            Yes, delete
+                          </button>
+                          <button
+                            onClick={() => setDmConfirming(false)}
+                            className="flex-1 rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-muted/60"
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => setSearchOpen(true)}
               title="Search (Ctrl+K)"

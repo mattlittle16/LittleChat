@@ -215,6 +215,33 @@ public static class MessagingEndpoints
                 }
             });
 
+        // DELETE /api/rooms/{roomId} — permanently delete a DM conversation
+        app.MapDelete("/api/rooms/{roomId:guid}",
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
+                    return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new DeleteDmCommand(roomId, userId.Value), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (KeyNotFoundException)
+                {
+                    return Results.NotFound();
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return Results.Forbid();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+            });
+
         // DELETE /api/rooms/{roomId}/messages/{messageId} — hard delete own message
         app.MapDelete("/api/rooms/{roomId:guid}/messages/{messageId:guid}",
             [Authorize] async (Guid roomId, Guid messageId, HttpContext ctx, ISender sender) =>

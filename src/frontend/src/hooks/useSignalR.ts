@@ -64,6 +64,11 @@ export function useSignalR(roomId: string | null) {
         updateUnread(roomId, 1)
       })
 
+      // Both participants are notified when a DM is deleted
+      connection.on('DmDeleted', (roomId: string) => {
+        useRoomStore.getState().removeRoom(roomId)
+      })
+
       // T071: wire presence updates from server
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)
