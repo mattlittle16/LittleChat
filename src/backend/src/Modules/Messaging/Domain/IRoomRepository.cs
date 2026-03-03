@@ -14,4 +14,12 @@ public interface IRoomRepository
     // US4 — DMs
     Task<Guid?> FindDmAsync(Guid userA, Guid userB, CancellationToken ct = default);
     Task<Room> CreateDmAsync(Guid userA, Guid userB, CancellationToken ct = default);
+
+    // 002-fix-dm-emoji-bugs: US1 — used by ChatHub.OnConnectedAsync to join all room groups
+    Task<IReadOnlyList<Guid>> GetRoomIdsForUserAsync(Guid userId, CancellationToken ct = default);
+
+    // 002-fix-dm-emoji-bugs: US2 — used by DeleteDmCommandHandler
+    Task<Room?> GetByIdAsync(Guid roomId, CancellationToken ct = default);
+    Task<IReadOnlyList<Guid>> GetRoomMemberIdsAsync(Guid roomId, CancellationToken ct = default);
+    Task DeleteAsync(Guid roomId, CancellationToken ct = default);
 }

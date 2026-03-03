@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useMessageStore, getRoomMessages } from '../../stores/messageStore'
 import { useOutboxStore } from '../../stores/outboxStore'
+import { useRoomStore } from '../../stores/roomStore'
 import { MessageItem } from './MessageItem'
 
 interface MessageListProps {
@@ -33,19 +34,28 @@ export function MessageList({ roomId }: MessageListProps) {
     }
   }, [roomMessages.length, roomOutbox.length])
 
-  // Track whether user is near the bottom
+  // Track whether user is near the bottom; clear unread badge when they scroll down
   useEffect(() => {
     const el = listRef.current
     if (!el) return
 
     function onScroll() {
       if (!el) return
+      const wasNearBottom = isNearBottomRef.current
       isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100
+
+      // Transition to near-bottom: clear unread badge if there are any
+      if (!wasNearBottom && isNearBottomRef.current) {
+        const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
+        if (room && room.unreadCount > 0) {
+          useRoomStore.getState().markRead(roomId)
+        }
+      }
     }
 
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [roomId])
 
   // IntersectionObserver for infinite scroll — load older messages when sentinel visible
   useEffect(() => {

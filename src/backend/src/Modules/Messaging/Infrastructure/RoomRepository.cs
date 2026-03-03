@@ -168,4 +168,37 @@ public sealed class RoomRepository : IRoomRepository
 
         return new Room(entity.Id, entity.Name, entity.IsDm, entity.CreatedBy, entity.CreatedAt);
     }
+
+    public async Task<IReadOnlyList<Guid>> GetRoomIdsForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await _db.RoomMemberships
+            .Where(rm => rm.UserId == userId)
+            .Select(rm => rm.RoomId)
+            .ToListAsync(ct);
+    }
+
+    public async Task<Room?> GetByIdAsync(Guid roomId, CancellationToken ct = default)
+    {
+        var entity = await _db.Rooms
+            .FirstOrDefaultAsync(r => r.Id == roomId, ct);
+
+        return entity is null
+            ? null
+            : new Room(entity.Id, entity.Name, entity.IsDm, entity.CreatedBy, entity.CreatedAt);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetRoomMemberIdsAsync(Guid roomId, CancellationToken ct = default)
+    {
+        return await _db.RoomMemberships
+            .Where(rm => rm.RoomId == roomId)
+            .Select(rm => rm.UserId)
+            .ToListAsync(ct);
+    }
+
+    public async Task DeleteAsync(Guid roomId, CancellationToken ct = default)
+    {
+        await _db.Rooms
+            .Where(r => r.Id == roomId)
+            .ExecuteDeleteAsync(ct);
+    }
 }

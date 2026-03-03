@@ -27,7 +27,8 @@ export function useSignalR(roomId: string | null) {
     if (!roomId) return
 
     let cancelled = false
-    setStatus('connecting')
+    // Defer status update to avoid synchronous setState inside an effect body
+    queueMicrotask(() => { if (!cancelled) setStatus('connecting') })
 
     startConnection(
       roomId,
@@ -50,6 +51,17 @@ export function useSignalR(roomId: string | null) {
         if (msg.roomId !== activeRoomId) {
           updateUnread(msg.roomId, 1)
         }
+        // Safety net: if the room isn't in our list yet, reload rooms
+        if (!useRoomStore.getState().rooms.find(r => r.id === msg.roomId)) {
+          useRoomStore.getState().loadRooms()
+        }
+      })
+
+      // Recipient is notified when someone opens a brand-new DM with them
+      connection.on('DmCreated', async (roomId: string) => {
+        await useRoomStore.getState().loadRooms()
+        connection.invoke('JoinRoom', roomId).catch(() => {})
+        updateUnread(roomId, 1)
       })
 
       // T071: wire presence updates from server

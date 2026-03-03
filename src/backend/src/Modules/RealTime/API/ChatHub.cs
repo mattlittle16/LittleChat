@@ -1,5 +1,6 @@
 using MediatR;
 using Messaging.Application.Commands;
+using Messaging.Application.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Reactions.Application.Commands;
@@ -39,6 +40,15 @@ public sealed class ChatHub : Hub<IChatHubClient>
         var roomId = Context.GetHttpContext()?.Request.Query["roomId"].ToString();
         if (!string.IsNullOrWhiteSpace(roomId))
             await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{roomId}");
+
+        // Join ALL room groups for this user so real-time events arrive from every room,
+        // not only the currently active one (fixes DM notification bug).
+        if (userId is not null)
+        {
+            var allRoomIds = await _sender.Send(new GetUserRoomIdsQuery(userId.Value));
+            foreach (var id in allRoomIds)
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{id}");
+        }
 
         await base.OnConnectedAsync();
     }
