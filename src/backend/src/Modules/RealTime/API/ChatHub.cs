@@ -35,6 +35,11 @@ public sealed class ChatHub : Hub<IChatHubClient>
         {
             await _presence.SetOnlineAsync(userId.Value);
             await Clients.All.PresenceUpdate(userId.Value, isOnline: true);
+
+            // Send the newly connected client a snapshot of all currently online users
+            // so their presence store is populated correctly on (re)connect.
+            var onlineUserIds = await _presence.GetAllOnlineAsync();
+            await Clients.Caller.PresenceSnapshot(onlineUserIds);
         }
 
         var roomId = Context.GetHttpContext()?.Request.Query["roomId"].ToString();
