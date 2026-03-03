@@ -36,7 +36,7 @@ public sealed class ReactionRepository : IReactionRepository
         {
             // Step 2: insert new reaction
             await using var insertCmd = new NpgsqlCommand(
-                "INSERT INTO reactions (id, message_id, user_id, emoji) VALUES (gen_random_uuid(), $1, $2, $3) ON CONFLICT DO NOTHING",
+                "INSERT INTO reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
                 conn, tx);
             insertCmd.Parameters.AddWithValue(messageId);
             insertCmd.Parameters.AddWithValue(userId);
@@ -51,7 +51,7 @@ public sealed class ReactionRepository : IReactionRepository
             FROM reactions r
             JOIN users u ON u.id = r.user_id
             WHERE r.message_id = $1 AND r.emoji = $2
-            ORDER BY r.id
+            ORDER BY r.created_at
             """,
             conn, tx);
         countCmd.Parameters.AddWithValue(messageId);

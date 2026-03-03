@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Reactions.Application.Commands;
 using RealTime.Domain;
+using Shared.Contracts;
 using Shared.Contracts.Interfaces;
 
 namespace RealTime.API;
@@ -28,11 +29,11 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public override async Task OnConnectedAsync()
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (Guid.TryParse(sub, out var userId))
+        var userId = Context.User?.GetInternalUserId();
+        if (userId is not null)
         {
-            await _presence.SetOnlineAsync(userId);
-            await Clients.All.PresenceUpdate(userId, isOnline: true);
+            await _presence.SetOnlineAsync(userId.Value);
+            await Clients.All.PresenceUpdate(userId.Value, isOnline: true);
         }
 
         var roomId = Context.GetHttpContext()?.Request.Query["roomId"].ToString();
@@ -44,11 +45,11 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (Guid.TryParse(sub, out var userId))
+        var userId = Context.User?.GetInternalUserId();
+        if (userId is not null)
         {
-            await _presence.SetOfflineAsync(userId);
-            await Clients.All.PresenceUpdate(userId, isOnline: false);
+            await _presence.SetOfflineAsync(userId.Value);
+            await Clients.All.PresenceUpdate(userId.Value, isOnline: false);
         }
 
         await base.OnDisconnectedAsync(exception);
@@ -57,9 +58,9 @@ public sealed class ChatHub : Hub<IChatHubClient>
     // Clients call this every 15 seconds to keep the presence key alive (30s TTL)
     public async Task Heartbeat()
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (Guid.TryParse(sub, out var userId))
-            await _presence.SetOnlineAsync(userId);
+        var userId = Context.User?.GetInternalUserId();
+        if (userId is not null)
+            await _presence.SetOnlineAsync(userId.Value);
     }
 
     public Task JoinRoom(string roomId)
@@ -67,9 +68,8 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public async Task<(bool Added, int Count)> AddReaction(AddReactionRequest request)
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var userId))
-            throw new HubException("Unauthorized");
+        var userId = Context.User?.GetInternalUserId()
+            ?? throw new HubException("Unauthorized");
 
         var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
 
@@ -83,9 +83,8 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public async Task EditMessage(EditMessageRequest request)
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var userId))
-            throw new HubException("Unauthorized");
+        var userId = Context.User?.GetInternalUserId()
+            ?? throw new HubException("Unauthorized");
 
         try
         {
@@ -100,9 +99,8 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public async Task DeleteMessage(DeleteMessageRequest request)
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var userId))
-            throw new HubException("Unauthorized");
+        var userId = Context.User?.GetInternalUserId()
+            ?? throw new HubException("Unauthorized");
 
         try
         {
@@ -117,21 +115,20 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public async Task StartTyping(StartTypingRequest request)
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var userId)) return;
+        var userId = Context.User?.GetInternalUserId();
+        if (userId is null) return;
 
         var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
 
         // Broadcast to all others in the room (excluding the sender)
         await Clients.OthersInGroup($"room:{request.RoomId}")
-            .UserTyping(request.RoomId, userId, displayName);
+            .UserTyping(request.RoomId, userId.Value, displayName);
     }
 
     public async Task SendMessage(SendMessageRequest request)
     {
-        var sub = Context.User?.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var userId))
-            throw new HubException("Unauthorized");
+        var userId = Context.User?.GetInternalUserId()
+            ?? throw new HubException("Unauthorized");
 
         var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
         var avatarUrl = Context.User?.FindFirst("picture")?.Value;

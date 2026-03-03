@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Search.Application.Queries;
+using Shared.Contracts;
 
 namespace Search.API;
 
@@ -36,12 +37,12 @@ public static class SearchEndpoints
                     detail: "The 'roomId' parameter is required when scope is 'room'.",
                     statusCode: 400);
 
-            var sub = ctx.User.FindFirst("sub")?.Value;
-            if (!Guid.TryParse(sub, out var userId))
+            var userId = ctx.User.GetInternalUserId();
+            if (userId is null)
                 return Results.Unauthorized();
 
             var results = await sender.Send(new SearchQuery(
-                UserId: userId,
+                UserId: userId.Value,
                 Q: q,
                 Scope: resolvedScope,
                 RoomId: roomId), ctx.RequestAborted);
