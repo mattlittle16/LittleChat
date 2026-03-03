@@ -25,6 +25,7 @@ yarn-error.log*
 .env.local
 .env.*.local
 !.env.example
+appsettings.Development.json
 
 # ── Docker ─────────────────────────────────────────────────────────────────
 # (docker-compose.yml is committed; .env is not)

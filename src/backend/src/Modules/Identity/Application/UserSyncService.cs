@@ -16,30 +16,27 @@ public sealed class UserSyncService : IUserSyncService
         _cache = cache;
     }
 
-    public async Task<bool> EnsureUserExistsAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    public async Task<(bool IsNew, Guid UserId)> EnsureUserExistsAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
         var sub = principal.FindFirstValue("sub")
             ?? throw new InvalidOperationException("JWT is missing 'sub' claim.");
 
-        if (!Guid.TryParse(sub, out var userId))
-            throw new InvalidOperationException($"'sub' claim is not a valid UUID: {sub}");
-
         var cacheKey = $"user_synced:{sub}";
 
-        // If we've already synced this user in this process lifetime, skip the DB hit.
-        // We use a short TTL so display name changes from Authentik propagate within ~1 minute.
-        if (_cache.TryGetValue(cacheKey, out _))
-            return false;
+        // If we've already synced this user recently, skip the DB hit and return the cached ID.
+        // Short TTL so display name / avatar changes from Authentik propagate within ~1 minute.
+        if (_cache.TryGetValue(cacheKey, out Guid cachedUserId))
+            return (false, cachedUserId);
 
         var displayName = principal.FindFirstValue("preferred_username")
             ?? principal.FindFirstValue("name")
             ?? "Unknown";
         var avatarUrl = principal.FindFirstValue("picture");
 
-        var isNew = await _userRepository.UpsertAsync(userId, displayName, avatarUrl, cancellationToken);
+        var (isNew, userId) = await _userRepository.UpsertAsync(sub, displayName, avatarUrl, cancellationToken);
 
-        _cache.Set(cacheKey, true, TimeSpan.FromMinutes(1));
+        _cache.Set(cacheKey, userId, TimeSpan.FromMinutes(1));
 
-        return isNew;
+        return (isNew, userId);
     }
 }

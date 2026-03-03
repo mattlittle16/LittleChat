@@ -13,25 +13,28 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         _dataSource = dataSource;
     }
 
-    public async Task<bool> UpsertAsync(Guid id, string displayName, string? avatarUrl, CancellationToken cancellationToken = default)
+    public async Task<(bool IsNew, Guid UserId)> UpsertAsync(string externalId, string displayName, string? avatarUrl, CancellationToken cancellationToken = default)
     {
-        // Returns true (xmax=0) if a new row was inserted, false if an existing row was updated.
+        // On first login: inserts with a freshly generated UUID.
+        // On subsequent logins: conflicts on external_id, updates display name/avatar, returns existing id.
         const string sql = """
-            INSERT INTO users (id, display_name, avatar_url, created_at)
-            VALUES ($1, $2, $3, NOW())
-            ON CONFLICT (id) DO UPDATE
+            INSERT INTO users (id, external_id, display_name, avatar_url, created_at)
+            VALUES ($1, $2, $3, $4, NOW())
+            ON CONFLICT (external_id) DO UPDATE
                 SET display_name = EXCLUDED.display_name,
                     avatar_url   = EXCLUDED.avatar_url
-            RETURNING (xmax = 0) AS is_new
+            RETURNING id, (xmax = 0) AS is_new
             """;
 
         await using var cmd = _dataSource.CreateCommand(sql);
-        cmd.Parameters.AddWithValue(id);
+        cmd.Parameters.AddWithValue(Guid.NewGuid());
+        cmd.Parameters.AddWithValue(externalId);
         cmd.Parameters.AddWithValue(displayName);
         cmd.Parameters.AddWithValue(avatarUrl as object ?? DBNull.Value);
 
-        var result = await cmd.ExecuteScalarAsync(cancellationToken);
-        return result is true;
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
+        return (reader.GetBoolean(1), reader.GetGuid(0));
     }
 
     public async Task<IReadOnlyList<User>> GetAllAsync(string? nameFilter, CancellationToken cancellationToken = default)

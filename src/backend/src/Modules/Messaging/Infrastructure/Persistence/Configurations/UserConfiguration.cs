@@ -11,6 +11,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<UserEntity>
         builder.ToTable("users");
         builder.HasKey(u => u.Id);
         builder.Property(u => u.Id).HasColumnName("id").ValueGeneratedNever();
+        builder.Property(u => u.ExternalId).HasColumnName("external_id").IsRequired();
+        builder.HasIndex(u => u.ExternalId).IsUnique().HasDatabaseName("IX_users_external_id");
         builder.Property(u => u.DisplayName).HasColumnName("display_name").IsRequired();
         builder.Property(u => u.AvatarUrl).HasColumnName("avatar_url");
         builder.Property(u => u.CreatedAt).HasColumnName("created_at")
