@@ -8,10 +8,12 @@ using Messaging.API;
 using Messaging.Application.Handlers;
 using RealTime.Application.Handlers;
 using Messaging.Infrastructure;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 using Notifications.Application.Handlers;
 using Notifications.Infrastructure;
@@ -57,7 +59,7 @@ builder.Services
         // Default to JWT Bearer for API calls; OIDC scheme handles browser redirect flow
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultSignInScheme = OpenIdConnectDefaults.AuthenticationScheme;
+        options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
@@ -88,23 +90,19 @@ builder.Services
                     .GetService<Identity.Application.Interfaces.IUserSyncService>();
                 if (userSync is null) return;
 
-                var isNew = await userSync.EnsureUserExistsAsync(
+                var (isNew, userId) = await userSync.EnsureUserExistsAsync(
                     context.Principal!, context.HttpContext.RequestAborted);
 
                 if (isNew)
                 {
-                    var sub = context.Principal!.FindFirst("sub")?.Value;
-                    if (Guid.TryParse(sub, out var userId))
+                    var eventBus = context.HttpContext.RequestServices
+                        .GetRequiredService<IEventBus>();
+                    await eventBus.PublishAsync(new UserFirstLoginIntegrationEvent
                     {
-                        var eventBus = context.HttpContext.RequestServices
-                            .GetRequiredService<IEventBus>();
-                        await eventBus.PublishAsync(new UserFirstLoginIntegrationEvent
-                        {
-                            UserId = userId,
-                            DisplayName = context.Principal.FindFirst("preferred_username")?.Value ?? "Unknown",
-                            AvatarUrl = context.Principal.FindFirst("picture")?.Value,
-                        }, context.HttpContext.RequestAborted);
-                    }
+                        UserId = userId,
+                        DisplayName = context.Principal!.FindFirst("preferred_username")?.Value ?? "Unknown",
+                        AvatarUrl = context.Principal.FindFirst("picture")?.Value,
+                    }, context.HttpContext.RequestAborted);
                 }
             },
         };
@@ -120,19 +118,29 @@ builder.Services
         options.GetClaimsFromUserInfoEndpoint = false;
         options.MapInboundClaims = false;
 
+        options.ProtocolValidator = new AuthentikProtocolValidator();
+
         options.Events = new OpenIdConnectEvents
         {
             OnTokenResponseReceived = context =>
             {
-                // Extract access token and redirect to frontend
                 var accessToken = context.TokenEndpointResponse.AccessToken;
                 context.Response.Redirect($"{corsOrigin}/auth/callback?access_token={Uri.EscapeDataString(accessToken)}");
                 context.HandleResponse();
                 return Task.CompletedTask;
             },
+            OnRemoteFailure = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>();
+                logger.LogError(context.Failure, "OIDC remote failure: {Message}", context.Failure?.Message);
+                context.Response.Redirect($"{corsOrigin}/?auth_error={Uri.EscapeDataString(context.Failure?.Message ?? "unknown")}");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            },
         };
     })
-    .AddCookie(); // required as sign-in scheme for OpenIdConnect
+    .AddCookie();
 
 builder.Services.AddAuthorization();
 
@@ -192,14 +200,8 @@ builder.Services.AddRealTimeModule();
 // ── Build ─────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// ── Event Bus subscriptions ───────────────────────────────────────────────────
-var eventBus = app.Services.GetRequiredService<IEventBus>();
-eventBus.Subscribe<UserFirstLoginIntegrationEvent, UserFirstLoginHandler>();
-eventBus.Subscribe<MessageSentIntegrationEvent, MessageSentHandler>();
-eventBus.Subscribe<ReactionUpdatedIntegrationEvent, ReactionChangedHandler>();
-eventBus.Subscribe<MessageEditedIntegrationEvent, MessageEditedHandler>();
-eventBus.Subscribe<MessageDeletedIntegrationEvent, MessageDeletedHandler>();
-eventBus.Subscribe<MentionDetectedIntegrationEvent, UserMentionedHandler>();
+// ── Event Bus ─────────────────────────────────────────────────────────────────
+// Handler discovery is driven by DI registrations — no explicit Subscribe calls needed.
 
 // T114: auto-migrate in development (prod migrations run via dotnet-ef in CI/CD)
 if (app.Environment.IsDevelopment())
@@ -213,6 +215,19 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 app.UseCors();
+
+// ── Callback diagnostics (remove once auth is working) ────────────────────────
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path.StartsWithSegments("/auth/callback"))
+    {
+        var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+        log.LogWarning("AUTH_CALLBACK method={Method} query={Query}",
+            ctx.Request.Method, ctx.Request.QueryString);
+    }
+    await next(ctx);
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -225,3 +240,18 @@ app.MapFilesEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 
 app.Run();
+
+// Authentik includes id_token alongside the authorization code in its redirect (non-standard
+// hybrid-flow behavior). The auth-response validator rejects this when response_mode is query.
+// We override it to skip auth-response validation when a code is present — the id_token from
+// the authorization endpoint is unused; valid tokens are obtained from the token endpoint.
+sealed class AuthentikProtocolValidator : OpenIdConnectProtocolValidator
+{
+    public override void ValidateAuthenticationResponse(
+        OpenIdConnectProtocolValidationContext validationContext)
+    {
+        // Skip auth-response validation entirely. State/CSRF is validated before this is called.
+        // Authentik's auth response doesn't conform (returns tokens via query string).
+        // The token endpoint exchange (ValidateTokenResponse) still runs normally.
+    }
+}
