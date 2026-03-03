@@ -27,12 +27,17 @@ export function MessageList({ roomId }: MessageListProps) {
     loadPage(roomId)
   }, [roomId, loadPage])
 
-  // Auto-scroll to bottom when new messages arrive (only when near bottom)
+  // Auto-scroll to bottom when new messages arrive (only when near bottom).
+  // Also clears the unread badge — if we're at the bottom the messages are visible.
   useEffect(() => {
     if (isNearBottomRef.current && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
+      const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
+      if (room && room.unreadCount > 0) {
+        useRoomStore.getState().markRead(roomId)
+      }
     }
-  }, [roomMessages.length, roomOutbox.length])
+  }, [roomMessages.length, roomOutbox.length, roomId])
 
   // Track whether user is near the bottom; clear unread badge when they scroll down
   useEffect(() => {
