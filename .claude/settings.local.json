@@ -18,7 +18,8 @@
       "Bash(npx tsc:*)",
       "WebSearch",
       "WebFetch(domain:docs.goauthentik.io)",
-      "WebFetch(domain:auth.mattlittle.me)"
+      "WebFetch(domain:auth.mattlittle.me)",
+      "Bash(cat:*)"
     ]
   }
 }

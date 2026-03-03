@@ -3,6 +3,7 @@ import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { api } from '../../services/apiClient'
 import { ComposeDialog } from './ComposeDialog'
+import { ThemeToggle } from '../ThemeToggle'
 import type { Room } from '../../types'
 
 export function Sidebar() {
@@ -112,6 +113,11 @@ export function Sidebar() {
             <p className="px-4 py-1 text-xs text-muted-foreground">No DMs yet</p>
           )}
         </nav>
+
+        {/* Bottom user/theme area */}
+        <div className="flex items-center justify-end px-3 py-2 border-t border-muted/20">
+          <ThemeToggle />
+        </div>
       </aside>
 
       {composing && <ComposeDialog onClose={() => setComposing(false)} />}
