@@ -1,15 +1,19 @@
 using MediatR;
 using Messaging.Domain;
+using Shared.Contracts.Events;
+using Shared.Contracts.Interfaces;
 
 namespace Messaging.Application.Commands;
 
 public sealed class CreateOrGetDmCommandHandler : IRequestHandler<CreateOrGetDmCommand, (Room Room, bool IsNew)>
 {
     private readonly IRoomRepository _rooms;
+    private readonly IEventBus _eventBus;
 
-    public CreateOrGetDmCommandHandler(IRoomRepository rooms)
+    public CreateOrGetDmCommandHandler(IRoomRepository rooms, IEventBus eventBus)
     {
         _rooms = rooms;
+        _eventBus = eventBus;
     }
 
     public async Task<(Room Room, bool IsNew)> Handle(CreateOrGetDmCommand request, CancellationToken cancellationToken)
@@ -28,6 +32,13 @@ public sealed class CreateOrGetDmCommandHandler : IRequestHandler<CreateOrGetDmC
 
         var room = await _rooms.CreateDmAsync(
             request.RequestingUserId, request.TargetUserId, cancellationToken);
+
+        // Notify the recipient that a new DM room has been created for them
+        await _eventBus.PublishAsync(new DmCreatedIntegrationEvent
+        {
+            RoomId = room.Id,
+            RecipientUserId = request.TargetUserId,
+        }, cancellationToken);
 
         return (room, IsNew: true);
     }

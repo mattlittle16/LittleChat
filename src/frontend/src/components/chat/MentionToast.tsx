@@ -15,6 +15,7 @@ interface MentionToastState {
   dismiss: (id: string) => void
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useMentionToastStore = create<MentionToastState>((set) => ({
   toasts: [],
   push: (toast) => {
@@ -66,6 +67,7 @@ export function MentionToastContainer() {
 }
 
 /** Call from useSignalR to push a mention toast. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function showMentionToast(data: Omit<ToastData, 'id'>) {
   useMentionToastStore.getState().push(data)
 }

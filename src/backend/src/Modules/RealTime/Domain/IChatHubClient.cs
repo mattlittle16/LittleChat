@@ -11,4 +11,6 @@ public interface IChatHubClient
     Task UserTyping(Guid roomId, Guid userId, string displayName);
     Task PresenceUpdate(Guid userId, bool isOnline);
     Task MentionNotification(Guid messageId, Guid roomId, string roomName, Guid fromUserId, string fromDisplayName, string contentPreview);
+    Task DmCreated(Guid roomId);
+    Task DmDeleted(Guid roomId);
 }
