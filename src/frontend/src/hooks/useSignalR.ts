@@ -18,7 +18,7 @@ export function useSignalR(roomId: string | null) {
   const removeMessage = useMessageStore(s => s.removeMessage)
   const updateReactions = useMessageStore(s => s.updateReactions)
   const { updateUnread, activeRoomId, setMention } = useRoomStore()
-  const { setOnline, setOffline } = usePresenceStore()
+  const { setOnline, setOffline, setInitialPresence } = usePresenceStore()
   const { setTyping } = useTypingStore()
   const prevRoomRef = useRef<string | null>(null)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -73,6 +73,12 @@ export function useSignalR(roomId: string | null) {
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)
         else setOffline(userId)
+      })
+
+      // Snapshot of all currently online users sent on connect — populates the
+      // local presence store so reloading one browser doesn't show everyone as offline.
+      connection.on('PresenceSnapshot', (userIds: string[]) => {
+        setInitialPresence(userIds)
       })
 
       // T093: wire edit and delete events

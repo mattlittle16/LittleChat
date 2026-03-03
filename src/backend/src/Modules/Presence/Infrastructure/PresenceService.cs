@@ -33,5 +33,18 @@ public sealed class PresenceService : IPresenceService
         return await db.KeyExistsAsync(Key(userId));
     }
 
+    public Task<IReadOnlyList<Guid>> GetAllOnlineAsync(CancellationToken ct = default)
+    {
+        var server = _redis.GetServer(_redis.GetEndPoints()[0]);
+        var result = new List<Guid>();
+        foreach (var key in server.Keys(pattern: "presence:*"))
+        {
+            var raw = ((string)key!).AsSpan("presence:".Length);
+            if (Guid.TryParse(raw, out var id))
+                result.Add(id);
+        }
+        return Task.FromResult<IReadOnlyList<Guid>>(result);
+    }
+
     private static string Key(Guid userId) => $"presence:{userId}";
 }

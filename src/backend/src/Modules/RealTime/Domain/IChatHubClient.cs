@@ -10,6 +10,7 @@ public interface IChatHubClient
     Task ReactionUpdated(Guid messageId, Guid roomId, string emoji, int count, bool added, IReadOnlyList<string> users);
     Task UserTyping(Guid roomId, Guid userId, string displayName);
     Task PresenceUpdate(Guid userId, bool isOnline);
+    Task PresenceSnapshot(IReadOnlyList<Guid> onlineUserIds);
     Task MentionNotification(Guid messageId, Guid roomId, string roomName, Guid fromUserId, string fromDisplayName, string contentPreview);
     Task DmCreated(Guid roomId);
     Task DmDeleted(Guid roomId);
