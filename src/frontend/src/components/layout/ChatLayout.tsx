@@ -58,10 +58,36 @@ export function ChatLayout() {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden relative">
+      {/* Subtle background shapes — main app */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div style={{
+          position: 'absolute',
+          top: '-15%',
+          right: '-5%',
+          width: '40%',
+          paddingBottom: '34%',
+          borderRadius: '55% 45% 40% 60% / 50% 38% 62% 50%',
+          background: 'radial-gradient(ellipse at 45% 45%, hsl(243 72% 60% / 0.10), transparent 68%)',
+          filter: 'blur(52px)',
+          transform: 'rotate(10deg)',
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '-8%',
+          left: '20%',
+          width: '38%',
+          paddingBottom: '28%',
+          borderRadius: '40% 60% 55% 45% / 58% 44% 56% 42%',
+          background: 'radial-gradient(ellipse at 55% 55%, hsl(260 65% 65% / 0.08), transparent 68%)',
+          filter: 'blur(56px)',
+          transform: 'rotate(-8deg)',
+        }} />
+      </div>
+
       <Sidebar />
 
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 relative">
         {/* Toolbar */}
         <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0">
           <span className="font-semibold text-sm truncate">

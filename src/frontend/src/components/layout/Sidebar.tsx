@@ -6,6 +6,11 @@ import { ComposeDialog } from './ComposeDialog'
 import { ThemeToggle } from '../ThemeToggle'
 import type { Room } from '../../types'
 
+const sidebarStyle = {
+  background: 'hsl(var(--sidebar-bg))',
+  color: 'hsl(var(--sidebar-fg))',
+}
+
 export function Sidebar() {
   const { rooms, activeRoomId, loadRooms, setActiveRoom } = useRoomStore()
   const [creating, setCreating] = useState(false)
@@ -45,13 +50,21 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="flex h-full w-60 flex-col border-r bg-muted/30">
+      <aside className="flex h-full w-60 flex-col" style={sidebarStyle}>
         {/* Channels section */}
         <div className="flex items-center justify-between px-4 py-2 mt-1">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Channels</span>
+          <span
+            className="text-xs font-semibold uppercase tracking-wider"
+            style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+          >
+            Channels
+          </span>
           <button
             onClick={() => setCreating(c => !c)}
-            className="text-muted-foreground hover:text-foreground text-lg leading-none"
+            className="text-lg leading-none transition-colors"
+            style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
             title="Create Channel"
           >
             +
@@ -65,11 +78,20 @@ export function Sidebar() {
               value={newRoomName}
               onChange={e => setNewRoomName(e.target.value)}
               placeholder="Channel name"
-              className="flex-1 rounded border px-2 py-1 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              className="flex-1 rounded border px-2 py-1 text-sm focus:outline-none focus:ring-1"
+              style={{
+                background: 'hsl(var(--sidebar-active-bg))',
+                borderColor: 'hsl(var(--sidebar-muted-fg) / 0.4)',
+                color: 'hsl(var(--sidebar-fg))',
+              }}
             />
             <button
               type="submit"
-              className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground"
+              className="rounded px-2 py-1 text-xs font-medium"
+              style={{
+                background: 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+              }}
             >
               Create
             </button>
@@ -86,15 +108,25 @@ export function Sidebar() {
             />
           ))}
           {channelRooms.length === 0 && (
-            <p className="px-4 py-1 text-xs text-muted-foreground">No channels yet</p>
+            <p className="px-4 py-1 text-xs" style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>
+              No channels yet
+            </p>
           )}
 
           {/* DMs section */}
           <div className="flex items-center justify-between px-4 py-2 mt-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Direct Messages</span>
+            <span
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+            >
+              Direct Messages
+            </span>
             <button
               onClick={() => setComposing(true)}
-              className="text-muted-foreground hover:text-foreground text-lg leading-none"
+              className="text-lg leading-none transition-colors"
+              style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
               title="New DM"
             >
               +
@@ -110,12 +142,17 @@ export function Sidebar() {
             />
           ))}
           {dmRooms.length === 0 && (
-            <p className="px-4 py-1 text-xs text-muted-foreground">No DMs yet</p>
+            <p className="px-4 py-1 text-xs" style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>
+              No DMs yet
+            </p>
           )}
         </nav>
 
         {/* Bottom user/theme area */}
-        <div className="flex items-center justify-end px-3 py-2 border-t border-muted/20">
+        <div
+          className="flex items-center justify-end px-3 py-2"
+          style={{ borderTop: '1px solid hsl(var(--sidebar-muted-fg) / 0.2)' }}
+        >
           <ThemeToggle />
         </div>
       </aside>
@@ -129,10 +166,20 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left hover:bg-muted/60
-        ${isActive ? 'bg-muted font-medium' : ''}`}
+      className="w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left transition-colors"
+      style={{
+        background: isActive ? 'hsl(var(--sidebar-active-bg))' : 'transparent',
+        color: isActive ? 'hsl(var(--sidebar-fg))' : 'hsl(var(--sidebar-muted-fg))',
+        fontWeight: isActive ? '500' : undefined,
+      }}
+      onMouseEnter={e => {
+        if (!isActive) e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg) / 0.5)'
+      }}
+      onMouseLeave={e => {
+        if (!isActive) e.currentTarget.style.background = 'transparent'
+      }}
     >
-      <span className="text-muted-foreground">#</span>
+      <span style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>#</span>
       <span className="flex-1 truncate">{room.name}</span>
       <UnreadBadge room={room} />
     </button>
@@ -167,19 +214,32 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
     <div className="relative group">
       <button
         onClick={onClick}
-        className={`w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left hover:bg-muted/60
-          ${isActive ? 'bg-muted font-medium' : ''}`}
+        className="w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left transition-colors"
+        style={{
+          background: isActive ? 'hsl(var(--sidebar-active-bg))' : 'transparent',
+          color: isActive ? 'hsl(var(--sidebar-fg))' : 'hsl(var(--sidebar-muted-fg))',
+          fontWeight: isActive ? '500' : undefined,
+        }}
+        onMouseEnter={e => {
+          if (!isActive) e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg) / 0.5)'
+        }}
+        onMouseLeave={e => {
+          if (!isActive) e.currentTarget.style.background = 'transparent'
+        }}
       >
         <div className="relative flex-shrink-0">
           {avatar ? (
             <img src={avatar} alt={name} className="w-5 h-5 rounded-full object-cover" />
           ) : (
-            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
+            <div
+              className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold"
+              style={{ background: 'hsl(var(--sidebar-active-bg))', color: 'hsl(var(--sidebar-fg))' }}
+            >
               {name.charAt(0).toUpperCase()}
             </div>
           )}
           {online && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 ring-1 ring-background" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400 ring-1 ring-sidebar" />
           )}
         </div>
         <span className="flex-1 truncate">{name}</span>
@@ -190,7 +250,10 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
       <button
         onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
         className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center
-          justify-center w-5 h-5 rounded text-muted-foreground hover:text-destructive hover:bg-muted"
+          justify-center w-5 h-5 rounded transition-colors"
+        style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--destructive))')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
         title="Delete conversation"
         aria-label="Delete conversation"
       >
@@ -201,18 +264,25 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
       {confirming && (
         <div
           ref={confirmRef}
-          className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1 rounded border bg-background px-2 py-1 shadow-md text-xs"
+          className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1 rounded border px-2 py-1 shadow-md text-xs"
+          style={{
+            background: 'hsl(var(--background))',
+            borderColor: 'hsl(var(--border))',
+            color: 'hsl(var(--foreground))',
+          }}
         >
-          <span className="text-muted-foreground">Delete?</span>
+          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Delete?</span>
           <button
             onClick={handleConfirmDelete}
-            className="rounded bg-destructive px-1.5 py-0.5 text-destructive-foreground hover:opacity-90"
+            className="rounded px-1.5 py-0.5 hover:opacity-90"
+            style={{ background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }}
           >
             Yes
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="rounded bg-muted px-1.5 py-0.5 text-foreground hover:bg-muted/60"
+            className="rounded px-1.5 py-0.5"
+            style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}
           >
             No
           </button>
@@ -224,17 +294,25 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
 
 function UnreadBadge({ room }: { room: Room }) {
   if (room.hasMention && room.unreadCount === 0) {
-    // Mention with no new messages (e.g. message was read but mention badge not cleared)
     return (
-      <span className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold bg-destructive text-destructive-foreground">
+      <span
+        className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold"
+        style={{ background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }}
+      >
         @
       </span>
     )
   }
   if (room.unreadCount === 0) return null
   return (
-    <span className={`ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold
-      ${room.hasMention ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}>
+    <span
+      className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold"
+      style={
+        room.hasMention
+          ? { background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }
+          : { background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }
+      }
+    >
       {room.unreadCount > 99 ? '99+' : room.unreadCount}
     </span>
   )
