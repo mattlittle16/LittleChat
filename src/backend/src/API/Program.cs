@@ -209,6 +209,7 @@ builder.Services.AddScoped<IIntegrationEventHandler<MessageEditedIntegrationEven
 builder.Services.AddScoped<IIntegrationEventHandler<MessageDeletedIntegrationEvent>, MessageDeletedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MentionDetectedIntegrationEvent>, UserMentionedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<DmCreatedIntegrationEvent>, DmCreatedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<DmDeletedIntegrationEvent>, DmDeletedHandler>();
 
 // Other modules
 builder.Services.AddPresenceModule();

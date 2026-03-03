@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { api } from '../../services/apiClient'
@@ -137,28 +137,82 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
   const name = room.otherUserDisplayName ?? room.name
   const avatar = room.otherUserAvatarUrl
   const online = usePresenceStore(s => room.otherUserId ? s.isOnline(room.otherUserId) : false)
+  const [confirming, setConfirming] = useState(false)
+  const confirmRef = useRef<HTMLDivElement>(null)
+
+  // Close confirm popover when clicking outside
+  useEffect(() => {
+    if (!confirming) return
+    function handleClickOutside(e: MouseEvent) {
+      if (confirmRef.current && !confirmRef.current.contains(e.target as Node)) {
+        setConfirming(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [confirming])
+
+  async function handleConfirmDelete() {
+    setConfirming(false)
+    await useRoomStore.getState().deleteRoom(room.id)
+  }
 
   return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left hover:bg-muted/60
-        ${isActive ? 'bg-muted font-medium' : ''}`}
-    >
-      <div className="relative flex-shrink-0">
-        {avatar ? (
-          <img src={avatar} alt={name} className="w-5 h-5 rounded-full object-cover" />
-        ) : (
-          <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
-            {name.charAt(0).toUpperCase()}
-          </div>
-        )}
-        {online && (
-          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 ring-1 ring-background" />
-        )}
-      </div>
-      <span className="flex-1 truncate">{name}</span>
-      <UnreadBadge room={room} />
-    </button>
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className={`w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left hover:bg-muted/60
+          ${isActive ? 'bg-muted font-medium' : ''}`}
+      >
+        <div className="relative flex-shrink-0">
+          {avatar ? (
+            <img src={avatar} alt={name} className="w-5 h-5 rounded-full object-cover" />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
+              {name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          {online && (
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 ring-1 ring-background" />
+          )}
+        </div>
+        <span className="flex-1 truncate">{name}</span>
+        <UnreadBadge room={room} />
+      </button>
+
+      {/* Hover-reveal delete button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center
+          justify-center w-5 h-5 rounded text-muted-foreground hover:text-destructive hover:bg-muted"
+        title="Delete conversation"
+        aria-label="Delete conversation"
+      >
+        ✕
+      </button>
+
+      {/* Two-step confirm popover */}
+      {confirming && (
+        <div
+          ref={confirmRef}
+          className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1 rounded border bg-background px-2 py-1 shadow-md text-xs"
+        >
+          <span className="text-muted-foreground">Delete?</span>
+          <button
+            onClick={handleConfirmDelete}
+            className="rounded bg-destructive px-1.5 py-0.5 text-destructive-foreground hover:opacity-90"
+          >
+            Yes
+          </button>
+          <button
+            onClick={() => setConfirming(false)}
+            className="rounded bg-muted px-1.5 py-0.5 text-foreground hover:bg-muted/60"
+          >
+            No
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
