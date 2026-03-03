@@ -19,7 +19,7 @@ export default defineConfig({
         target: 'http://localhost:5000',
         ws: true,
       },
-      '/auth': 'http://localhost:5000',
+      '/auth/login': 'http://localhost:5000',
     },
   },
 })

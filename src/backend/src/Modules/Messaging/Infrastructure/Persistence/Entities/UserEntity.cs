@@ -3,6 +3,7 @@ namespace Messaging.Infrastructure.Persistence.Entities;
 public sealed class UserEntity
 {
     public Guid Id { get; set; }
+    public string ExternalId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }

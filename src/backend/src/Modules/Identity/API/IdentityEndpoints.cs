@@ -34,10 +34,10 @@ public static class IdentityEndpoints
                 ? Results.NotFound()
                 : Results.Ok(new
                 {
-                    id = user.Id,
+                    id          = user.Id,
                     displayName = user.DisplayName,
-                    avatarUrl = user.AvatarUrl,
-                    createdAt = user.CreatedAt,
+                    avatarUrl   = user.AvatarUrl,
+                    createdAt   = user.CreatedAt,
                 });
         });
 
@@ -54,15 +54,14 @@ public static class IdentityEndpoints
             var result = new List<object>(allUsers.Count);
             foreach (var user in allUsers)
             {
-                // Skip self from the list
                 if (user.Id == currentUserId) continue;
 
                 var isOnline = await presence.IsOnlineAsync(user.Id, ctx.RequestAborted);
                 result.Add(new
                 {
-                    id = user.Id,
+                    id          = user.Id,
                     displayName = user.DisplayName,
-                    avatarUrl = user.AvatarUrl,
+                    avatarUrl   = user.AvatarUrl,
                     isOnline,
                 });
             }
