@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
+using Shared.Contracts;
 using Shared.Contracts.DTOs;
 
 namespace Messaging.API;
@@ -19,11 +20,11 @@ public static class MessagingEndpoints
         app.MapGet("/api/rooms",
             [Authorize] async (HttpContext ctx, ISender sender) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
-                var rooms = await sender.Send(new GetRoomsQuery(userId), ctx.RequestAborted);
+                var rooms = await sender.Send(new GetRoomsQuery(userId.Value), ctx.RequestAborted);
                 return Results.Ok(rooms);
             });
 
@@ -31,13 +32,13 @@ public static class MessagingEndpoints
         app.MapPost("/api/rooms",
             [Authorize] async (CreateRoomBody body, HttpContext ctx, ISender sender) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 try
                 {
-                    var room = await sender.Send(new CreateRoomCommand(body.Name, userId), ctx.RequestAborted);
+                    var room = await sender.Send(new CreateRoomCommand(body.Name, userId.Value), ctx.RequestAborted);
                     return Results.Created($"/api/rooms/{room.Id}", new RoomDto(
                         room.Id, room.Name, room.IsDm,
                         UnreadCount: 0, HasMention: false, LastMessagePreview: null,
@@ -55,8 +56,8 @@ public static class MessagingEndpoints
                 IOptions<MessagingOptions> opts,
                 DateTime? before, Guid? beforeId, int? limit) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 var pageSize = Math.Clamp(limit ?? opts.Value.MessagePageSize, 1, 100);
@@ -64,7 +65,7 @@ public static class MessagingEndpoints
                 try
                 {
                     var page = await sender.Send(
-                        new GetMessagesQuery(roomId, userId, before, beforeId, pageSize),
+                        new GetMessagesQuery(roomId, userId.Value, before, beforeId, pageSize),
                         ctx.RequestAborted);
 
                     var dtos = page.Messages.Select(m => new MessageDto(
@@ -92,14 +93,14 @@ public static class MessagingEndpoints
         app.MapPost("/api/rooms/dm",
             [Authorize] async (DmBody body, HttpContext ctx, ISender sender) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 try
                 {
                     var (room, isNew) = await sender.Send(
-                        new CreateOrGetDmCommand(userId, body.TargetUserId), ctx.RequestAborted);
+                        new CreateOrGetDmCommand(userId.Value, body.TargetUserId), ctx.RequestAborted);
 
                     var dto = new RoomDto(
                         room.Id, Name: string.Empty, IsDm: true,
@@ -124,8 +125,8 @@ public static class MessagingEndpoints
                 if (bodySizeFeature is not null)
                     bodySizeFeature.MaxRequestBodySize = maxBytes;
 
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 var displayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Unknown";
@@ -168,7 +169,7 @@ public static class MessagingEndpoints
                     var id = await sender.Send(new SendMessageCommand(
                         MessageId: messageId ?? Guid.NewGuid(),
                         RoomId: roomId,
-                        UserId: userId,
+                        UserId: userId.Value,
                         AuthorDisplayName: displayName,
                         AuthorAvatarUrl: avatarUrl,
                         Content: content,
@@ -194,13 +195,13 @@ public static class MessagingEndpoints
             [Authorize] async (Guid roomId, Guid messageId, EditMessageBody body,
                 HttpContext ctx, ISender sender) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 try
                 {
-                    await sender.Send(new EditMessageCommand(messageId, roomId, userId, body.Content),
+                    await sender.Send(new EditMessageCommand(messageId, roomId, userId.Value, body.Content),
                         ctx.RequestAborted);
                     return Results.NoContent();
                 }
@@ -218,13 +219,13 @@ public static class MessagingEndpoints
         app.MapDelete("/api/rooms/{roomId:guid}/messages/{messageId:guid}",
             [Authorize] async (Guid roomId, Guid messageId, HttpContext ctx, ISender sender) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 try
                 {
-                    await sender.Send(new DeleteMessageCommand(messageId, roomId, userId),
+                    await sender.Send(new DeleteMessageCommand(messageId, roomId, userId.Value),
                         ctx.RequestAborted);
                     return Results.NoContent();
                 }

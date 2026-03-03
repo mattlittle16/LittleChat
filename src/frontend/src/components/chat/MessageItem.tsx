@@ -3,14 +3,30 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { api } from '../../services/apiClient'
+import { api, getAccessToken } from '../../services/apiClient'
 import { getCurrentUserId } from '../../services/authService'
 import { getConnection } from '../../services/signalrClient'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { ReactionBar } from './ReactionBar'
+import { AuthedImg } from './AuthedImg'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
+
+async function authedDownload(url: string, fileName: string) {
+  const token = getAccessToken()
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) return
+  const blob = await res.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(objectUrl)
+}
 
 interface MessageItemProps {
   message: Message | OutboxMessage
@@ -196,24 +212,21 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
         {message.attachment && (() => {
           const isImage = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(message.attachment.fileName)
           return isImage ? (
-            <a href={message.attachment.url} target="_blank" rel="noreferrer" className="mt-1 block">
-              <img
-                src={message.attachment.url}
-                alt={message.attachment.fileName}
-                className="max-w-xs max-h-64 rounded-md border object-contain"
-              />
-            </a>
+            <AuthedImg
+              src={message.attachment.url}
+              alt={message.attachment.fileName}
+              className="max-w-xs max-h-64 rounded-md border object-contain"
+            />
           ) : (
-            <a
-              href={message.attachment.url}
-              download={message.attachment.fileName}
+            <button
+              onClick={() => authedDownload(message.attachment!.url, message.attachment!.fileName)}
               className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
               📎 {message.attachment.fileName}
               <span className="text-muted-foreground">
                 ({(message.attachment.fileSize / 1024).toFixed(1)} KB)
               </span>
-            </a>
+            </button>
           )
         })()}
 

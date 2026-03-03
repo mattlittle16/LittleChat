@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using API.Services;
 using Files.API;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +76,21 @@ builder.Services
         // Allow JWT via query string for SignalR WebSocket connections
         options.Events = new JwtBearerEvents
         {
+            OnAuthenticationFailed = context =>
+            {
+                var log = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                log.LogWarning("JWT_AUTH_FAILED: {Error}", context.Exception?.Message ?? "null");
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                var log = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                log.LogWarning("JWT_CHALLENGE: error={Error} description={Description} authResult={AuthResult}",
+                    context.Error ?? "none",
+                    context.ErrorDescription ?? "none",
+                    context.AuthenticateFailure?.Message ?? "none");
+                return Task.CompletedTask;
+            },
             OnMessageReceived = context =>
             {
                 var accessToken = context.Request.Query["access_token"];
@@ -92,6 +108,11 @@ builder.Services
 
                 var (isNew, userId) = await userSync.EnsureUserExistsAsync(
                     context.Principal!, context.HttpContext.RequestAborted);
+
+                // Stamp the internal UUID onto the principal so all endpoints can read it
+                // without re-parsing the identity provider's non-UUID sub claim.
+                ((ClaimsIdentity)context.Principal!.Identity!)
+                    .AddClaim(new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
 
                 if (isNew)
                 {
@@ -216,14 +237,20 @@ app.UseStatusCodePages();
 
 app.UseCors();
 
-// ── Callback diagnostics (remove once auth is working) ────────────────────────
+// ── Request diagnostics ───────────────────────────────────────────────────────
 app.Use(async (ctx, next) =>
 {
+    var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
     if (ctx.Request.Path.StartsWithSegments("/auth/callback"))
-    {
-        var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
         log.LogWarning("AUTH_CALLBACK method={Method} query={Query}",
             ctx.Request.Method, ctx.Request.QueryString);
+
+    if (ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        var auth = ctx.Request.Headers.Authorization.ToString();
+        log.LogWarning("API_REQUEST path={Path} auth={Auth}",
+            ctx.Request.Path,
+            string.IsNullOrEmpty(auth) ? "MISSING" : $"Bearer ...{auth[^10..]}");
     }
     await next(ctx);
 });

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Shared.Contracts;
 using Shared.Contracts.Interfaces;
 
 namespace Identity.API;
@@ -25,11 +26,11 @@ public static class IdentityEndpoints
         // Authenticated — returns current user's profile
         app.MapGet("/api/users/me", [Authorize] async (HttpContext ctx, IUserRepository users) =>
         {
-            var sub = ctx.User.FindFirst("sub")?.Value;
-            if (!Guid.TryParse(sub, out var userId))
+            var userId = ctx.User.GetInternalUserId();
+            if (userId is null)
                 return Results.Unauthorized();
 
-            var user = await users.GetByIdAsync(userId, ctx.RequestAborted);
+            var user = await users.GetByIdAsync(userId.Value, ctx.RequestAborted);
             return user is null
                 ? Results.NotFound()
                 : Results.Ok(new
@@ -45,8 +46,8 @@ public static class IdentityEndpoints
         app.MapGet("/api/users", [Authorize] async (HttpContext ctx, IUserRepository users,
             IPresenceService presence, string? q) =>
         {
-            var sub = ctx.User.FindFirst("sub")?.Value;
-            if (!Guid.TryParse(sub, out var currentUserId))
+            var currentUserId = ctx.User.GetInternalUserId();
+            if (currentUserId is null)
                 return Results.Unauthorized();
 
             var allUsers = await users.GetAllAsync(q, ctx.RequestAborted);
@@ -54,7 +55,7 @@ public static class IdentityEndpoints
             var result = new List<object>(allUsers.Count);
             foreach (var user in allUsers)
             {
-                if (user.Id == currentUserId) continue;
+                if (user.Id == currentUserId.Value) continue;
 
                 var isOnline = await presence.IsOnlineAsync(user.Id, ctx.RequestAborted);
                 result.Add(new
