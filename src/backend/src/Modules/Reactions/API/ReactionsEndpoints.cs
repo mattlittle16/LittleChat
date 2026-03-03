@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Reactions.Application.Commands;
+using Shared.Contracts;
 
 namespace Reactions.API;
 
@@ -28,8 +29,8 @@ public static class ReactionsEndpoints
                         detail: "The 'emoji' field is required.",
                         statusCode: 400);
 
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 var displayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Unknown";
@@ -37,7 +38,7 @@ public static class ReactionsEndpoints
                 var (added, count) = await sender.Send(new AddReactionCommand(
                     MessageId: messageId,
                     RoomId: roomId,
-                    UserId: userId,
+                    UserId: userId.Value,
                     DisplayName: displayName,
                     Emoji: body.Emoji));
 

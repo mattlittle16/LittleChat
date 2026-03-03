@@ -28,9 +28,10 @@ public sealed class MessageSearchRepository : IMessageSearchRepository
             // Scoped to a single room — verify membership inline
             sql = """
                 SELECT m.id, m.room_id, r.name AS room_name,
-                       m.author_display_name, m.content, m.created_at
+                       u.display_name, m.content, m.created_at
                 FROM messages m
                 JOIN rooms r ON r.id = m.room_id
+                JOIN users u ON u.id = m.user_id
                 WHERE m.room_id = $1
                   AND m.search_vector @@ plainto_tsquery('english', $2)
                   AND m.expires_at > NOW()
@@ -51,9 +52,10 @@ public sealed class MessageSearchRepository : IMessageSearchRepository
             // Global search — all non-DM rooms the user is a member of
             sql = """
                 SELECT m.id, m.room_id, r.name AS room_name,
-                       m.author_display_name, m.content, m.created_at
+                       u.display_name, m.content, m.created_at
                 FROM messages m
                 JOIN rooms r ON r.id = m.room_id
+                JOIN users u ON u.id = m.user_id
                 WHERE r.is_dm = FALSE
                   AND m.search_vector @@ plainto_tsquery('english', $1)
                   AND m.expires_at > NOW()

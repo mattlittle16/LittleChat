@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using Shared.Contracts;
 
 namespace Files.API;
 
@@ -16,8 +17,8 @@ public static class FilesEndpoints
         app.MapGet("/api/files/{messageId:guid}",
             [Authorize] async (Guid messageId, HttpContext ctx, NpgsqlDataSource db, IConfiguration config) =>
             {
-                var sub = ctx.User.FindFirst("sub")?.Value;
-                if (!Guid.TryParse(sub, out var userId))
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null)
                     return Results.Unauthorized();
 
                 // Fetch message metadata
@@ -43,9 +44,9 @@ public static class FilesEndpoints
 
                 // Check membership
                 await using var memberCmd = db.CreateCommand(
-                    "SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2");
+                    "SELECT 1 FROM room_memberships WHERE room_id = $1 AND user_id = $2");
                 memberCmd.Parameters.AddWithValue(roomId);
-                memberCmd.Parameters.AddWithValue(userId);
+                memberCmd.Parameters.AddWithValue(userId.Value);
                 var isMember = await memberCmd.ExecuteScalarAsync(ctx.RequestAborted) is not null;
                 if (!isMember)
                     return Results.Forbid();
