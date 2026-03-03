@@ -4,6 +4,7 @@ import { usePresenceStore } from '../../stores/presenceStore'
 import { api } from '../../services/apiClient'
 import { ComposeDialog } from './ComposeDialog'
 import { ThemeToggle } from '../ThemeToggle'
+import logoSvg from '../../assets/logo.svg'
 import type { Room } from '../../types'
 
 const sidebarStyle = {
@@ -51,6 +52,14 @@ export function Sidebar() {
   return (
     <>
       <aside className="flex h-full w-60 flex-col" style={sidebarStyle}>
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: '1px solid hsl(var(--sidebar-muted-fg) / 0.2)' }}>
+          <img src={logoSvg} alt="" className="h-6 w-6 flex-shrink-0" />
+          <span className="font-semibold text-sm tracking-tight" style={{ color: 'hsl(var(--sidebar-fg))' }}>
+            MattLab Chat
+          </span>
+        </div>
+
         {/* Channels section */}
         <div className="flex items-center justify-between px-4 py-2 mt-1">
           <span
