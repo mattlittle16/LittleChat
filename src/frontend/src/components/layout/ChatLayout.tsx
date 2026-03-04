@@ -7,8 +7,10 @@ import { TypingIndicator } from '../chat/TypingIndicator'
 import { SearchModal } from '../search/SearchModal'
 import { MentionToastContainer } from '../chat/MentionToast'
 import { useRoomStore } from '../../stores/roomStore'
+import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { useSignalR } from '../../hooks/useSignalR'
 import { getCurrentUserDisplayName, logout } from '../../services/authService'
+import { api } from '../../services/apiClient'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
@@ -22,6 +24,15 @@ export function ChatLayout() {
   const dmMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const roomMenuRef = useRef<HTMLDivElement>(null)
+
+  const setCurrentUserId = useCurrentUserStore(s => s.setId)
+
+  // Fetch the backend-assigned internal user ID once on mount.
+  // The JWT sub claim (used by getCurrentUserId) is Authentik's identifier,
+  // not the internal UUID stored on messages — so we need /api/users/me.
+  useEffect(() => {
+    api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(() => {})
+  }, [setCurrentUserId])
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const roomName = activeRoom

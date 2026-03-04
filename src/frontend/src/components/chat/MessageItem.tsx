@@ -4,10 +4,10 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api, getAccessToken } from '../../services/apiClient'
-import { getCurrentUserId } from '../../services/authService'
 import { getConnection } from '../../services/signalrClient'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
+import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { ReactionBar } from './ReactionBar'
 import { AuthedImg } from './AuthedImg'
 import type { Message, Room } from '../../types'
@@ -52,7 +52,7 @@ async function openDmWithUser(userId: string) {
 export function MessageItem({ message, isPending = false }: MessageItemProps) {
   const authorId = isOutbox(message) ? null : message.author.id
   const isAuthorOnline = usePresenceStore(s => authorId ? s.isOnline(authorId) : false)
-  const currentUserId = getCurrentUserId()
+  const currentUserId = useCurrentUserStore(s => s.id)
   const isOwn = !isOutbox(message) && message.author.id === currentUserId
 
   const [editing, setEditing] = useState(false)
