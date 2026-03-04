@@ -69,6 +69,11 @@ export function useSignalR(roomId: string | null) {
         useRoomStore.getState().removeRoom(roomId)
       })
 
+      // All members are notified when a group room is deleted
+      connection.on('RoomDeleted', (roomId: string) => {
+        useRoomStore.getState().removeRoom(roomId)
+      })
+
       // T071: wire presence updates from server
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)

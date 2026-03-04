@@ -13,7 +13,7 @@ export function logout() {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(TOKEN_EXPIRY_KEY)
   setAccessToken(null)
-  window.location.href = '/auth/login'
+  window.location.href = '/auth/logout'
 }
 
 export function storeToken(token: string, expiresInSeconds?: number) {
@@ -39,6 +39,18 @@ export function getToken(): string | null {
 
 export function isAuthenticated(): boolean {
   return getToken() !== null
+}
+
+/** Decodes the JWT payload and returns the preferred_username claim (display name). */
+export function getCurrentUserDisplayName(): string | null {
+  const token = getToken()
+  if (!token) return null
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.preferred_username ?? null
+  } catch {
+    return null
+  }
 }
 
 /** Decodes the JWT payload and returns the sub claim (current user ID). */

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Shared.Contracts;
 using Shared.Contracts.Interfaces;
 
@@ -21,6 +22,15 @@ public static class IdentityEndpoints
                 RedirectUri = "/auth/callback",
             };
             return Results.Challenge(props, ["OpenIdConnect"]);
+        }).AllowAnonymous();
+
+        // Public — terminates the Authentik SSO session via OIDC RP-Initiated Logout
+        app.MapGet("/auth/logout", (IConfiguration config) =>
+        {
+            var corsOrigin = config["CORS_ORIGIN"] ?? "http://localhost:3000";
+            return Results.SignOut(
+                new AuthenticationProperties { RedirectUri = corsOrigin },
+                ["OpenIdConnect", "Cookies"]);
         }).AllowAnonymous();
 
         // Authenticated — returns current user's profile

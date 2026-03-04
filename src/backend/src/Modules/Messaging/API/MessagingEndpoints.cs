@@ -215,22 +215,26 @@ public static class MessagingEndpoints
                 }
             });
 
-        // DELETE /api/rooms/{roomId} — permanently delete a DM conversation
+        // DELETE /api/rooms/{roomId} — permanently delete a room (DM or group)
         app.MapDelete("/api/rooms/{roomId:guid}",
-            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender, Messaging.Domain.IRoomRepository rooms) =>
             {
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null)
                     return Results.Unauthorized();
 
+                var room = await rooms.GetByIdAsync(roomId, ctx.RequestAborted);
+                if (room is null)
+                    return Results.NotFound();
+
                 try
                 {
-                    await sender.Send(new DeleteDmCommand(roomId, userId.Value), ctx.RequestAborted);
+                    if (room.IsDm)
+                        await sender.Send(new DeleteDmCommand(roomId, userId.Value), ctx.RequestAborted);
+                    else
+                        await sender.Send(new DeleteRoomCommand(roomId, userId.Value), ctx.RequestAborted);
+
                     return Results.NoContent();
-                }
-                catch (KeyNotFoundException)
-                {
-                    return Results.NotFound();
                 }
                 catch (UnauthorizedAccessException)
                 {
