@@ -172,26 +172,91 @@ export function Sidebar() {
 }
 
 function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; onClick: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  const confirmRef = useRef<HTMLDivElement>(null)
+
+  // Close confirm popover when clicking outside
+  useEffect(() => {
+    if (!confirming) return
+    function handleClickOutside(e: MouseEvent) {
+      if (confirmRef.current && !confirmRef.current.contains(e.target as Node)) {
+        setConfirming(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [confirming])
+
+  async function handleConfirmDelete() {
+    setConfirming(false)
+    await useRoomStore.getState().deleteRoom(room.id)
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left transition-colors"
-      style={{
-        background: isActive ? 'hsl(var(--sidebar-active-bg))' : 'transparent',
-        color: isActive ? 'hsl(var(--sidebar-fg))' : 'hsl(var(--sidebar-muted-fg))',
-        fontWeight: isActive ? '500' : undefined,
-      }}
-      onMouseEnter={e => {
-        if (!isActive) e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg) / 0.5)'
-      }}
-      onMouseLeave={e => {
-        if (!isActive) e.currentTarget.style.background = 'transparent'
-      }}
-    >
-      <span style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>#</span>
-      <span className="flex-1 truncate">{room.name}</span>
-      <UnreadBadge room={room} />
-    </button>
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className="w-full flex items-center gap-2 px-4 py-1.5 text-sm text-left transition-colors"
+        style={{
+          background: isActive ? 'hsl(var(--sidebar-active-bg))' : 'transparent',
+          color: isActive ? 'hsl(var(--sidebar-fg))' : 'hsl(var(--sidebar-muted-fg))',
+          fontWeight: isActive ? '500' : undefined,
+        }}
+        onMouseEnter={e => {
+          if (!isActive) e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg) / 0.5)'
+        }}
+        onMouseLeave={e => {
+          if (!isActive) e.currentTarget.style.background = 'transparent'
+        }}
+      >
+        <span style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>#</span>
+        <span className="flex-1 truncate">{room.name}</span>
+        <UnreadBadge room={room} />
+      </button>
+
+      {/* Hover-reveal delete button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center
+          justify-center w-5 h-5 rounded transition-colors"
+        style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--destructive))')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
+        title="Delete room"
+        aria-label="Delete room"
+      >
+        ✕
+      </button>
+
+      {/* Two-step confirm popover */}
+      {confirming && (
+        <div
+          ref={confirmRef}
+          className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1 rounded border px-2 py-1 shadow-md text-xs"
+          style={{
+            background: 'hsl(var(--background))',
+            borderColor: 'hsl(var(--border))',
+            color: 'hsl(var(--foreground))',
+          }}
+        >
+          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Delete?</span>
+          <button
+            onClick={handleConfirmDelete}
+            className="rounded px-1.5 py-0.5 hover:opacity-90"
+            style={{ background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }}
+          >
+            Yes
+          </button>
+          <button
+            onClick={() => setConfirming(false)}
+            className="rounded px-1.5 py-0.5"
+            style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}
+          >
+            No
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

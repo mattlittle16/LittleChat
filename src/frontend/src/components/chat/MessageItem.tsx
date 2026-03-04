@@ -58,6 +58,7 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const editRef = useRef<HTMLTextAreaElement>(null)
 
   if (isOutbox(message)) {
@@ -117,7 +118,11 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   }
 
   return (
-    <div className={`group relative px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}>
+    <div
+      className={`relative px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div className="min-w-0">
         <div className="flex items-baseline gap-2">
           <button
@@ -212,8 +217,9 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
       </div>
 
       {/* Hover context menu — own messages only (T094) */}
-      {isOwn && !editing && (
-        <div className="absolute right-4 top-1 hidden group-hover:flex items-center gap-1 bg-background border rounded shadow-sm px-1 py-0.5">
+      {isOwn && !editing && (hovered || confirmDelete) && (
+        <div className="absolute right-4 top-1 flex items-center gap-1 border rounded shadow-sm px-1 py-0.5"
+          style={{ background: 'hsl(var(--background))' }}>
           <button
             onClick={startEdit}
             className="rounded px-2 py-0.5 text-xs hover:bg-muted/60"

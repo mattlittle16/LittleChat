@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
@@ -7,6 +8,7 @@ import { SearchModal } from '../search/SearchModal'
 import { MentionToastContainer } from '../chat/MentionToast'
 import { useRoomStore } from '../../stores/roomStore'
 import { useSignalR } from '../../hooks/useSignalR'
+import { getCurrentUserDisplayName, logout } from '../../services/authService'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
@@ -14,7 +16,12 @@ export function ChatLayout() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [dmMenuOpen, setDmMenuOpen] = useState(false)
   const [dmConfirming, setDmConfirming] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
+  const [roomConfirming, setRoomConfirming] = useState(false)
   const dmMenuRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const roomMenuRef = useRef<HTMLDivElement>(null)
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const roomName = activeRoom
@@ -24,6 +31,7 @@ export function ChatLayout() {
     : null
 
   const isDisconnected = status === 'disconnected' || status === 'reconnecting'
+  const displayName = getCurrentUserDisplayName()
 
   // Close DM menu when clicking outside
   useEffect(() => {
@@ -38,10 +46,42 @@ export function ChatLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [dmMenuOpen])
 
+  // Close user menu when clicking outside
+  useEffect(() => {
+    if (!userMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [userMenuOpen])
+
+  // Close room menu when clicking outside
+  useEffect(() => {
+    if (!roomMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (roomMenuRef.current && !roomMenuRef.current.contains(e.target as Node)) {
+        setRoomMenuOpen(false)
+        setRoomConfirming(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [roomMenuOpen])
+
   async function handleDeleteDm() {
     if (!activeRoomId) return
     setDmMenuOpen(false)
     setDmConfirming(false)
+    await useRoomStore.getState().deleteRoom(activeRoomId)
+  }
+
+  async function handleDeleteRoom() {
+    if (!activeRoomId) return
+    setRoomMenuOpen(false)
+    setRoomConfirming(false)
     await useRoomStore.getState().deleteRoom(activeRoomId)
   }
 
@@ -101,6 +141,49 @@ export function ChatLayout() {
               </span>
             )}
 
+            {/* Group room actions menu — only shown when viewing a non-DM room */}
+            {activeRoom && !activeRoom.isDm && (
+              <div className="relative" ref={roomMenuRef}>
+                <button
+                  onClick={() => { setRoomMenuOpen(o => !o); setRoomConfirming(false) }}
+                  title="Room options"
+                  className="rounded px-1.5 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                >
+                  ⋯
+                </button>
+                {roomMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded border bg-background shadow-md text-sm">
+                    {!roomConfirming ? (
+                      <button
+                        onClick={() => setRoomConfirming(true)}
+                        className="w-full px-3 py-2 text-left text-destructive hover:bg-muted/60"
+                      >
+                        Delete room
+                      </button>
+                    ) : (
+                      <div className="px-3 py-2 flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">Are you sure?</span>
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            onClick={handleDeleteRoom}
+                            className="flex-1 rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground hover:opacity-90"
+                          >
+                            Yes, delete
+                          </button>
+                          <button
+                            onClick={() => setRoomConfirming(false)}
+                            className="flex-1 rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-muted/60"
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* DM actions menu — only shown when viewing a DM */}
             {activeRoom?.isDm && (
               <div className="relative" ref={dmMenuRef}>
@@ -156,6 +239,30 @@ export function ChatLayout() {
               Search
               <kbd className="ml-1 text-[10px] opacity-60">⌘K</kbd>
             </button>
+
+            {/* User account dropdown */}
+            {displayName && (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(o => !o)}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  title="Account"
+                >
+                  <span className="max-w-[120px] truncate">{displayName}</span>
+                  <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded border bg-background shadow-md text-sm">
+                    <button
+                      onClick={logout}
+                      className="w-full px-3 py-2 text-left text-destructive hover:bg-muted/60"
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </header>
 

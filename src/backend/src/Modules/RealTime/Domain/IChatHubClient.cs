@@ -14,4 +14,5 @@ public interface IChatHubClient
     Task MentionNotification(Guid messageId, Guid roomId, string roomName, Guid fromUserId, string fromDisplayName, string contentPreview);
     Task DmCreated(Guid roomId);
     Task DmDeleted(Guid roomId);
+    Task RoomDeleted(Guid roomId);
 }
