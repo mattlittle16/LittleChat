@@ -20,6 +20,7 @@ export default defineConfig({
         ws: true,
       },
       '/auth/login': 'http://localhost:5000',
+      '/auth/logout': 'http://localhost:5000',
     },
   },
 })
