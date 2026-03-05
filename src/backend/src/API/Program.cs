@@ -238,6 +238,11 @@ var app = builder.Build();
     await notificationsDb.Database.MigrateAsync();
 }
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
