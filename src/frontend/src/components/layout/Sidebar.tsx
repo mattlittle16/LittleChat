@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import { BellOff } from 'lucide-react'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
+import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
 import { api } from '../../services/apiClient'
 import { ComposeDialog } from './ComposeDialog'
 import { ThemeToggle } from '../ThemeToggle'
 import logoSvg from '../../assets/logo.svg'
-import type { Room } from '../../types'
+import type { ConversationOverrideLevel, Room } from '../../types'
 
 const sidebarStyle = {
   background: 'hsl(var(--sidebar-bg))',
@@ -173,7 +175,12 @@ export function Sidebar() {
 
 function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; onClick: () => void }) {
   const [confirming, setConfirming] = useState(false)
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false)
   const confirmRef = useRef<HTMLDivElement>(null)
+  const notifMenuRef = useRef<HTMLDivElement>(null)
+  const setOverride = useNotificationPreferencesStore(s => s.setOverride)
+  const overrides = useNotificationPreferencesStore(s => s.overrides)
+  const currentOverride: ConversationOverrideLevel | undefined = overrides[room.id]
 
   // Close confirm popover when clicking outside
   useEffect(() => {
@@ -186,6 +193,18 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [confirming])
+
+  // Close notif menu when clicking outside
+  useEffect(() => {
+    if (!notifMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setNotifMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [notifMenuOpen])
 
   async function handleConfirmDelete() {
     setConfirming(false)
@@ -211,8 +230,48 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
       >
         <span style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>#</span>
         <span className="flex-1 truncate">{room.name}</span>
+        {currentOverride && (
+          <BellOff className="w-3 h-3 flex-shrink-0 opacity-60 group-hover:hidden" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
+        )}
         <UnreadBadge room={room} />
       </button>
+
+      {/* Hover-reveal notification override button */}
+      <div className="absolute right-7 top-1/2 -translate-y-1/2 hidden group-hover:flex" ref={notifMenuRef}>
+        <button
+          onClick={(e) => { e.stopPropagation(); setNotifMenuOpen(o => !o) }}
+          className="flex items-center justify-center w-5 h-5 rounded transition-colors"
+          style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+          title="Notification settings"
+        >
+          <BellOff className="w-3 h-3" />
+        </button>
+        {notifMenuOpen && (
+          <div
+            className="absolute right-0 top-full mt-1 z-30 w-44 rounded border bg-background shadow-md text-xs"
+            style={{ borderColor: 'hsl(var(--border))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {(['follow_global', 'all_messages', 'mentions_only', 'muted'] as const).map(level => (
+              <button
+                key={level}
+                onClick={() => { setOverride(room.id, level); setNotifMenuOpen(false) }}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted/60"
+                style={{
+                  color: currentOverride === level || (level === 'follow_global' && !currentOverride)
+                    ? 'hsl(var(--foreground))'
+                    : 'hsl(var(--muted-foreground))',
+                  fontWeight: currentOverride === level || (level === 'follow_global' && !currentOverride) ? '600' : undefined,
+                }}
+              >
+                {level === 'follow_global' ? 'Follow Global Setting' :
+                 level === 'all_messages' ? 'All Messages' :
+                 level === 'mentions_only' ? '@Mentions Only' : 'Muted'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Hover-reveal delete button */}
       <button
@@ -225,7 +284,7 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
         title="Delete room"
         aria-label="Delete room"
       >
-        ✕
+        &#x2715;
       </button>
 
       {/* Two-step confirm popover */}
@@ -265,7 +324,12 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
   const avatar = room.otherUserAvatarUrl
   const online = usePresenceStore(s => room.otherUserId ? s.isOnline(room.otherUserId) : false)
   const [confirming, setConfirming] = useState(false)
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false)
   const confirmRef = useRef<HTMLDivElement>(null)
+  const notifMenuRef = useRef<HTMLDivElement>(null)
+  const setOverride = useNotificationPreferencesStore(s => s.setOverride)
+  const overrides = useNotificationPreferencesStore(s => s.overrides)
+  const currentOverride: ConversationOverrideLevel | undefined = overrides[room.id]
 
   // Close confirm popover when clicking outside
   useEffect(() => {
@@ -278,6 +342,18 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [confirming])
+
+  // Close notif menu when clicking outside
+  useEffect(() => {
+    if (!notifMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setNotifMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [notifMenuOpen])
 
   async function handleConfirmDelete() {
     setConfirming(false)
@@ -318,8 +394,48 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
           />
         </div>
         <span className="flex-1 truncate">{name}</span>
+        {currentOverride && (
+          <BellOff className="w-3 h-3 flex-shrink-0 opacity-60 group-hover:hidden" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
+        )}
         <UnreadBadge room={room} />
       </button>
+
+      {/* Hover-reveal notification override button */}
+      <div className="absolute right-7 top-1/2 -translate-y-1/2 hidden group-hover:flex" ref={notifMenuRef}>
+        <button
+          onClick={(e) => { e.stopPropagation(); setNotifMenuOpen(o => !o) }}
+          className="flex items-center justify-center w-5 h-5 rounded transition-colors"
+          style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+          title="Notification settings"
+        >
+          <BellOff className="w-3 h-3" />
+        </button>
+        {notifMenuOpen && (
+          <div
+            className="absolute right-0 top-full mt-1 z-30 w-44 rounded border bg-background shadow-md text-xs"
+            style={{ borderColor: 'hsl(var(--border))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {(['follow_global', 'all_messages', 'mentions_only', 'muted'] as const).map(level => (
+              <button
+                key={level}
+                onClick={() => { setOverride(room.id, level); setNotifMenuOpen(false) }}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted/60"
+                style={{
+                  color: currentOverride === level || (level === 'follow_global' && !currentOverride)
+                    ? 'hsl(var(--foreground))'
+                    : 'hsl(var(--muted-foreground))',
+                  fontWeight: currentOverride === level || (level === 'follow_global' && !currentOverride) ? '600' : undefined,
+                }}
+              >
+                {level === 'follow_global' ? 'Follow Global Setting' :
+                 level === 'all_messages' ? 'All Messages' :
+                 level === 'mentions_only' ? '@Mentions Only' : 'Muted'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Hover-reveal delete button */}
       <button
@@ -332,7 +448,7 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
         title="Delete conversation"
         aria-label="Delete conversation"
       >
-        ✕
+        &#x2715;
       </button>
 
       {/* Two-step confirm popover */}
@@ -371,7 +487,7 @@ function UnreadBadge({ room }: { room: Room }) {
   if (room.hasMention && room.unreadCount === 0) {
     return (
       <span
-        className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold"
+        className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold group-hover:hidden"
         style={{ background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }}
       >
         @
@@ -381,7 +497,7 @@ function UnreadBadge({ room }: { room: Room }) {
   if (room.unreadCount === 0) return null
   return (
     <span
-      className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold"
+      className="ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold group-hover:hidden"
       style={
         room.hasMention
           ? { background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }

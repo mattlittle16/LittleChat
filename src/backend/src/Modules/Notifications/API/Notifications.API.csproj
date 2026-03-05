@@ -1,18 +1,16 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\Domain\Notifications.Domain.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\Application\Notifications.Application.csproj" />
+    <ProjectReference Include="..\Infrastructure\Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\Contracts\Shared.Contracts.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.4.1" />
   </ItemGroup>
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
 </Project>
