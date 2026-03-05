@@ -65,14 +65,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Unlock git-crypt
+      - name: Create env file
         run: |
-          echo "${{ secrets.GIT_CRYPT_KEY }}" | base64 -d > /tmp/git-crypt-key
-          git-crypt unlock /tmp/git-crypt-key
-          rm /tmp/git-crypt-key
-
-      - name: Copy env file
-        run: cp .env.production .env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+          echo "POSTGRES_CONNECTION_STRING=${{ secrets.POSTGRES_CONNECTION_STRING }}" >> .env
+          echo "VALKEY_CONNECTION_STRING=${{ secrets.VALKEY_CONNECTION_STRING }}" >> .env
+          echo "AUTHENTIK_AUTHORITY=${{ secrets.AUTHENTIK_AUTHORITY }}" >> .env
+          echo "AUTHENTIK_CLIENT_ID=${{ secrets.AUTHENTIK_CLIENT_ID }}" >> .env
+          echo "AUTHENTIK_CLIENT_SECRET=${{ secrets.AUTHENTIK_CLIENT_SECRET }}" >> .env
+          echo "UPLOAD_PATH=${{ secrets.UPLOAD_PATH }}" >> .env
+          echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env
+          echo "MESSAGE_PAGE_SIZE=${{ secrets.MESSAGE_PAGE_SIZE }}" >> .env
 
       - name: Build images
         run: docker compose -f docker-compose.prod.yml build

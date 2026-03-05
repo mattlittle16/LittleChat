@@ -63,6 +63,7 @@ services:
 
   nginx:
     image: nginx:alpine
+    container_name: littlechat-nginx
     expose:
       - "80"
     volumes:
