@@ -1,0 +1,90 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend-ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Restore
+        run: dotnet restore MattLab.Chat.slnx
+
+      - name: Build
+        run: dotnet build MattLab.Chat.slnx --no-restore -c Release
+
+      - name: Architecture tests
+        run: dotnet test tests/Architecture/ --no-build -c Release
+
+      - name: Unit tests
+        run: dotnet test tests/Unit/ --no-build -c Release
+
+  frontend-ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+  deploy:
+    needs: [backend-ci, frontend-ci]
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Unlock git-crypt
+        run: |
+          echo "${{ secrets.GIT_CRYPT_KEY }}" | base64 -d > /tmp/git-crypt-key
+          git-crypt unlock /tmp/git-crypt-key
+          rm /tmp/git-crypt-key
+
+      - name: Copy env file
+        run: cp .env.production .env
+
+      - name: Build images
+        run: docker compose -f docker-compose.prod.yml build
+
+      - name: Deploy services
+        run: docker compose -f docker-compose.prod.yml up -d
+
+      - name: Verify deployment
+        run: |
+          sleep 15
+          docker compose -f docker-compose.prod.yml ps | grep "chat-backend" | grep -E "Up|running" || exit 1
+          docker compose -f docker-compose.prod.yml ps | grep "nginx" | grep -E "Up|running" || exit 1
+
+      - name: Clean up old images
+        run: docker image prune -f
