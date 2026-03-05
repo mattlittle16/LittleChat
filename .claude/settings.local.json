@@ -20,7 +20,8 @@
       "WebFetch(domain:docs.goauthentik.io)",
       "WebFetch(domain:auth.mattlittle.me)",
       "Bash(cat:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(read hash:*)"
     ]
   }
 }
