@@ -229,12 +229,13 @@ var app = builder.Build();
 // ── Event Bus ─────────────────────────────────────────────────────────────────
 // Handler discovery is driven by DI registrations — no explicit Subscribe calls needed.
 
-// T114: auto-migrate in development (prod migrations run via dotnet-ef in CI/CD)
-if (app.Environment.IsDevelopment())
+// Run all pending EF Core migrations on startup (idempotent — safe in every environment)
 {
     using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<Messaging.Infrastructure.Persistence.LittleChatDbContext>();
-    await db.Database.MigrateAsync();
+    var messagingDb = scope.ServiceProvider.GetRequiredService<Messaging.Infrastructure.Persistence.LittleChatDbContext>();
+    await messagingDb.Database.MigrateAsync();
+    var notificationsDb = scope.ServiceProvider.GetRequiredService<Notifications.Infrastructure.NotificationsDbContext>();
+    await notificationsDb.Database.MigrateAsync();
 }
 
 app.UseExceptionHandler();
