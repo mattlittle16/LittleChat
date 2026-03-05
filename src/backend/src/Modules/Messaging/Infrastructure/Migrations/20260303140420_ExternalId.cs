@@ -10,13 +10,7 @@ namespace Messaging.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "external_id",
-                table: "users",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
+            // external_id column already exists in the Initial migration
             migrationBuilder.CreateIndex(
                 name: "IX_users_external_id",
                 table: "users",
