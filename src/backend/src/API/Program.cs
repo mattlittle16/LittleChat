@@ -144,6 +144,11 @@ builder.Services
 
         options.Events = new OpenIdConnectEvents
         {
+            OnRedirectToIdentityProvider = context =>
+            {
+                context.ProtocolMessage.RedirectUri = $"{corsOrigin}/auth/callback";
+                return Task.CompletedTask;
+            },
             OnTokenResponseReceived = context =>
             {
                 var accessToken = context.TokenEndpointResponse.AccessToken;
