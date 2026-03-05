@@ -135,7 +135,7 @@ builder.Services
         options.ClientId = clientId;
         options.ClientSecret = clientSecret;
         options.ResponseType = OpenIdConnectResponseType.Code;
-        options.CallbackPath = "/auth/callback";
+        options.CallbackPath = "/auth/oidc-callback";
         options.SaveTokens = true;
         options.GetClaimsFromUserInfoEndpoint = false;
         options.MapInboundClaims = false;
@@ -146,7 +146,7 @@ builder.Services
         {
             OnRedirectToIdentityProvider = context =>
             {
-                context.ProtocolMessage.RedirectUri = $"{corsOrigin}/auth/callback";
+                context.ProtocolMessage.RedirectUri = $"{corsOrigin}/auth/oidc-callback";
                 return Task.CompletedTask;
             },
             OnTokenResponseReceived = context =>
