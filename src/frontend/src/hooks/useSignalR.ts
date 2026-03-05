@@ -4,7 +4,9 @@ import { useMessageStore } from '../stores/messageStore'
 import { useRoomStore } from '../stores/roomStore'
 import { usePresenceStore } from '../stores/presenceStore'
 import { useTypingStore } from '../stores/typingStore'
+import { useNotificationPreferencesStore } from '../stores/notificationPreferencesStore'
 import { showMentionToast } from '../components/chat/MentionToast'
+import { playChime, showBrowserNotification } from '../services/notificationService'
 import type { Message } from '../types'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
@@ -54,6 +56,25 @@ export function useSignalR(roomId: string | null) {
         // Safety net: if the room isn't in our list yet, reload rooms
         if (!useRoomStore.getState().rooms.find(r => r.id === msg.roomId)) {
           useRoomStore.getState().loadRooms()
+        }
+        // Update browser tab title with total unread count
+        queueMicrotask(() => {
+          const rooms = useRoomStore.getState().rooms
+          const total = rooms.reduce((sum, r) => sum + r.unreadCount, 0)
+          document.title = total > 0 ? `(${total}) MattLab Chat` : 'MattLab Chat'
+        })
+        // Play chime and browser notification if not actively viewing this conversation
+        if (msg.roomId !== activeRoomId || document.visibilityState !== 'visible') {
+          const room = useRoomStore.getState().rooms.find(r => r.id === msg.roomId)
+          const isDm = room?.isDm ?? false
+          const level = useNotificationPreferencesStore.getState().effectiveLevelForRoom(msg.roomId, isDm)
+          if (level === 'all_messages') {
+            playChime()
+            if (document.visibilityState !== 'visible') {
+              const authorName = msg.author?.displayName ?? 'Someone'
+              showBrowserNotification(authorName, msg.content, msg.roomId)
+            }
+          }
         }
       })
 
@@ -118,6 +139,13 @@ export function useSignalR(roomId: string | null) {
       ) => {
         setMention(roomId.toString())
         showMentionToast({ roomId: roomId.toString(), roomName, fromDisplayName, contentPreview })
+        const room = useRoomStore.getState().rooms.find(r => r.id === roomId.toString())
+        const isDm = room?.isDm ?? false
+        const level = useNotificationPreferencesStore.getState().effectiveLevelForRoom(roomId.toString(), isDm)
+        if (level !== 'muted') {
+          playChime()
+          showBrowserNotification(fromDisplayName, contentPreview, roomId.toString())
+        }
       })
 
       // T072: send heartbeat every 15s to keep presence key alive (30s TTL)

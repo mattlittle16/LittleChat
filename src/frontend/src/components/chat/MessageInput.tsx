@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useOutboxStore } from '../../stores/outboxStore'
 import { getConnection } from '../../services/signalrClient'
-import { getAccessToken } from '../../services/apiClient'
+import { getAccessToken, api } from '../../services/apiClient'
 import { FileUploadProgress } from '../files/FileUploadProgress'
+import type { UserSearchResult } from '../../types'
 
 const TYPING_DEBOUNCE_MS = 500
 const MAX_LENGTH = 4_000
@@ -19,6 +20,9 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   const [preview, setPreview] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
+  const [mentionIndex, setMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -27,6 +31,45 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   const isConnected = getConnection()?.state === 'Connected'
   const isDisabled = disabled || !isConnected
   const isUploading = uploadProgress !== null
+
+  // Fetch users when an active mention query changes
+  useEffect(() => {
+    if (mentionQuery === null) return
+    let cancelled = false
+    const timeout = setTimeout(() => {
+      const params = mentionQuery ? `?q=${encodeURIComponent(mentionQuery)}` : ''
+      api.get<UserSearchResult[]>(`/api/users${params}`)
+        .then(users => { if (!cancelled) setMentionUsers(users.slice(0, 6)) })
+        .catch(() => { if (!cancelled) setMentionUsers([]) })
+    }, 150)
+    return () => { cancelled = true; clearTimeout(timeout) }
+  }, [mentionQuery])
+
+  function detectMention(text: string, cursorPos: number) {
+    const before = text.slice(0, cursorPos)
+    const match = before.match(/@(\w*)$/)
+    if (match) {
+      setMentionQuery(match[1])
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+      setMentionUsers([])
+    }
+  }
+
+  function completeMention(displayName: string) {
+    const cursorPos = textareaRef.current?.selectionStart ?? content.length
+    const before = content.slice(0, cursorPos)
+    const after = content.slice(cursorPos)
+    const newBefore = before.replace(/@\w*$/, `@${displayName} `)
+    setContent(newBefore + after)
+    setMentionQuery(null)
+    setMentionUsers([])
+    setTimeout(() => {
+      textareaRef.current?.setSelectionRange(newBefore.length, newBefore.length)
+      textareaRef.current?.focus()
+    }, 0)
+  }
 
   function notifyTyping() {
     const connection = getConnection()
@@ -39,6 +82,28 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionQuery !== null && mentionUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex(i => (i + 1) % mentionUsers.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex(i => (i - 1 + mentionUsers.length) % mentionUsers.length)
+        return
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        completeMention(mentionUsers[mentionIndex].displayName)
+        return
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null)
+        setMentionUsers([])
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
@@ -174,7 +239,32 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
           📎
         </button>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative">
+          {/* @mention autocomplete dropdown */}
+          {mentionQuery !== null && mentionUsers.length > 0 && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 rounded-md border bg-background shadow-lg z-20 overflow-hidden">
+              {mentionUsers.map((user, i) => (
+                <button
+                  key={user.id}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left ${
+                    i === mentionIndex ? 'bg-muted' : 'hover:bg-muted/60'
+                  }`}
+                  onMouseDown={e => { e.preventDefault(); completeMention(user.displayName) }}
+                >
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.displayName} className="w-5 h-5 rounded-full flex-shrink-0 object-cover" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                      {user.displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span>{user.displayName}</span>
+                  {user.isOnline && <span className="ml-auto w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Preview/edit toggle */}
           <div className="flex gap-1 mb-1">
             <button
@@ -205,7 +295,11 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
             <textarea
               ref={textareaRef}
               value={content}
-              onChange={e => { setContent(e.target.value); notifyTyping() }}
+              onChange={e => {
+                setContent(e.target.value)
+                notifyTyping()
+                detectMention(e.target.value, e.target.selectionStart ?? e.target.value.length)
+              }}
               onKeyDown={handleKeyDown}
               disabled={isDisabled || isUploading}
               rows={1}

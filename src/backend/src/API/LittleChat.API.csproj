@@ -34,6 +34,7 @@
     <ProjectReference Include="..\Modules\Files\Infrastructure\Files.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Files\API\Files.API.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Infrastructure\Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\API\Notifications.API.csproj" />
     <ProjectReference Include="..\Modules\RealTime\Infrastructure\RealTime.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\RealTime\API\RealTime.API.csproj" />
   </ItemGroup>

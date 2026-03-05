@@ -22,4 +22,7 @@ public interface IRoomRepository
     Task<Room?> GetByIdAsync(Guid roomId, CancellationToken ct = default);
     Task<IReadOnlyList<Guid>> GetRoomMemberIdsAsync(Guid roomId, CancellationToken ct = default);
     Task DeleteAsync(Guid roomId, CancellationToken ct = default);
+
+    // 005-notification-settings: US3 — persist last-read position
+    Task<bool> MarkReadAsync(Guid roomId, Guid userId, CancellationToken ct = default);
 }

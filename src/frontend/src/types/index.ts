@@ -75,3 +75,19 @@ export interface MessagePage {
   hasMore: boolean
   nextCursor: string | null
 }
+
+// Notification preferences types (005-notification-settings)
+export type RoomSoundLevel = 'all_messages' | 'mentions_only' | 'muted'
+export type ConversationOverrideLevel = 'all_messages' | 'mentions_only' | 'muted'
+
+export interface NotificationPreferences {
+  dmSoundEnabled: boolean
+  roomSoundLevel: RoomSoundLevel
+  dndEnabled: boolean
+  browserNotificationsEnabled: boolean
+}
+
+export interface ConversationOverride {
+  roomId: string
+  level: ConversationOverrideLevel
+}
