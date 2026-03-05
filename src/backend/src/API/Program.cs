@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
+using Notifications.API;
 using Notifications.Application.Handlers;
 using Notifications.Infrastructure;
 using Presence.API;
@@ -218,7 +219,8 @@ builder.Services.AddPresenceInfrastructure();
 builder.Services.AddReactionsModule();
 builder.Services.AddSearchModule();
 builder.Services.AddFilesModule(builder.Configuration);
-builder.Services.AddNotificationsModule();
+builder.Services.AddNotificationsModule(builder.Configuration);
+builder.Services.AddNotificationsApiModule();
 builder.Services.AddRealTimeModule();
 
 // ── Build ─────────────────────────────────────────────────────────────────────
@@ -267,6 +269,7 @@ app.MapMessagingEndpoints();
 app.MapReactionsEndpoints();
 app.MapSearchEndpoints();
 app.MapFilesEndpoints();
+app.MapNotificationsEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 
 app.Run();

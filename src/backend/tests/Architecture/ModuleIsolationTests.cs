@@ -32,6 +32,7 @@ public class ModuleIsolationTests
         _ = typeof(Reactions.Application.IReactionRepository);
         _ = typeof(Search.Application.Queries.SearchQuery);
         _ = typeof(Notifications.Application.Handlers.UserMentionedHandler);
+        _ = typeof(Notifications.API.NotificationsEndpoints);
 
         return AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => Modules.Any(m => a.GetName().Name?.StartsWith(m + ".") == true))
@@ -89,6 +90,35 @@ public class ModuleIsolationTests
 
             Assert.True(result.IsSuccessful,
                 $"{module}.Application must not reference other module Infrastructure or API. " +
+                $"Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
+        }
+    }
+
+    [Fact]
+    public void API_Layer_Must_Not_Reference_Other_Module_Assemblies()
+    {
+        var assemblies = LoadModuleAssemblies();
+
+        foreach (var module in Modules)
+        {
+            var assembly = assemblies.FirstOrDefault(a => a.GetName().Name == $"{module}.API");
+            if (assembly is null) continue;
+
+            var forbidden = Modules
+                .Where(m => m != module)
+                .SelectMany(m => new[]
+                {
+                    $"{m}.Domain", $"{m}.Application", $"{m}.Infrastructure", $"{m}.API",
+                })
+                .ToArray();
+
+            var result = Types
+                .InAssembly(assembly)
+                .ShouldNot().HaveDependencyOnAny(forbidden)
+                .GetResult();
+
+            Assert.True(result.IsSuccessful,
+                $"{module}.API must not reference other module assemblies. " +
                 $"Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
         }
     }

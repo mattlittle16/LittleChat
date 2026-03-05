@@ -6,8 +6,10 @@ import { MessageInput } from '../chat/MessageInput'
 import { TypingIndicator } from '../chat/TypingIndicator'
 import { SearchModal } from '../search/SearchModal'
 import { MentionToastContainer } from '../chat/MentionToast'
+import { NotificationSettingsPage } from '../settings/NotificationSettingsPage'
 import { useRoomStore } from '../../stores/roomStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
+import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
 import { useSignalR } from '../../hooks/useSignalR'
 import { getCurrentUserDisplayName, logout } from '../../services/authService'
 import { api } from '../../services/apiClient'
@@ -15,6 +17,7 @@ import { api } from '../../services/apiClient'
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
   const { status } = useSignalR(activeRoomId)
+  const [view, setView] = useState<'chat' | 'notifications'>('chat')
   const [searchOpen, setSearchOpen] = useState(false)
   const [dmMenuOpen, setDmMenuOpen] = useState(false)
   const [dmConfirming, setDmConfirming] = useState(false)
@@ -26,13 +29,26 @@ export function ChatLayout() {
   const roomMenuRef = useRef<HTMLDivElement>(null)
 
   const setCurrentUserId = useCurrentUserStore(s => s.setId)
+  const loadPreferences = useNotificationPreferencesStore(s => s.loadPreferences)
+  const loadOverrides = useNotificationPreferencesStore(s => s.loadOverrides)
 
   // Fetch the backend-assigned internal user ID once on mount.
   // The JWT sub claim (used by getCurrentUserId) is Authentik's identifier,
   // not the internal UUID stored on messages — so we need /api/users/me.
   useEffect(() => {
     api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(() => {})
-  }, [setCurrentUserId])
+    loadPreferences().catch(() => {})
+    loadOverrides().catch(() => {})
+  }, [setCurrentUserId, loadPreferences, loadOverrides])
+
+  // Update document title with total unread count
+  useEffect(() => {
+    const unsub = useRoomStore.subscribe(s => {
+      const total = s.rooms.reduce((sum, r) => sum + r.unreadCount, 0)
+      document.title = total > 0 ? `(${total}) MattLab Chat` : 'MattLab Chat'
+    })
+    return unsub
+  }, [])
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const roomName = activeRoom
@@ -139,6 +155,9 @@ export function ChatLayout() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col min-w-0 relative">
+        {view === 'notifications' ? (
+          <NotificationSettingsPage onBack={() => setView('chat')} />
+        ) : (<>
         {/* Toolbar */}
         <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0">
           <span className="font-semibold text-sm truncate">
@@ -263,7 +282,14 @@ export function ChatLayout() {
                   <ChevronDown className="w-3 h-3 flex-shrink-0" />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded border bg-background shadow-md text-sm">
+                  <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded border bg-background shadow-md text-sm">
+                    <button
+                      onClick={() => { setUserMenuOpen(false); setView('notifications') }}
+                      className="w-full px-3 py-2 text-left hover:bg-muted/60"
+                    >
+                      Notification Settings
+                    </button>
+                    <div className="border-t" />
                     <button
                       onClick={logout}
                       className="w-full px-3 py-2 text-left text-destructive hover:bg-muted/60"
@@ -289,6 +315,7 @@ export function ChatLayout() {
             Select a room to start chatting.
           </div>
         )}
+        </>)}
       </div>
 
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}

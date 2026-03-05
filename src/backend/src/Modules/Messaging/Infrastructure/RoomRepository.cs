@@ -201,4 +201,12 @@ public sealed class RoomRepository : IRoomRepository
             .Where(r => r.Id == roomId)
             .ExecuteDeleteAsync(ct);
     }
+
+    public async Task<bool> MarkReadAsync(Guid roomId, Guid userId, CancellationToken ct = default)
+    {
+        var rowsAffected = await _db.RoomMemberships
+            .Where(m => m.RoomId == roomId && m.UserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.LastReadAt, DateTime.UtcNow), ct);
+        return rowsAffected > 0;
+    }
 }

@@ -9,6 +9,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-01
 - `localStorage` — key `littlechat_theme` (`'light'` | `'dark'`) (003-visual-redesign)
 - C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, Npgsql, Zustand v5, Tailwind CSS v4, shadcn/ui (slate/cssVariables), lucide-reac (004-user-content-controls)
 - PostgreSQL via Npgsql raw SQL in repositories (004-user-content-controls)
+- C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, Entity Framework Core (Npgsql), Zustand v5, Tailwind CSS v4, lucide-react, Web Notifications API (browser built-in) (005-notification-settings)
+- PostgreSQL — two new tables in Notifications module (`NotificationsDbContext`); `room_memberships.last_read_at` (existing, Messaging module) (005-notification-settings)
 
 - C# (.NET 8 or 9) — backend; TypeScript — frontend + ASP.NET Core SignalR + `Microsoft.AspNetCore.SignalR.StackExchangeRedis`; Entity Framework Core; MediatR; `Microsoft.AspNetCore.Authentication.JwtBearer`; React; `@microsoft/signalr`; `idb`; Zustand; Tailwind CSS; shadcn/ui (001-chat-mvp)
 
@@ -28,9 +30,9 @@ npm test && npm run lint
 C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventions
 
 ## Recent Changes
+- 005-notification-settings: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, Entity Framework Core (Npgsql), Zustand v5, Tailwind CSS v4, lucide-react, Web Notifications API (browser built-in)
 - 004-user-content-controls: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, Npgsql, Zustand v5, Tailwind CSS v4, shadcn/ui (slate/cssVariables), lucide-reac
 - 003-visual-redesign: Added TypeScript 5.9 / React 19 + Tailwind CSS v4 (`@tailwindcss/vite`), shadcn/ui (cssVariables mode, slate base), Zustand v5, Vite 7, lucide-react (icon library already installed)
-- 002-fix-dm-emoji-bugs: Added C# (.NET 8) — backend; TypeScript/React — frontend + ASP.NET Core SignalR (`@microsoft/signalr` v10), Zustand, `emoji-picker-react` v4.18, Npgsql (PostgreSQL), MediatR, Entity Framework Core
 
 
 <!-- MANUAL ADDITIONS START -->

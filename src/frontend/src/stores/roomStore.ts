@@ -40,6 +40,8 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         r.id === roomId ? { ...r, unreadCount: 0, hasMention: false } : r
       ),
     }))
+    // Persist last-read position to server (fire-and-forget)
+    api.post(`/api/rooms/${roomId}/read`, null).catch(() => {})
   },
 
   updateUnread: (roomId, count) => {
