@@ -24,7 +24,7 @@ function getFaviconLink(): HTMLLinkElement {
   return link
 }
 
-async function setFaviconBadge(count: number) {
+async function setFaviconBadge(count: number, signal: { cancelled: boolean }) {
   // Draw at 2x then let the browser scale down — keeps text crisp
   const size = 64
   const canvas = document.createElement('canvas')
@@ -34,10 +34,11 @@ async function setFaviconBadge(count: number) {
 
   try {
     const img = await loadFaviconImage()
+    if (signal.cancelled) return
     // Draw icon at 75% size top-left, leaving bottom-right for the badge
     ctx.drawImage(img, 0, 0, size * 0.75, size * 0.75)
   } catch {
-    // If favicon fails to load, just use blank canvas
+    if (signal.cancelled) return
   }
 
   const label = count > 99 ? '99+' : String(count)
@@ -53,7 +54,7 @@ async function setFaviconBadge(count: number) {
 
   ctx.beginPath()
   ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2)
-  ctx.fillStyle = count > 0 ? '#e53e3e' : '#6b7280'
+  ctx.fillStyle = count > 1 ? '#e53e3e' : '#6b7280'
   ctx.fill()
 
   ctx.fillStyle = '#ffffff'
@@ -72,6 +73,8 @@ export function useFaviconBadge() {
   )
 
   useEffect(() => {
-    setFaviconBadge(totalUnread)
+    const signal = { cancelled: false }
+    setFaviconBadge(totalUnread, signal)
+    return () => { signal.cancelled = true }
   }, [totalUnread])
 }
