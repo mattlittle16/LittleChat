@@ -1,8 +1,30 @@
 import { useEffect, useLayoutEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { Bold } from '@tiptap/extension-bold'
+import { Italic } from '@tiptap/extension-italic'
+import { markInputRule } from '@tiptap/core'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { DelimiterRevealExtension } from './DelimiterRevealExtension'
+
+// Italic: only _text_ (not *text*, which is reserved for bold like Slack)
+const SlackItalic = Italic.extend({
+  addInputRules() {
+    return [
+      markInputRule({ find: /(?:^|\s)((?:_)((?:[^_\n]+))_)$/, type: this.type }),
+    ]
+  },
+})
+
+// Bold: **text** (standard) and *text* (Slack-style single asterisk)
+const SlackBold = Bold.extend({
+  addInputRules() {
+    return [
+      markInputRule({ find: /(?:^|\s)((?:\*\*)((?:[^*\n]+))\*\*)$/, type: this.type }),
+      markInputRule({ find: /(?:^|\s)((?:\*)((?:[^*\n]+))\*)$/, type: this.type }),
+    ]
+  },
+})
 
 export interface InlineMarkdownEditorRef {
   focus: () => void
@@ -94,7 +116,12 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
           orderedList: false,
           listItem: false,
           // hardBreak kept enabled: Shift+Enter inserts a line break within the message
+          // Disable default bold/italic — replaced below with Slack-style rules
+          bold: false,
+          italic: false,
         }),
+        SlackBold,
+        SlackItalic,
         DelimiterRevealExtension,
       ],
       content: markdownToHtml(value),

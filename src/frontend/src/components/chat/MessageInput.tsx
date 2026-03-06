@@ -280,7 +280,7 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
                 detectMention(latestContentRef.current, pos)
               }}
               onSubmit={submit}
-              placeholder={isDisabled ? 'Reconnecting…' : 'Message (supports **markdown**)'}
+              placeholder={isDisabled ? 'Reconnecting…' : 'Message (*bold* _italic_ `code` ~~strike~~)'}
               disabled={isDisabled || isUploading}
             />
           </div>
