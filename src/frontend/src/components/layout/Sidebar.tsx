@@ -270,23 +270,22 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
             style={{ borderColor: 'hsl(var(--border))' }}
             onClick={e => e.stopPropagation()}
           >
-            {(['follow_global', 'all_messages', 'mentions_only', 'muted'] as const).map(level => (
-              <button
-                key={level}
-                onClick={() => { setOverride(room.id, level); setNotifMenuOpen(false) }}
-                className="w-full px-3 py-1.5 text-left hover:bg-muted/60"
-                style={{
-                  color: currentOverride === level || (level === 'follow_global' && !currentOverride)
-                    ? 'hsl(var(--foreground))'
-                    : 'hsl(var(--muted-foreground))',
-                  fontWeight: currentOverride === level || (level === 'follow_global' && !currentOverride) ? '600' : undefined,
-                }}
-              >
-                {level === 'follow_global' ? 'Follow Global Setting' :
-                 level === 'all_messages' ? 'All Messages' :
-                 level === 'mentions_only' ? '@Mentions Only' : 'Muted'}
-              </button>
-            ))}
+            {(['follow_global', 'all_messages', 'mentions_only', 'muted'] as const).map(level => {
+                const isActive = currentOverride === level || (level === 'follow_global' && !currentOverride)
+                return (
+                  <button
+                    key={level}
+                    onClick={() => { setOverride(room.id, level); setNotifMenuOpen(false) }}
+                    className="w-full px-3 py-1.5 text-left hover:bg-muted/60 flex items-center gap-2"
+                    style={{ color: 'hsl(var(--foreground))' }}
+                  >
+                    <span className="w-3 text-center text-green-500">{isActive ? '✓' : ''}</span>
+                    {level === 'follow_global' ? 'Follow Global Setting' :
+                     level === 'all_messages' ? 'All Messages' :
+                     level === 'mentions_only' ? '@Mentions Only' : 'Muted'}
+                  </button>
+                )
+              })}
           </div>
         )}
       </div>
@@ -434,23 +433,22 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
             style={{ borderColor: 'hsl(var(--border))' }}
             onClick={e => e.stopPropagation()}
           >
-            {(['follow_global', 'all_messages', 'mentions_only', 'muted'] as const).map(level => (
-              <button
-                key={level}
-                onClick={() => { setOverride(room.id, level); setNotifMenuOpen(false) }}
-                className="w-full px-3 py-1.5 text-left hover:bg-muted/60"
-                style={{
-                  color: currentOverride === level || (level === 'follow_global' && !currentOverride)
-                    ? 'hsl(var(--foreground))'
-                    : 'hsl(var(--muted-foreground))',
-                  fontWeight: currentOverride === level || (level === 'follow_global' && !currentOverride) ? '600' : undefined,
-                }}
-              >
-                {level === 'follow_global' ? 'Follow Global Setting' :
-                 level === 'all_messages' ? 'All Messages' :
-                 level === 'mentions_only' ? '@Mentions Only' : 'Muted'}
-              </button>
-            ))}
+            {(['follow_global', 'all_messages', 'mentions_only', 'muted'] as const).map(level => {
+                const isActive = currentOverride === level || (level === 'follow_global' && !currentOverride)
+                return (
+                  <button
+                    key={level}
+                    onClick={() => { setOverride(room.id, level); setNotifMenuOpen(false) }}
+                    className="w-full px-3 py-1.5 text-left hover:bg-muted/60 flex items-center gap-2"
+                    style={{ color: 'hsl(var(--foreground))' }}
+                  >
+                    <span className="w-3 text-center text-green-500">{isActive ? '✓' : ''}</span>
+                    {level === 'follow_global' ? 'Follow Global Setting' :
+                     level === 'all_messages' ? 'All Messages' :
+                     level === 'mentions_only' ? '@Mentions Only' : 'Muted'}
+                  </button>
+                )
+              })}
           </div>
         )}
       </div>

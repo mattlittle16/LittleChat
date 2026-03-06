@@ -232,8 +232,9 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
           onClick={() => fileInputRef.current?.click()}
           disabled={isDisabled || isUploading}
           title="Attach file"
-          className="self-stretch rounded-md border px-2 text-muted-foreground hover:bg-muted/60
+          className="self-stretch rounded-md px-2 hover:opacity-90
                      disabled:opacity-50 flex-shrink-0 flex items-center"
+          style={{ background: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))' }}
         >
           📎
         </button>
