@@ -5,9 +5,11 @@ import { LandingPage } from './components/LandingPage'
 import { SessionExpiredModal } from './components/SessionExpiredModal'
 import { isAuthenticated, restoreSession } from './services/authService'
 import { useTheme } from './hooks/useTheme'
+import { useFaviconBadge } from './hooks/useFaviconBadge'
 
 export default function App() {
   useTheme()
+  useFaviconBadge()
   const path = window.location.pathname
 
   // Handle OIDC callback before anything else
