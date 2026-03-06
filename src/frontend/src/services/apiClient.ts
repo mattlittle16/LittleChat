@@ -45,6 +45,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       // ignore parse errors
     }
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('session-expired'))
+    }
     throw new ApiError(response.status, problem)
   }
 

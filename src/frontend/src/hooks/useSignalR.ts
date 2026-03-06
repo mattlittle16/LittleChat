@@ -63,8 +63,9 @@ export function useSignalR(roomId: string | null) {
           const total = rooms.reduce((sum, r) => sum + r.unreadCount, 0)
           document.title = total > 0 ? `(${total}) MattLab Chat` : 'MattLab Chat'
         })
-        // Play chime and browser notification if not actively viewing this conversation
-        if (msg.roomId !== activeRoomId || document.visibilityState !== 'visible') {
+        // Play chime and browser notification if not actively viewing this conversation,
+        // or if the user has focus elsewhere (different window/app, tab still visible)
+        if (msg.roomId !== activeRoomId || document.visibilityState !== 'visible' || !document.hasFocus()) {
           const room = useRoomStore.getState().rooms.find(r => r.id === msg.roomId)
           const isDm = room?.isDm ?? false
           const level = useNotificationPreferencesStore.getState().effectiveLevelForRoom(msg.roomId, isDm)
