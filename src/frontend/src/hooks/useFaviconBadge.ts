@@ -65,9 +65,6 @@ async function setFaviconBadge(count: number) {
   getFaviconLink().href = canvas.toDataURL('image/png')
 }
 
-function resetFavicon() {
-  getFaviconLink().href = FAVICON_PATH
-}
 
 export function useFaviconBadge() {
   const totalUnread = useRoomStore(s =>
