@@ -185,7 +185,7 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   const overLimit = remaining < 0
 
   return (
-    <div className="border-t p-3 flex flex-col gap-2">
+    <div className="border-t p-3 flex flex-col gap-2 bg-white/[0.06]">
       {hasFailed && (
         <div className="flex items-center gap-2 text-sm text-destructive">
           <span>Some messages failed to send.</span>
