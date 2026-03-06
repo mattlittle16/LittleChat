@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { ChatLayout } from './components/layout/ChatLayout'
 import { LandingPage } from './components/LandingPage'
+import { SessionExpiredModal } from './components/SessionExpiredModal'
 import { isAuthenticated, restoreSession } from './services/authService'
 import { useTheme } from './hooks/useTheme'
 
@@ -21,6 +22,18 @@ function AuthenticatedApp() {
   // Lazy initializer: restoreSession() and isAuthenticated() are synchronous localStorage
   // reads, so we can compute the initial value without a useEffect.
   const [authenticated] = useState<boolean>(() => restoreSession() || isAuthenticated())
+  const [sessionExpired, setSessionExpired] = useState(false)
 
-  return authenticated ? <ChatLayout /> : <LandingPage />
+  useEffect(() => {
+    const handler = () => setSessionExpired(true)
+    window.addEventListener('session-expired', handler)
+    return () => window.removeEventListener('session-expired', handler)
+  }, [])
+
+  return (
+    <>
+      {authenticated ? <ChatLayout /> : <LandingPage />}
+      {sessionExpired && <SessionExpiredModal />}
+    </>
+  )
 }

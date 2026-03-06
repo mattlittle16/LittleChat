@@ -21,6 +21,7 @@ export default defineConfig({
       },
       '/auth/login': 'http://localhost:5000',
       '/auth/logout': 'http://localhost:5000',
+      '/auth/oidc-callback': 'http://localhost:5000',
     },
   },
 })
