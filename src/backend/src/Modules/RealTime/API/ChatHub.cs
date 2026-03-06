@@ -33,7 +33,7 @@ public sealed class ChatHub : Hub<IChatHubClient>
         var userId = Context.User?.GetInternalUserId();
         if (userId is not null)
         {
-            await _presence.SetOnlineAsync(userId.Value);
+            await _presence.SetOnlineAsync(userId.Value, Context.ConnectionId);
             await Clients.All.PresenceUpdate(userId.Value, isOnline: true);
 
             // Send the newly connected client a snapshot of all currently online users
@@ -63,8 +63,9 @@ public sealed class ChatHub : Hub<IChatHubClient>
         var userId = Context.User?.GetInternalUserId();
         if (userId is not null)
         {
-            await _presence.SetOfflineAsync(userId.Value);
-            await Clients.All.PresenceUpdate(userId.Value, isOnline: false);
+            var nowFullyOffline = await _presence.SetOfflineAsync(userId.Value, Context.ConnectionId);
+            if (nowFullyOffline)
+                await Clients.All.PresenceUpdate(userId.Value, isOnline: false);
         }
 
         await base.OnDisconnectedAsync(exception);
@@ -75,7 +76,7 @@ public sealed class ChatHub : Hub<IChatHubClient>
     {
         var userId = Context.User?.GetInternalUserId();
         if (userId is not null)
-            await _presence.SetOnlineAsync(userId.Value);
+            await _presence.SetOnlineAsync(userId.Value, Context.ConnectionId);
     }
 
     public Task JoinRoom(string roomId)

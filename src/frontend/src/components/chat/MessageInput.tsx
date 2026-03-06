@@ -232,8 +232,8 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
           onClick={() => fileInputRef.current?.click()}
           disabled={isDisabled || isUploading}
           title="Attach file"
-          className="rounded-md border px-2 py-2 text-muted-foreground hover:bg-muted/60
-                     disabled:opacity-50 flex-shrink-0"
+          className="self-stretch rounded-md border px-2 text-muted-foreground hover:bg-muted/60
+                     disabled:opacity-50 flex-shrink-0 flex items-center"
         >
           📎
         </button>
@@ -289,8 +289,8 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
         <button
           onClick={submit}
           disabled={isDisabled || isUploading || (!content.trim() && !selectedFile) || overLimit}
-          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground
-                     hover:opacity-90 disabled:opacity-50"
+          className="self-stretch rounded-md bg-primary px-4 text-sm text-primary-foreground
+                     hover:opacity-90 disabled:opacity-50 flex items-center"
         >
           Send
         </button>

@@ -5,7 +5,9 @@ namespace Presence.Infrastructure;
 
 public sealed class PresenceService : IPresenceService
 {
-    // Key TTL: 30 seconds. Clients must send a Heartbeat at least every 15s.
+    // Per-connection key TTL: 30 seconds. Clients must send a Heartbeat at least every 15s.
+    // Key format: presence:{userId}:{connectionId}
+    // A user is online if ANY of their connection keys exist.
     private static readonly TimeSpan Ttl = TimeSpan.FromSeconds(30);
 
     private readonly IConnectionMultiplexer _redis;
@@ -15,36 +17,43 @@ public sealed class PresenceService : IPresenceService
         _redis = redis;
     }
 
-    public Task SetOnlineAsync(Guid userId, CancellationToken ct = default)
+    public Task SetOnlineAsync(Guid userId, string connectionId, CancellationToken ct = default)
     {
         var db = _redis.GetDatabase();
-        return db.StringSetAsync(Key(userId), "1", Ttl);
+        return db.StringSetAsync(ConnKey(userId, connectionId), "1", Ttl);
     }
 
-    public Task SetOfflineAsync(Guid userId, CancellationToken ct = default)
+    public async Task<bool> SetOfflineAsync(Guid userId, string connectionId, CancellationToken ct = default)
     {
         var db = _redis.GetDatabase();
-        return db.KeyDeleteAsync(Key(userId));
+        await db.KeyDeleteAsync(ConnKey(userId, connectionId));
+
+        // User is fully offline only if no other connection keys remain
+        var server = _redis.GetServer(_redis.GetEndPoints()[0]);
+        return !server.Keys(pattern: $"presence:{userId}:*").Any();
     }
 
-    public async Task<bool> IsOnlineAsync(Guid userId, CancellationToken ct = default)
+    public Task<bool> IsOnlineAsync(Guid userId, CancellationToken ct = default)
     {
-        var db = _redis.GetDatabase();
-        return await db.KeyExistsAsync(Key(userId));
+        var server = _redis.GetServer(_redis.GetEndPoints()[0]);
+        return Task.FromResult(server.Keys(pattern: $"presence:{userId}:*").Any());
     }
 
     public Task<IReadOnlyList<Guid>> GetAllOnlineAsync(CancellationToken ct = default)
     {
         var server = _redis.GetServer(_redis.GetEndPoints()[0]);
-        var result = new List<Guid>();
-        foreach (var key in server.Keys(pattern: "presence:*"))
+        var result = new HashSet<Guid>();
+        foreach (var key in server.Keys(pattern: "presence:*:*"))
         {
+            // Format: presence:{userId}:{connectionId} — extract just the userId segment
             var raw = ((string)key!).AsSpan("presence:".Length);
-            if (Guid.TryParse(raw, out var id))
+            var colonIdx = raw.IndexOf(':');
+            var userIdSpan = colonIdx >= 0 ? raw[..colonIdx] : raw;
+            if (Guid.TryParse(userIdSpan, out var id))
                 result.Add(id);
         }
-        return Task.FromResult<IReadOnlyList<Guid>>(result);
+        return Task.FromResult<IReadOnlyList<Guid>>(result.ToList());
     }
 
-    private static string Key(Guid userId) => $"presence:{userId}";
+    private static string ConnKey(Guid userId, string connectionId) => $"presence:{userId}:{connectionId}";
 }

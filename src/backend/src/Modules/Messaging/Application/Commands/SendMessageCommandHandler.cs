@@ -59,7 +59,8 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
             FileSize: savedPath is not null ? request.FileSize : null,
             CreatedAt: DateTime.UtcNow,
             EditedAt: null,
-            ExpiresAt: DateTime.UtcNow.AddDays(30)
+            ExpiresAt: DateTime.UtcNow.AddDays(30),
+            Reactions: []
         );
 
         try
