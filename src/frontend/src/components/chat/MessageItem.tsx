@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import { InlineMarkdownEditor } from './InlineMarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -59,7 +60,6 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   const [editContent, setEditContent] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [hovered, setHovered] = useState(false)
-  const editRef = useRef<HTMLTextAreaElement>(null)
 
   if (isOutbox(message)) {
     return (
@@ -79,7 +79,6 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   function startEdit() {
     setEditContent(message.content)
     setEditing(true)
-    setTimeout(() => editRef.current?.focus(), 0)
   }
 
   function cancelEdit() {
@@ -99,11 +98,6 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
       }).catch(() => {})
     }
     cancelEdit()
-  }
-
-  function handleEditKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() }
-    if (e.key === 'Escape') cancelEdit()
   }
 
   function handleDelete() {
@@ -143,15 +137,16 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
         {/* Inline edit textarea */}
         {editing ? (
           <div className="mt-1">
-            <textarea
-              ref={editRef}
-              value={editContent}
-              onChange={e => setEditContent(e.target.value)}
-              onKeyDown={handleEditKey}
-              rows={2}
-              className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <div onKeyDown={e => { if (e.key === 'Escape') cancelEdit() }}>
+              <InlineMarkdownEditor
+                value={editContent}
+                onChange={setEditContent}
+                onSubmit={submitEdit}
+                minHeight="2.25rem"
+                maxHeight="12rem"
+                autoFocus
+              />
+            </div>
             <div className="flex gap-2 mt-1">
               <button
                 onClick={submitEdit}
@@ -183,7 +178,19 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
                       </SyntaxHighlighter>
                     )
                   }
-                  return <code className={className} {...props}>{children}</code>
+                  return (
+                    <code
+                      className="rounded px-[0.35em] py-[0.1em] text-[0.85em] font-mono"
+                      style={{
+                        background: 'hsl(var(--muted))',
+                        border: '1px solid hsl(var(--border))',
+                        color: 'hsl(var(--foreground))',
+                      }}
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  )
                 },
               }}
             >

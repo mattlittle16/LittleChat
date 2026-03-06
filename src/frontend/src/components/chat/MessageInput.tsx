@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { InlineMarkdownEditor } from './InlineMarkdownEditor'
+import type { InlineMarkdownEditorRef } from './InlineMarkdownEditor'
 import { useOutboxStore } from '../../stores/outboxStore'
 import { getConnection } from '../../services/signalrClient'
 import { getAccessToken, api } from '../../services/apiClient'
@@ -17,15 +18,17 @@ interface MessageInputProps {
 
 export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   const [content, setContent] = useState('')
-  const [preview, setPreview] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const editorRef = useRef<InlineMarkdownEditorRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track latest content/cursor without stale closure issues
+  const latestContentRef = useRef('')
+  const cursorPosRef = useRef(0)
   const { enqueue, messages: outboxMessages, retryAll } = useOutboxStore()
   const hasFailed = outboxMessages.some(m => m.status === 'failed')
   const isConnected = getConnection()?.state === 'Connected'
@@ -58,17 +61,17 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
   }
 
   function completeMention(displayName: string) {
-    const cursorPos = textareaRef.current?.selectionStart ?? content.length
-    const before = content.slice(0, cursorPos)
-    const after = content.slice(cursorPos)
+    const cursorPos = cursorPosRef.current
+    const text = latestContentRef.current
+    const before = text.slice(0, cursorPos)
+    const after = text.slice(cursorPos)
     const newBefore = before.replace(/@\w*$/, `@${displayName} `)
-    setContent(newBefore + after)
+    const newContent = newBefore + after
+    latestContentRef.current = newContent
+    setContent(newContent)
     setMentionQuery(null)
     setMentionUsers([])
-    setTimeout(() => {
-      textareaRef.current?.setSelectionRange(newBefore.length, newBefore.length)
-      textareaRef.current?.focus()
-    }, 0)
+    setTimeout(() => editorRef.current?.focus(), 0)
   }
 
   function notifyTyping() {
@@ -81,33 +84,29 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
     }, TYPING_DEBOUNCE_MS)
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (mentionQuery !== null && mentionUsers.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setMentionIndex(i => (i + 1) % mentionUsers.length)
-        return
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setMentionIndex(i => (i - 1 + mentionUsers.length) % mentionUsers.length)
-        return
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault()
-        completeMention(mentionUsers[mentionIndex].displayName)
-        return
-      }
-      if (e.key === 'Escape') {
-        setMentionQuery(null)
-        setMentionUsers([])
-        return
-      }
-    }
-    if (e.key === 'Enter' && !e.shiftKey) {
+  function handleMentionKeyDown(e: React.KeyboardEvent) {
+    if (mentionQuery === null || mentionUsers.length === 0) return false
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
-      submit()
+      setMentionIndex(i => (i + 1) % mentionUsers.length)
+      return true
     }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setMentionIndex(i => (i - 1 + mentionUsers.length) % mentionUsers.length)
+      return true
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      completeMention(mentionUsers[mentionIndex].displayName)
+      return true
+    }
+    if (e.key === 'Escape') {
+      setMentionQuery(null)
+      setMentionUsers([])
+      return true
+    }
+    return false
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -167,7 +166,7 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
       // Non-fatal — user can retry
     })
 
-    textareaRef.current?.focus()
+    editorRef.current?.focus()
   }
 
   async function submit() {
@@ -179,7 +178,7 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
     if (!trimmed || trimmed.length > MAX_LENGTH) return
     setContent('')
     await enqueue(roomId, trimmed)
-    textareaRef.current?.focus()
+    editorRef.current?.focus()
   }
 
   const remaining = MAX_LENGTH - content.length
@@ -265,51 +264,26 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
             </div>
           )}
 
-          {/* Preview/edit toggle */}
-          <div className="flex gap-1 mb-1">
-            <button
-              type="button"
-              onClick={() => setPreview(false)}
-              className={`text-xs px-2 py-0.5 rounded ${!preview ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Write
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreview(true)}
-              disabled={!content.trim()}
-              className={`text-xs px-2 py-0.5 rounded disabled:opacity-40 ${preview ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Preview
-            </button>
-          </div>
-
-          {preview ? (
-            <div
-              className="min-h-[2.5rem] max-h-40 overflow-y-auto rounded-md border bg-background
-                         px-3 py-2 text-sm prose prose-sm dark:prose-invert max-w-none"
-            >
-              <ReactMarkdown>{content}</ReactMarkdown>
-            </div>
-          ) : (
-            <textarea
-              ref={textareaRef}
+          {/* Inline markdown editor — replaces the old textarea + Write/Preview toggle */}
+          <div onKeyDown={e => { handleMentionKeyDown(e) }}>
+            <InlineMarkdownEditor
+              ref={editorRef}
               value={content}
-              onChange={e => {
-                setContent(e.target.value)
+              onChange={(md) => {
+                latestContentRef.current = md
+                setContent(md)
                 notifyTyping()
-                detectMention(e.target.value, e.target.selectionStart ?? e.target.value.length)
+                detectMention(md, cursorPosRef.current)
               }}
-              onKeyDown={handleKeyDown}
-              disabled={isDisabled || isUploading}
-              rows={1}
+              onCursorChange={(pos) => {
+                cursorPosRef.current = pos
+                detectMention(latestContentRef.current, pos)
+              }}
+              onSubmit={submit}
               placeholder={isDisabled ? 'Reconnecting…' : 'Message (supports **markdown**)'}
-              className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm
-                         placeholder:text-muted-foreground focus:outline-none focus:ring-2
-                         focus:ring-ring disabled:opacity-50"
-              style={{ minHeight: '2.5rem', maxHeight: '10rem' }}
+              disabled={isDisabled || isUploading}
             />
-          )}
+          </div>
         </div>
 
         <button
