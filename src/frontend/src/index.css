@@ -72,6 +72,11 @@
     border-color: hsl(var(--border));
   }
 
+  /* Bold text needs a colour lift in dark mode — same-colour heavier weight is hard to see */
+  .dark strong {
+    color: hsl(0 0% 100%);
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
