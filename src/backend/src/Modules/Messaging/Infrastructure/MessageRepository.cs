@@ -50,6 +50,7 @@ public sealed class MessageRepository : IMessageRepository
     {
         var entity = await _db.Messages
             .Include(m => m.User)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
 
         return entity is null ? null : ToMessage(entity);
@@ -60,6 +61,7 @@ public sealed class MessageRepository : IMessageRepository
     {
         IQueryable<MessageEntity> query = _db.Messages
             .Include(m => m.User)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Where(m => m.RoomId == roomId);
 
         // Keyset pagination: WHERE (created_at, id) < (before_ts, before_id)
@@ -145,6 +147,10 @@ public sealed class MessageRepository : IMessageRepository
         FileSize: e.FileSize,
         CreatedAt: e.CreatedAt,
         EditedAt: e.EditedAt,
-        ExpiresAt: e.ExpiresAt
+        ExpiresAt: e.ExpiresAt,
+        Reactions: e.Reactions
+            .OrderBy(r => r.CreatedAt)
+            .Select(r => new MessageReaction(r.Emoji, r.User?.DisplayName ?? string.Empty))
+            .ToList()
     );
 }

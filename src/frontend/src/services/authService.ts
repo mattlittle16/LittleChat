@@ -2,8 +2,6 @@ import { setAccessToken } from './apiClient'
 
 const TOKEN_KEY = 'access_token'
 const TOKEN_EXPIRY_KEY = 'access_token_expires_at'
-// JWT access tokens from Authentik are typically valid for 1 hour
-const DEFAULT_TTL_MS = 60 * 60 * 1000
 
 export function login() {
   window.location.href = '/auth/login'
@@ -16,8 +14,15 @@ export function logout() {
   window.location.href = '/auth/logout'
 }
 
-export function storeToken(token: string, expiresInSeconds?: number) {
-  const expiresAt = Date.now() + (expiresInSeconds ? expiresInSeconds * 1000 : DEFAULT_TTL_MS)
+export function storeToken(token: string) {
+  // Read expiry from the JWT `exp` claim (seconds since epoch) — authoritative from the IDP
+  let expiresAt: number
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    expiresAt = payload.exp ? payload.exp * 1000 : Date.now() + 60 * 60 * 1000
+  } catch {
+    expiresAt = Date.now() + 60 * 60 * 1000
+  }
   localStorage.setItem(TOKEN_KEY, token)
   localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiresAt))
   setAccessToken(token)

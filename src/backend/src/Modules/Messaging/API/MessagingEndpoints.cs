@@ -76,7 +76,10 @@ public static class MessagingEndpoints
                         Attachment: m.FileName is not null && m.FileSize is not null
                             ? new AttachmentDto(m.FileName, m.FileSize.Value, $"/api/files/{m.Id}")
                             : null,
-                        Reactions: [],
+                        Reactions: m.Reactions
+                            .GroupBy(r => r.Emoji)
+                            .Select(g => new ReactionDto(g.Key, g.Count(), g.Select(r => r.UserDisplayName).ToList()))
+                            .ToList(),
                         CreatedAt: m.CreatedAt,
                         EditedAt: m.EditedAt
                     )).ToList();

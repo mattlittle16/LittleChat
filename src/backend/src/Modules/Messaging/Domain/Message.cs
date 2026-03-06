@@ -12,5 +12,8 @@ public sealed record Message(
     long? FileSize,
     DateTime CreatedAt,
     DateTime? EditedAt,
-    DateTime ExpiresAt
+    DateTime ExpiresAt,
+    IReadOnlyList<MessageReaction> Reactions
 );
+
+public sealed record MessageReaction(string Emoji, string UserDisplayName);
