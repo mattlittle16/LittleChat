@@ -83,29 +83,47 @@ export function Sidebar() {
         </div>
 
         {creating && (
-          <form onSubmit={handleCreateRoom} className="px-3 pb-2 flex gap-2">
+          <form onSubmit={handleCreateRoom} className="px-3 pb-2 flex flex-col gap-1.5">
             <input
               autoFocus
               value={newRoomName}
               onChange={e => setNewRoomName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  setCreating(false)
+                  setNewRoomName('')
+                }
+              }}
               placeholder="Channel name"
-              className="flex-1 rounded border px-2 py-1 text-sm focus:outline-none focus:ring-1"
+              className="w-full rounded border px-2 py-1 text-sm focus:outline-none focus:ring-1"
               style={{
                 background: 'hsl(var(--sidebar-active-bg))',
                 borderColor: 'hsl(var(--sidebar-muted-fg) / 0.4)',
                 color: 'hsl(var(--sidebar-fg))',
               }}
             />
-            <button
-              type="submit"
-              className="rounded px-2 py-1 text-xs font-medium"
-              style={{
-                background: 'hsl(var(--primary))',
-                color: 'hsl(var(--primary-foreground))',
-              }}
-            >
-              Create
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="rounded px-2 py-1 text-xs font-medium"
+                style={{
+                  background: 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                }}
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => { setCreating(false); setNewRoomName('') }}
+                className="rounded px-2 py-1 text-xs font-medium"
+                style={{
+                  color: 'hsl(var(--sidebar-muted-fg))',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         )}
 
