@@ -77,6 +77,14 @@
     color: hsl(0 0% 100%);
   }
 
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  label[for] {
+    cursor: pointer;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));

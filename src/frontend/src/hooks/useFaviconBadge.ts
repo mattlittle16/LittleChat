@@ -54,7 +54,7 @@ async function setFaviconBadge(count: number, signal: { cancelled: boolean }) {
 
   ctx.beginPath()
   ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2)
-  ctx.fillStyle = count > 1 ? '#e53e3e' : '#6b7280'
+  ctx.fillStyle = count > 0 ? '#e53e3e' : '#6b7280'
   ctx.fill()
 
   ctx.fillStyle = '#ffffff'
