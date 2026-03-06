@@ -30,6 +30,15 @@ function AuthenticatedApp() {
     return () => window.removeEventListener('session-expired', handler)
   }, [])
 
+  // Proactive check: catch expiry when the user is idle (no API calls being made)
+  useEffect(() => {
+    if (!authenticated) return
+    const interval = setInterval(() => {
+      if (!isAuthenticated()) setSessionExpired(true)
+    }, 5_000)
+    return () => clearInterval(interval)
+  }, [authenticated])
+
   return (
     <>
       {authenticated ? <ChatLayout /> : <LandingPage />}
