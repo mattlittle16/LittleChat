@@ -1,0 +1,2 @@
+specs/** filter=git-crypt diff=git-crypt
+_bmad-output/** filter=git-crypt diff=git-crypt
