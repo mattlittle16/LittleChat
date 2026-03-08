@@ -61,7 +61,7 @@ export function useSignalR(roomId: string | null) {
         queueMicrotask(() => {
           const rooms = useRoomStore.getState().rooms
           const total = rooms.reduce((sum, r) => sum + r.unreadCount, 0)
-          document.title = total > 0 ? `(${total}) MattLab Chat` : 'MattLab Chat'
+          document.title = total > 0 ? `(${total}) LittleChat` : 'LittleChat'
         })
         // Play chime and browser notification if not actively viewing this conversation,
         // or if the user has focus elsewhere (different window/app, tab still visible)
