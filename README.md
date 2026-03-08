@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🗨️ MattLab Chat
+# 🗨️ Little Chat
 
 **Self-hosted real-time group chat. Own your conversations.**
 
