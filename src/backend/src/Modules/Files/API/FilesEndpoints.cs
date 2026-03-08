@@ -52,7 +52,9 @@ public static class FilesEndpoints
                     return Results.Forbid();
 
                 var uploadPath = config["UPLOAD_PATH"] ?? "/uploads";
-                var fullPath = Path.Combine(uploadPath, filePath);
+                var fullPath = Path.GetFullPath(Path.Combine(uploadPath, filePath));
+                if (!fullPath.StartsWith(Path.GetFullPath(uploadPath) + Path.DirectorySeparatorChar))
+                    return Results.NotFound();
                 if (!File.Exists(fullPath))
                     return Results.NotFound();
 

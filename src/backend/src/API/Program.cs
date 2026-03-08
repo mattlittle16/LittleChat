@@ -42,8 +42,8 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy
             .WithOrigins(corsOrigin)
-            .AllowAnyMethod()
-            .AllowAnyHeader()
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+            .WithHeaders("Content-Type", "Authorization", "X-Requested-With")
             .AllowCredentials()); // required for SignalR
 });
 
