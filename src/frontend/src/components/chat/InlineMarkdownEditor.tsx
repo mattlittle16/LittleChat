@@ -174,8 +174,9 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
 
     return (
       <div
-        className={`relative rounded-md border bg-background text-sm focus-within:ring-2 focus-within:ring-ring${disabled ? ' opacity-50 cursor-not-allowed' : ''}`}
+        className={`relative rounded-md border bg-background text-sm focus-within:ring-2 focus-within:ring-ring${disabled ? ' opacity-50 cursor-not-allowed' : ' cursor-text'}`}
         style={{ minHeight, maxHeight, overflowY: 'auto' }}
+        onClick={() => editor?.commands.focus('end')}
       >
         <EditorContent
           editor={editor}
