@@ -30,17 +30,16 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
     public override async Task OnConnectedAsync()
     {
-        var userId = Context.User?.GetInternalUserId();
-        if (userId is not null)
-        {
-            await _presence.SetOnlineAsync(userId.Value, Context.ConnectionId);
-            await Clients.All.PresenceUpdate(userId.Value, isOnline: true);
+        var userId = Context.User?.GetInternalUserId()
+            ?? throw new HubException("Unauthorized");
 
-            // Send the newly connected client a snapshot of all currently online users
-            // so their presence store is populated correctly on (re)connect.
-            var onlineUserIds = await _presence.GetAllOnlineAsync();
-            await Clients.Caller.PresenceSnapshot(onlineUserIds);
-        }
+        await _presence.SetOnlineAsync(userId, Context.ConnectionId);
+        await Clients.All.PresenceUpdate(userId, isOnline: true);
+
+        // Send the newly connected client a snapshot of all currently online users
+        // so their presence store is populated correctly on (re)connect.
+        var onlineUserIds = await _presence.GetAllOnlineAsync();
+        await Clients.Caller.PresenceSnapshot(onlineUserIds);
 
         var roomId = Context.GetHttpContext()?.Request.Query["roomId"].ToString();
         if (!string.IsNullOrWhiteSpace(roomId))
@@ -48,12 +47,9 @@ public sealed class ChatHub : Hub<IChatHubClient>
 
         // Join ALL room groups for this user so real-time events arrive from every room,
         // not only the currently active one (fixes DM notification bug).
-        if (userId is not null)
-        {
-            var allRoomIds = await _sender.Send(new GetUserRoomIdsQuery(userId.Value));
-            foreach (var id in allRoomIds)
-                await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{id}");
-        }
+        var allRoomIds = await _sender.Send(new GetUserRoomIdsQuery(userId));
+        foreach (var id in allRoomIds)
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{id}");
 
         await base.OnConnectedAsync();
     }

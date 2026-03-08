@@ -273,7 +273,7 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
               onChange={(md) => {
                 latestContentRef.current = md
                 setContent(md)
-                notifyTyping()
+                if (md.length > 0) notifyTyping()
                 detectMention(md, cursorPosRef.current)
               }}
               onCursorChange={(pos) => {
