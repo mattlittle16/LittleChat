@@ -2,6 +2,7 @@ name: Frontend CI
 
 on:
   pull_request:
+    branches: [master]
     paths:
       - 'src/frontend/**'
 
