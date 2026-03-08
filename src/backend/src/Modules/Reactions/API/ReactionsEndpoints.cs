@@ -23,10 +23,10 @@ public static class ReactionsEndpoints
                 Guid messageId,
                 AddReactionBody body) =>
             {
-                if (string.IsNullOrWhiteSpace(body.Emoji))
+                if (string.IsNullOrWhiteSpace(body.Emoji) || body.Emoji.Length > 20)
                     return Results.Problem(
-                        title: "Missing emoji",
-                        detail: "The 'emoji' field is required.",
+                        title: "Invalid emoji",
+                        detail: "The 'emoji' field is required and must be 20 characters or fewer.",
                         statusCode: 400);
 
                 var userId = ctx.User.GetInternalUserId();

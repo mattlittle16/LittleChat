@@ -36,6 +36,9 @@ public static class MessagingEndpoints
                 if (userId is null)
                     return Results.Unauthorized();
 
+                if (string.IsNullOrWhiteSpace(body.Name) || body.Name.Length > 100)
+                    return Results.BadRequest("Room name must be between 1 and 100 characters.");
+
                 try
                 {
                     var room = await sender.Send(new CreateRoomCommand(body.Name, userId.Value), ctx.RequestAborted);
