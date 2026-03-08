@@ -87,8 +87,8 @@ Neither pattern creates a hard dependency on another module's internals, keeping
 ### 1. Configure your environment
 
 ```bash
-git clone <repo-url> mattlab-chat
-cd mattlab-chat
+git clone <repo-url> little-chat
+cd little-chat
 cp .env.example .env
 ```
 
