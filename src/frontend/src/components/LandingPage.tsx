@@ -70,7 +70,7 @@ export function LandingPage() {
       >
         <div className="flex flex-col items-center gap-1">
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'hsl(var(--foreground))' }}>
-            MattLab Chat
+            LittleChat
           </h1>
           <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>
             A private chat for your group.
