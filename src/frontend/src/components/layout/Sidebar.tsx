@@ -58,7 +58,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: '1px solid hsl(var(--sidebar-muted-fg) / 0.2)' }}>
           <img src={logoSvg} alt="" className="h-6 w-6 flex-shrink-0" />
           <span className="font-semibold text-sm tracking-tight" style={{ color: 'hsl(var(--sidebar-fg))' }}>
-            MattLab Chat
+            LittleChat
           </span>
         </div>
 

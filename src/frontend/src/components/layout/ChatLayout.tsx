@@ -45,7 +45,7 @@ export function ChatLayout() {
   useEffect(() => {
     const unsub = useRoomStore.subscribe(s => {
       const total = s.rooms.reduce((sum, r) => sum + r.unreadCount, 0)
-      document.title = total > 0 ? `(${total}) MattLab Chat` : 'MattLab Chat'
+      document.title = total > 0 ? `(${total}) LittleChat` : 'LittleChat'
     })
     return unsub
   }, [])
