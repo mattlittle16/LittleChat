@@ -9,6 +9,7 @@ packages/
 *.nupkg
 *.snupkg
 TestResults/
+**localup.sh
 
 # ── Node / Frontend ────────────────────────────────────────────────────────
 node_modules/
