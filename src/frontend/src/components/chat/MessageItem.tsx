@@ -11,6 +11,7 @@ import { usePresenceStore } from '../../stores/presenceStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { ReactionBar } from './ReactionBar'
 import { AuthedImg } from './AuthedImg'
+import { cn } from '../../lib/utils'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
@@ -32,6 +33,9 @@ async function authedDownload(url: string, fileName: string) {
 interface MessageItemProps {
   message: Message | OutboxMessage
   isPending?: boolean
+  isKeyboardSelected?: boolean
+  deleteConfirmPending?: boolean
+  shouldStartEditing?: boolean
 }
 
 function isOutbox(m: Message | OutboxMessage): m is OutboxMessage {
@@ -50,7 +54,7 @@ async function openDmWithUser(userId: string) {
   setActiveRoom(room.id)
 }
 
-export function MessageItem({ message, isPending = false }: MessageItemProps) {
+export function MessageItem({ message, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
   const authorId = isOutbox(message) ? null : message.author.id
   const isAuthorOnline = usePresenceStore(s => authorId ? s.isOnline(authorId) : false)
   const currentUserId = useCurrentUserStore(s => s.id)
@@ -60,6 +64,18 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
   const [editContent, setEditContent] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [hovered, setHovered] = useState(false)
+
+  // Keyboard shortcut: parent sets shouldStartEditing to trigger inline edit mode.
+  // React "derived state during render" pattern — setState inside render is processed
+  // in the same cycle without an extra effect flush.
+  const [prevShouldStartEditing, setPrevShouldStartEditing] = useState(shouldStartEditing)
+  if (prevShouldStartEditing !== shouldStartEditing) {
+    setPrevShouldStartEditing(shouldStartEditing)
+    if (shouldStartEditing && !editing && !isOutbox(message)) {
+      setEditContent(message.content)
+      setEditing(true)
+    }
+  }
 
   if (isOutbox(message)) {
     return (
@@ -113,7 +129,7 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
 
   return (
     <div
-      className={`relative px-4 py-1 hover:bg-muted/40 ${isPending ? 'opacity-60' : ''}`}
+      className={cn('relative px-4 py-1 hover:bg-muted/40', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -168,6 +184,12 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
+                a({ href, children, ...props }) {
+                  const safeHref = href ?? ''
+                  const isSafe = safeHref.startsWith('https://') || safeHref.startsWith('http://')
+                  if (!isSafe) return <span>{children}</span>
+                  return <a href={safeHref} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                },
                 code({ className, children, ...props }) {
                   const match = /language-(\w+)/.exec(className ?? '')
                   const isBlock = !props.ref && match
@@ -197,6 +219,12 @@ export function MessageItem({ message, isPending = false }: MessageItemProps) {
               {message.content}
             </ReactMarkdown>
           </div>
+        )}
+
+        {isKeyboardSelected && (
+          <span className="text-xs text-muted-foreground mt-0.5 block">
+            {deleteConfirmPending ? 'Press Del again to confirm · Esc to cancel' : 'E to edit · Del to delete · Esc to cancel'}
+          </span>
         )}
 
         {message.attachment && (() => {

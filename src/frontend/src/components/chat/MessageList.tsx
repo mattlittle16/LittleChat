@@ -6,9 +6,12 @@ import { MessageItem } from './MessageItem'
 
 interface MessageListProps {
   roomId: string
+  selectedMessageId?: string | null
+  deleteConfirmPending?: boolean
+  editingMessageId?: string | null
 }
 
-export function MessageList({ roomId }: MessageListProps) {
+export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPending = false, editingMessageId = null }: MessageListProps) {
   const { messages, hasMoreByRoom, loadPage } = useMessageStore()
   const { messages: outbox } = useOutboxStore()
   const listRef = useRef<HTMLDivElement>(null)
@@ -28,16 +31,33 @@ export function MessageList({ roomId }: MessageListProps) {
   }, [roomId, loadPage])
 
   // Auto-scroll to bottom when new messages arrive (only when near bottom).
-  // Also clears the unread badge — if we're at the bottom the messages are visible.
+  // Also clears the unread badge — but only when the tab is visible, so the tab
+  // title count accumulates correctly when the user is in another browser tab.
   useEffect(() => {
     if (isNearBottomRef.current && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
-      const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
-      if (room && room.unreadCount > 0) {
-        useRoomStore.getState().markRead(roomId)
+      if (!document.hidden) {
+        const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
+        if (room && room.unreadCount > 0) {
+          useRoomStore.getState().markRead(roomId)
+        }
       }
     }
   }, [roomMessages.length, roomOutbox.length, roomId])
+
+  // When the tab becomes visible again, clear unread if the user is at the bottom
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (!document.hidden && isNearBottomRef.current) {
+        const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
+        if (room && room.unreadCount > 0) {
+          useRoomStore.getState().markRead(roomId)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [roomId])
 
   // Track whether user is near the bottom; clear unread badge when they scroll down
   useEffect(() => {
@@ -100,7 +120,13 @@ export function MessageList({ roomId }: MessageListProps) {
       )}
 
       {roomMessages.map(msg => (
-        <MessageItem key={msg.id} message={msg} />
+        <MessageItem
+          key={msg.id}
+          message={msg}
+          isKeyboardSelected={msg.id === selectedMessageId}
+          deleteConfirmPending={deleteConfirmPending}
+          shouldStartEditing={msg.id === editingMessageId}
+        />
       ))}
 
       {/* Outbox (pending/sending/failed messages from this room) */}

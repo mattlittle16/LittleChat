@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { MessageList } from '../chat/MessageList'
@@ -9,6 +9,8 @@ import { MentionToastContainer } from '../chat/MentionToast'
 import { NotificationSettingsPage } from '../settings/NotificationSettingsPage'
 import { useRoomStore } from '../../stores/roomStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
+import { useMessageStore, getRoomMessages } from '../../stores/messageStore'
+import { getConnection } from '../../services/signalrClient'
 import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
 import { useSignalR } from '../../hooks/useSignalR'
 import { getCurrentUserDisplayName, logout } from '../../services/authService'
@@ -29,8 +31,20 @@ export function ChatLayout() {
   const roomMenuRef = useRef<HTMLDivElement>(null)
 
   const setCurrentUserId = useCurrentUserStore(s => s.setId)
+  const currentUserId = useCurrentUserStore(s => s.id)
   const loadPreferences = useNotificationPreferencesStore(s => s.loadPreferences)
   const loadOverrides = useNotificationPreferencesStore(s => s.loadOverrides)
+
+  // US4: keyboard-selection state
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+  const [deleteConfirmPending, setDeleteConfirmPending] = useState(false)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+
+  const messages = useMessageStore(s => s.messages)
+  const myMessages = useMemo(() => {
+    if (!activeRoomId || !currentUserId) return []
+    return getRoomMessages(messages, activeRoomId).filter(m => m.author.id === currentUserId)
+  }, [messages, activeRoomId, currentUserId])
 
   // Fetch the backend-assigned internal user ID once on mount.
   // The JWT sub claim (used by getCurrentUserId) is Authentik's identifier,
@@ -124,6 +138,42 @@ export function ChatLayout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // US4: global keydown handler for keyboard-selected message actions
+  useEffect(() => {
+    if (selectedMessageId === null) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'e' || e.key === 'E') {
+        setEditingMessageId(selectedMessageId)
+        setSelectedMessageId(null)
+        setDeleteConfirmPending(false)
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (deleteConfirmPending) {
+          const connection = getConnection()
+          if (connection?.state === 'Connected' && selectedMessageId && activeRoomId) {
+            connection.invoke('DeleteMessage', {
+              messageId: selectedMessageId,
+              roomId: activeRoomId,
+            }).catch(() => {})
+          }
+          setSelectedMessageId(null)
+          setDeleteConfirmPending(false)
+          setEditingMessageId(null)
+        } else {
+          setDeleteConfirmPending(true)
+        }
+      } else if (e.key === 'Escape') {
+        if (deleteConfirmPending) {
+          setDeleteConfirmPending(false)
+        } else {
+          setSelectedMessageId(null)
+          setEditingMessageId(null)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedMessageId, deleteConfirmPending, activeRoomId])
+
   return (
     <div className="flex h-screen overflow-hidden relative">
       {/* Subtle background shapes — main app */}
@@ -159,7 +209,7 @@ export function ChatLayout() {
           <NotificationSettingsPage onBack={() => setView('chat')} />
         ) : (<>
         {/* Toolbar */}
-        <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0">
+        <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0 bg-muted">
           <span className="font-semibold text-sm truncate">
             {roomName ?? 'LittleChat'}
           </span>
@@ -306,9 +356,40 @@ export function ChatLayout() {
         {/* Main chat area */}
         {activeRoomId ? (
           <>
-            <MessageList roomId={activeRoomId} />
+            <MessageList
+              roomId={activeRoomId}
+              selectedMessageId={selectedMessageId}
+              deleteConfirmPending={deleteConfirmPending}
+              editingMessageId={editingMessageId}
+            />
             <TypingIndicator roomId={activeRoomId} />
-            <MessageInput roomId={activeRoomId} disabled={isDisconnected} />
+            <MessageInput
+              roomId={activeRoomId}
+              disabled={isDisconnected}
+              onArrowUpOnEmpty={() => {
+                if (myMessages.length === 0) return
+                setEditingMessageId(null)
+                if (!selectedMessageId) {
+                  setSelectedMessageId(myMessages.at(-1)!.id)
+                } else {
+                  const idx = myMessages.findIndex(m => m.id === selectedMessageId)
+                  if (idx > 0) setSelectedMessageId(myMessages[idx - 1].id)
+                }
+              }}
+              onArrowDown={() => {
+                if (!selectedMessageId) return false
+                const idx = myMessages.findIndex(m => m.id === selectedMessageId)
+                if (idx < myMessages.length - 1) {
+                  setSelectedMessageId(myMessages[idx + 1].id)
+                  setEditingMessageId(null)
+                } else {
+                  setSelectedMessageId(null)
+                  setEditingMessageId(null)
+                  setDeleteConfirmPending(false)
+                }
+                return true
+              }}
+            />
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">

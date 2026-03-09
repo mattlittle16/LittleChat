@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { Bold } from '@tiptap/extension-bold'
 import { Italic } from '@tiptap/extension-italic'
 import { markInputRule } from '@tiptap/core'
+import { TextSelection } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { DelimiterRevealExtension } from './DelimiterRevealExtension'
 
@@ -35,6 +36,8 @@ interface Props {
   onChange: (markdown: string) => void
   onSubmit: () => void
   onCursorChange?: (offset: number) => void
+  onArrowUpOnEmpty?: () => void
+  onArrowDown?: () => boolean
   placeholder?: string
   disabled?: boolean
   minHeight?: string
@@ -85,6 +88,8 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
       onChange,
       onSubmit,
       onCursorChange,
+      onArrowUpOnEmpty,
+      onArrowDown,
       placeholder,
       disabled = false,
       minHeight = '4.5rem',
@@ -96,9 +101,13 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
     // Use refs for callbacks to avoid stale closures in editor event handlers
     const onSubmitRef = useRef(onSubmit)
     const onCursorChangeRef = useRef(onCursorChange)
+    const onArrowUpOnEmptyRef = useRef(onArrowUpOnEmpty)
+    const onArrowDownRef = useRef(onArrowDown)
     useLayoutEffect(() => {
       onSubmitRef.current = onSubmit
       onCursorChangeRef.current = onCursorChange
+      onArrowUpOnEmptyRef.current = onArrowUpOnEmpty
+      onArrowDownRef.current = onArrowDown
     })
 
     // Track the last markdown we serialized so the sync effect doesn't loop
@@ -131,7 +140,43 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
           class: 'outline-none',
           'data-placeholder': placeholder ?? '',
         },
-        handleKeyDown(_view, event) {
+        handleKeyDown(view, event) {
+          if (event.key === 'ArrowUp') {
+            const { state } = view
+            const { selection } = state
+            // Only intercept cursor (not range selections — let ProseMirror collapse those)
+            if (selection.empty) {
+              const $from = selection.$from
+              if ($from.pos === 1) {
+                // Already at the very start: trigger message navigation
+                onArrowUpOnEmptyRef.current?.()
+                return true
+              }
+              // Check if there's a hardBreak before the cursor (i.e. we're on line 2+)
+              const offsetInParent = $from.parentOffset
+              let offset = 0
+              let onFirstLine = true
+              for (let i = 0; i < $from.parent.childCount; i++) {
+                const child = $from.parent.child(i)
+                if (offset >= offsetInParent) break
+                if (child.type.name === 'hardBreak') { onFirstLine = false; break }
+                offset += child.nodeSize
+              }
+              if (onFirstLine) {
+                // On first line but not at start: jump cursor to start
+                view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1)))
+                return true
+              }
+            }
+            // Cursor on line 2+ (or range selection): let ProseMirror move up naturally
+            return false
+          }
+          if (event.key === 'ArrowDown') {
+            // If the callback handles navigation (returns true), consume the event
+            // so ProseMirror doesn't also move the cursor.
+            if (onArrowDownRef.current?.()) return true
+            return false
+          }
           if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault()
             onSubmitRef.current()
@@ -176,7 +221,11 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
       <div
         className={`relative rounded-md border bg-background text-sm focus-within:ring-2 focus-within:ring-ring${disabled ? ' opacity-50 cursor-not-allowed' : ' cursor-text'}`}
         style={{ minHeight, maxHeight, overflowY: 'auto' }}
-        onClick={() => editor?.commands.focus('end')}
+        onClick={(e) => {
+          // Only focus-to-end when clicking empty space (the wrapper div itself),
+          // not when clicking on text content — that lets ProseMirror place the cursor naturally.
+          if (e.target === e.currentTarget) editor?.commands.focus('end')
+        }}
       >
         <EditorContent
           editor={editor}
