@@ -1,5 +1,8 @@
 # LittleChat Development Guidelines
 
+##MOST IMPORTANT 
+Don't ever assume, guess, or make up stats or theories without investigating the code base first. If you do need to propose a theory, you MUST tell me it's a theory rather than propose it as fact.
+
 Auto-generated from all feature plans. Last updated: 2026-03-01
 
 ## Active Technologies

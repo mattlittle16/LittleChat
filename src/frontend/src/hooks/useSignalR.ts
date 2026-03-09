@@ -49,8 +49,9 @@ export function useSignalR(roomId: string | null) {
 
       connection.on('ReceiveMessage', (msg: Message) => {
         addMessage(msg)
-        // Update unread badge if this isn't the currently visible room
-        if (msg.roomId !== activeRoomId) {
+        // Update unread badge if this isn't the currently visible room,
+        // or if it is but the tab is hidden (user is in another tab)
+        if (msg.roomId !== activeRoomId || document.hidden) {
           updateUnread(msg.roomId, 1)
         }
         // Safety net: if the room isn't in our list yet, reload rooms
