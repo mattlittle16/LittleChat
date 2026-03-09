@@ -60,6 +60,8 @@ public static class FilesEndpoints
 
                 // Detect MIME type
                 var provider = new FileExtensionContentTypeProvider();
+                provider.Mappings[".heic"] = "image/heic";
+                provider.Mappings[".heif"] = "image/heif";
                 if (!provider.TryGetContentType(fileName, out var contentType))
                     contentType = "application/octet-stream";
 
