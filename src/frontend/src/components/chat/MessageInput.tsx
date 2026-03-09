@@ -14,9 +14,11 @@ const MAX_FILE_BYTES = 200 * 1024 * 1024 // 200 MB
 interface MessageInputProps {
   roomId: string
   disabled?: boolean
+  onArrowUpOnEmpty?: () => void
+  onArrowDown?: () => boolean
 }
 
-export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
+export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArrowDown }: MessageInputProps) {
   const [content, setContent] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
@@ -281,6 +283,8 @@ export function MessageInput({ roomId, disabled = false }: MessageInputProps) {
                 detectMention(latestContentRef.current, pos)
               }}
               onSubmit={submit}
+              onArrowUpOnEmpty={onArrowUpOnEmpty}
+              onArrowDown={onArrowDown}
               placeholder={isDisabled ? 'Reconnecting…' : 'Message (*bold* _italic_ `code` ~~strike~~)'}
               disabled={isDisabled || isUploading}
             />
