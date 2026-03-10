@@ -174,18 +174,26 @@ public static class MessagingEndpoints
                 if (formFiles.Count > maxFileCount)
                     return Results.BadRequest($"A message may have at most {maxFileCount} file attachments.");
 
-                // Dangerous extension blocklist
-                var blockedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                // Safe extension allowlist — explicit opt-in is more secure than a blocklist
+                var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ".exe", ".msi", ".dmg", ".pkg", ".app", ".deb", ".rpm",
-                    ".sh", ".bash", ".zsh", ".ps1", ".psm1", ".psd1",
-                    ".bat", ".cmd", ".com", ".vbs", ".vbe", ".js", ".jse",
-                    ".wsf", ".wsh", ".scr", ".pif", ".cpl", ".dll", ".sys",
-                    ".drv", ".jar", ".py", ".rb", ".pl", ".php"
+                    // Images
+                    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif",
+                    ".heic", ".heif",
+                    // Documents
+                    ".pdf", ".txt", ".md", ".csv", ".rtf",
+                    // Office
+                    ".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt", ".odt", ".ods", ".odp",
+                    // Archives
+                    ".zip", ".7z", ".tar", ".gz", ".rar",
+                    // Audio
+                    ".mp3", ".m4a", ".wav", ".ogg", ".aac", ".flac",
+                    // Video
+                    ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".wmv", ".flv",
                 };
 
                 var blockedFiles = formFiles
-                    .Where(f => blockedExtensions.Contains(Path.GetExtension(f.FileName)))
+                    .Where(f => !allowedExtensions.Contains(Path.GetExtension(f.FileName)))
                     .Select(f => f.FileName)
                     .ToList();
 
@@ -205,7 +213,8 @@ public static class MessagingEndpoints
                 try
                 {
                     var fileUploads = formFiles
-                        .Select(f => new Messaging.Application.Commands.FileUpload(f.OpenReadStream(), f.FileName, f.Length))
+                        .Select(f => new Messaging.Application.Commands.FileUpload(
+                            new LimitedStream(f.OpenReadStream(), maxPerFileBytes), f.FileName, f.Length))
                         .ToList();
 
                     var result = await sender.Send(new SendMessageCommand(
@@ -329,6 +338,74 @@ public static class MessagingEndpoints
 
         return app;
     }
+}
+
+/// <summary>
+/// Wraps a stream and throws if more than <c>maxBytes</c> are read through it,
+/// enforcing the per-file size limit regardless of the client-reported Content-Length.
+/// Fully proxies CanSeek/Seek so format decoders that require seekable streams (e.g. HEIC) work correctly.
+/// </summary>
+internal sealed class LimitedStream(Stream inner, long maxBytes) : Stream
+{
+    // Track the furthest byte position reached (high-water mark) so seeking back and
+    // re-reading doesn't double-count bytes but a client can't escape the limit by seeking.
+    private long _highWater;
+
+    public override bool CanRead  => inner.CanRead;
+    public override bool CanSeek  => inner.CanSeek;
+    public override bool CanWrite => false;
+    public override long Length   => inner.Length;
+    public override long Position
+    {
+        get => inner.Position;
+        set
+        {
+            inner.Position = value;
+            _highWater = Math.Max(_highWater, value);
+        }
+    }
+
+    public override void Flush() => inner.Flush();
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        var pos = inner.Seek(offset, origin);
+        _highWater = Math.Max(_highWater, pos);
+        return pos;
+    }
+
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        var n = inner.Read(buffer, offset, count);
+        CheckHighWater();
+        return n;
+    }
+
+    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+    {
+        var n = await inner.ReadAsync(buffer, offset, count, ct);
+        CheckHighWater();
+        return n;
+    }
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+    {
+        var n = await inner.ReadAsync(buffer, ct);
+        CheckHighWater();
+        return n;
+    }
+
+    private void CheckHighWater()
+    {
+        _highWater = Math.Max(_highWater, inner.CanSeek ? inner.Position : _highWater);
+        if (_highWater > maxBytes)
+            throw new InvalidOperationException($"File exceeds the {maxBytes / (1024 * 1024)} MB per-file size limit.");
+    }
+
+    protected override void Dispose(bool disposing) { if (disposing) inner.Dispose(); base.Dispose(disposing); }
 }
 
 internal sealed record SendMessageBody(Guid? MessageId, string Content);

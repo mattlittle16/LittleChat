@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using MediatR;
 using Messaging.Domain;
+using Microsoft.Extensions.Logging;
 using Shared.Contracts.Events;
 using Shared.Contracts.Interfaces;
 
@@ -15,15 +16,18 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
     private readonly IEventBus _eventBus;
     private readonly IFileStorageService? _fileStorage;
     private readonly IUserLookupService? _userLookup;
+    private readonly ILogger<SendMessageCommandHandler> _logger;
 
     public SendMessageCommandHandler(
         IMessageRepository messages,
         IEventBus eventBus,
+        ILogger<SendMessageCommandHandler> logger,
         IFileStorageService? fileStorage = null,
         IUserLookupService? userLookup = null)
     {
         _messages = messages;
         _eventBus = eventBus;
+        _logger = logger;
         _fileStorage = fileStorage;
         _userLookup = userLookup;
     }
@@ -59,19 +63,24 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
                         Id:           Guid.NewGuid(),
                         MessageId:    request.MessageId,
                         FileName:     result.StoredFileName,
-                        FileSize:     file.FileSize,
+                        FileSize:     result.ActualFileSize,
                         FilePath:     result.RelativePath,
                         ContentType:  result.ContentType,
                         IsImage:      result.IsImage,
                         DisplayOrder: displayOrder++
                     ));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogError(ex, "Failed to save attachment {FileName} for message {MessageId}", file.FileName, request.MessageId);
                     failedFileNames.Add(file.FileName);
                 }
             }
         }
+
+        // If every file upload failed and there's no text, don't persist or broadcast a blank message
+        if (!hasContent && savedAttachments.Count == 0)
+            return new SendMessageResult(request.MessageId, failedFileNames);
 
         var message = new Message(
             Id:                request.MessageId,

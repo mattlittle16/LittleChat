@@ -21,7 +21,8 @@
       "WebFetch(domain:auth.mattlittle.me)",
       "Bash(cat:*)",
       "Bash(grep:*)",
-      "Bash(read hash:*)"
+      "Bash(read hash:*)",
+      "Bash(python3:*)"
     ]
   }
 }

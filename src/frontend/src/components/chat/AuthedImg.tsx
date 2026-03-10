@@ -40,9 +40,5 @@ export function AuthedImg({ src, alt, className }: AuthedImgProps) {
 
   if (!blobUrl) return null
 
-  return (
-    <a href={blobUrl} target="_blank" rel="noreferrer" className="mt-1 block">
-      <img src={blobUrl} alt={alt} className={className} />
-    </a>
-  )
+  return <img src={blobUrl} alt={alt} className={className} />
 }
