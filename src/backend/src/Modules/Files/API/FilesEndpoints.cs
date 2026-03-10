@@ -37,8 +37,14 @@ public static class FilesEndpoints
 
                 var filePath    = reader.GetString(0);
                 var fileName    = reader.GetString(1);
-                var contentType = reader.GetString(2);
+                var rawType     = reader.GetString(2);
                 var roomId      = reader.GetGuid(3);
+
+                // Sanitize content-type before using in response header; fall back to safe default
+                var contentType = (rawType.Length <= 100
+                    && !rawType.Contains('\n') && !rawType.Contains('\r')
+                    && System.Text.RegularExpressions.Regex.IsMatch(rawType, @"^[\w\-]+/[\w\-\+\.]+$"))
+                    ? rawType : "application/octet-stream";
                 await reader.CloseAsync();
 
                 // Check membership

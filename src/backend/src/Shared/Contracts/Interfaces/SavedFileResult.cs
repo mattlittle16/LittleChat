@@ -5,5 +5,6 @@ public sealed record SavedFileResult(
     string RelativePath,    // e.g. "abc123/photo.jpg"
     string StoredFileName,  // may differ from input when HEIC is converted → "photo.jpg"
     string ContentType,     // e.g. "image/jpeg"
-    bool   IsImage          // true for all image/* content types
+    bool   IsImage,         // true for all image/* content types
+    long   ActualFileSize   // bytes actually written to disk (not client-reported)
 );

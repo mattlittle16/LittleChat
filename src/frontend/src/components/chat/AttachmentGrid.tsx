@@ -41,18 +41,18 @@ export function AttachmentGrid({ attachments }: AttachmentGridProps) {
     <div className="mt-1 flex flex-col gap-1">
       {/* Image grid */}
       {images.length > 0 && (
-        <div className={`grid gap-1 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        <div className={`grid gap-1 max-w-sm ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
           {images.map(att => (
             <button
               key={att.attachmentId}
-              className="block overflow-hidden rounded-md border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex items-center justify-center overflow-hidden rounded-md border bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               onClick={() => openLightbox(att)}
               aria-label={`View ${att.fileName}`}
             >
               <AuthedImg
                 src={att.url}
                 alt={att.fileName}
-                className="w-full object-cover max-h-48"
+                className="max-h-40 max-w-full object-contain"
               />
             </button>
           ))}

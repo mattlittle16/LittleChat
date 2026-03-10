@@ -1,8 +1,7 @@
+using ImageMagick;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
 using Shared.Contracts.Interfaces;
 
 namespace Files.Infrastructure;
@@ -39,16 +38,25 @@ public sealed class LocalFileStorageService : IFileStorageService
 
         string storedName;
         string contentType;
+        long actualFileSize;
 
         if (_heicExtensions.Contains(ext))
         {
-            // Convert HEIC/HEIF → JPEG so all browsers can render it inline
+            // Convert HEIC/HEIF → JPEG via Magick.NET so all browsers can render inline
             storedName = Path.GetFileNameWithoutExtension(safeName) + ".jpg";
             contentType = "image/jpeg";
 
             var fullPath = Path.Combine(dirPath, storedName);
-            using var image = await Image.LoadAsync(stream, ct);
-            await image.SaveAsJpegAsync(fullPath, new JpegEncoder { Quality = 85 }, ct);
+            using var magick = new MagickImage(stream);
+
+            // Guard against decompression bombs
+            if ((ulong)magick.Width * magick.Height > 100_000_000UL)
+                throw new InvalidOperationException("Image dimensions exceed the maximum allowed size (100 megapixels).");
+
+            magick.Format = MagickFormat.Jpeg;
+            magick.Quality = 85;
+            await magick.WriteAsync(fullPath, ct);
+            actualFileSize = new FileInfo(fullPath).Length;
         }
         else
         {
@@ -56,6 +64,7 @@ public sealed class LocalFileStorageService : IFileStorageService
             var fullPath = Path.Combine(dirPath, storedName);
             await using var fs = File.Create(fullPath);
             await stream.CopyToAsync(fs, ct);
+            actualFileSize = fs.Length;
 
             if (!_contentTypeProvider.TryGetContentType(storedName, out contentType!))
                 contentType = "application/octet-stream";
@@ -64,14 +73,20 @@ public sealed class LocalFileStorageService : IFileStorageService
         var relativePath = $"{subDir}/{storedName}";
         var isImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 
-        return new SavedFileResult(relativePath, storedName, contentType, isImage);
+        return new SavedFileResult(relativePath, storedName, contentType, isImage, actualFileSize);
     }
 
     public Task DeleteAsync(string relativePath, CancellationToken ct = default)
     {
         try
         {
-            var fullPath = Path.Combine(_basePath, relativePath);
+            var fullPath = Path.GetFullPath(Path.Combine(_basePath, relativePath));
+            var baseFull = Path.GetFullPath(_basePath) + Path.DirectorySeparatorChar;
+            if (!fullPath.StartsWith(baseFull))
+            {
+                _logger.LogWarning("DeleteAsync rejected path traversal attempt for {RelativePath}", relativePath);
+                return Task.CompletedTask;
+            }
             if (File.Exists(fullPath))
                 File.Delete(fullPath);
         }
