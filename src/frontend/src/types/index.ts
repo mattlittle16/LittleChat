@@ -28,9 +28,12 @@ export interface UserSearchResult {
 }
 
 export interface Attachment {
+  attachmentId: string
   fileName: string
   fileSize: number
-  url: string // "/api/files/{messageId}"
+  contentType: string
+  isImage: boolean
+  url: string // "/api/files/attachments/{attachmentId}"
 }
 
 export interface Reaction {
@@ -44,7 +47,7 @@ export interface Message {
   roomId: string
   author: User
   content: string
-  attachment: Attachment | null
+  attachments: Attachment[]
   reactions: Reaction[]
   createdAt: string // ISO8601
   editedAt: string | null

@@ -8,8 +8,6 @@ public sealed record SendMessageCommand(
     Guid UserId,
     string AuthorDisplayName,
     string? AuthorAvatarUrl,
-    string Content,
-    Stream? FileStream = null,
-    string? OriginalFileName = null,
-    long? FileSize = null
-) : IRequest<Guid>;
+    string Content,                        // may be empty string for file-only messages
+    IReadOnlyList<FileUpload> Files        // empty list for text-only messages
+) : IRequest<SendMessageResult>;

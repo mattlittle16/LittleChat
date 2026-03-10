@@ -4,31 +4,16 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { api, getAccessToken } from '../../services/apiClient'
+import { api } from '../../services/apiClient'
 import { getConnection } from '../../services/signalrClient'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { ReactionBar } from './ReactionBar'
-import { AuthedImg } from './AuthedImg'
+import { AttachmentGrid } from './AttachmentGrid'
 import { cn } from '../../lib/utils'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
-
-async function authedDownload(url: string, fileName: string) {
-  const token = getAccessToken()
-  const res = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-  if (!res.ok) return
-  const blob = await res.blob()
-  const objectUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = fileName
-  a.click()
-  URL.revokeObjectURL(objectUrl)
-}
 
 interface MessageItemProps {
   message: Message | OutboxMessage
@@ -227,26 +212,7 @@ export function MessageItem({ message, isPending = false, isKeyboardSelected = f
           </span>
         )}
 
-        {message.attachment && (() => {
-          const isImage = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(message.attachment.fileName)
-          return isImage ? (
-            <AuthedImg
-              src={message.attachment.url}
-              alt={message.attachment.fileName}
-              className="max-w-xs max-h-64 rounded-md border object-contain"
-            />
-          ) : (
-            <button
-              onClick={() => authedDownload(message.attachment!.url, message.attachment!.fileName)}
-              className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-            >
-              📎 {message.attachment.fileName}
-              <span className="text-muted-foreground">
-                ({(message.attachment.fileSize / 1024).toFixed(1)} KB)
-              </span>
-            </button>
-          )
-        })()}
+        <AttachmentGrid attachments={message.attachments} />
 
         <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions} />
       </div>

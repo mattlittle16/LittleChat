@@ -15,9 +15,6 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<MessageEntit
         builder.Property(m => m.RoomId).HasColumnName("room_id");
         builder.Property(m => m.UserId).HasColumnName("user_id");
         builder.Property(m => m.Content).HasColumnName("content").IsRequired().HasMaxLength(4000);
-        builder.Property(m => m.FilePath).HasColumnName("file_path");
-        builder.Property(m => m.FileName).HasColumnName("file_name");
-        builder.Property(m => m.FileSize).HasColumnName("file_size");
         builder.Property(m => m.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
         builder.Property(m => m.EditedAt).HasColumnName("edited_at");
         builder.Property(m => m.ExpiresAt).HasColumnName("expires_at")

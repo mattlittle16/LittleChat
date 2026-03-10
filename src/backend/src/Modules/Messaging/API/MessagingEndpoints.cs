@@ -5,6 +5,8 @@ using Messaging.Application.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using Shared.Contracts;
@@ -76,9 +78,11 @@ public static class MessagingEndpoints
                         RoomId: m.RoomId,
                         Author: new AuthorDto(m.UserId, m.AuthorDisplayName, m.AuthorAvatarUrl),
                         Content: m.Content,
-                        Attachment: m.FileName is not null && m.FileSize is not null
-                            ? new AttachmentDto(m.FileName, m.FileSize.Value, $"/api/files/{m.Id}")
-                            : null,
+                        Attachments: m.Attachments
+                            .Select(a => new AttachmentDto(
+                                a.Id, a.FileName, a.FileSize, a.ContentType, a.IsImage,
+                                $"/api/files/attachments/{a.Id}"))
+                            .ToList(),
                         Reactions: m.Reactions
                             .GroupBy(r => r.Emoji)
                             .Select(g => new ReactionDto(g.Key, g.Count(), g.Select(r => r.UserDisplayName).ToList()))
@@ -121,70 +125,100 @@ public static class MessagingEndpoints
                 }
             });
 
-        // POST /api/rooms/{roomId}/messages — REST fallback / file upload path (multipart/form-data)
+        // POST /api/rooms/{roomId}/messages — REST / file upload path (multipart/form-data)
         app.MapPost("/api/rooms/{roomId:guid}/messages",
             [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
             {
-                // Raise per-request body size limit to 200 MB for file uploads
-                const long maxBytes = 200L * 1024 * 1024;
-                var bodySizeFeature = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
-                if (bodySizeFeature is not null)
-                    bodySizeFeature.MaxRequestBodySize = maxBytes;
+                // Raise per-request body size limit to 500 MB (combined cap)
+                const long maxCombinedBytes = 500L * 1024 * 1024;
+                const long maxPerFileBytes  = 200L * 1024 * 1024;
+                const int  maxFileCount     = 15;
+
+                var bodySizeFeature = ctx.Features.Get<IHttpMaxRequestBodySizeFeature>();
+                if (bodySizeFeature is not null && !bodySizeFeature.IsReadOnly)
+                    bodySizeFeature.MaxRequestBodySize = maxCombinedBytes + (1024 * 1024);
 
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null)
                     return Results.Unauthorized();
 
                 var displayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Unknown";
-                var avatarUrl = ctx.User.FindFirst("picture")?.Value;
+                var avatarUrl   = ctx.User.FindFirst("picture")?.Value;
 
-                // Support both multipart/form-data (with optional file) and JSON fallback
                 string? content;
-                Guid? messageId;
-                IFormFile? file = null;
+                Guid?   messageId;
+                IReadOnlyList<IFormFile> formFiles = [];
 
                 if (ctx.Request.HasFormContentType)
                 {
-                    var form = await ctx.Request.ReadFormAsync(ctx.RequestAborted);
-                    content = form["content"].FirstOrDefault();
+                    var form  = await ctx.Request.ReadFormAsync(ctx.RequestAborted);
+                    content   = form["content"].FirstOrDefault();
                     messageId = Guid.TryParse(form["id"].FirstOrDefault(), out var fid) ? fid : (Guid?)null;
-                    file = form.Files.GetFile("file");
+                    formFiles = form.Files.GetFiles("file").ToList();
                 }
                 else
                 {
-                    // JSON body fallback
-                    var body = await ctx.Request.ReadFromJsonAsync<SendMessageBody>(ctx.RequestAborted);
-                    content = body?.Content;
+                    // JSON body fallback (text-only, no files)
+                    var body  = await ctx.Request.ReadFromJsonAsync<SendMessageBody>(ctx.RequestAborted);
+                    content   = body?.Content;
                     messageId = body?.MessageId;
                 }
 
-                if (string.IsNullOrWhiteSpace(content))
-                    return Results.BadRequest("content is required.");
+                content ??= string.Empty;
 
-                // 200 MB limit validated server-side
-                if (file is not null && file.Length > maxBytes)
-                    return Results.BadRequest("File exceeds the 200 MB limit.");
+                // Validate: must have content OR files
+                if (string.IsNullOrWhiteSpace(content) && formFiles.Count == 0)
+                    return Results.BadRequest("Message must have text content or at least one file attachment.");
 
-                // Reject multi-file attempts
-                if (ctx.Request.HasFormContentType && ctx.Request.Form.Files.Count > 1)
-                    return Results.BadRequest("Only one file attachment per message is allowed.");
+                // Validate file count
+                if (formFiles.Count > maxFileCount)
+                    return Results.BadRequest($"A message may have at most {maxFileCount} file attachments.");
+
+                // Dangerous extension blocklist
+                var blockedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ".exe", ".msi", ".dmg", ".pkg", ".app", ".deb", ".rpm",
+                    ".sh", ".bash", ".zsh", ".ps1", ".psm1", ".psd1",
+                    ".bat", ".cmd", ".com", ".vbs", ".vbe", ".js", ".jse",
+                    ".wsf", ".wsh", ".scr", ".pif", ".cpl", ".dll", ".sys",
+                    ".drv", ".jar", ".py", ".rb", ".pl", ".php"
+                };
+
+                var blockedFiles = formFiles
+                    .Where(f => blockedExtensions.Contains(Path.GetExtension(f.FileName)))
+                    .Select(f => f.FileName)
+                    .ToList();
+
+                if (blockedFiles.Count > 0)
+                    return Results.BadRequest(new { error = "One or more file types are not permitted.", blockedFiles });
+
+                // Validate per-file and combined sizes
+                foreach (var f in formFiles)
+                {
+                    if (f.Length > maxPerFileBytes)
+                        return Results.BadRequest($"File '{f.FileName}' exceeds the 200 MB per-file limit.");
+                }
+
+                if (formFiles.Sum(f => f.Length) > maxCombinedBytes)
+                    return Results.BadRequest("Combined file size exceeds the 500 MB limit per message.");
 
                 try
                 {
-                    Stream? fileStream = file?.OpenReadStream();
-                    var id = await sender.Send(new SendMessageCommand(
-                        MessageId: messageId ?? Guid.NewGuid(),
-                        RoomId: roomId,
-                        UserId: userId.Value,
+                    var fileUploads = formFiles
+                        .Select(f => new Messaging.Application.Commands.FileUpload(f.OpenReadStream(), f.FileName, f.Length))
+                        .ToList();
+
+                    var result = await sender.Send(new SendMessageCommand(
+                        MessageId:         messageId ?? Guid.NewGuid(),
+                        RoomId:            roomId,
+                        UserId:            userId.Value,
                         AuthorDisplayName: displayName,
-                        AuthorAvatarUrl: avatarUrl,
-                        Content: content,
-                        FileStream: fileStream,
-                        OriginalFileName: file?.FileName,
-                        FileSize: file?.Length
+                        AuthorAvatarUrl:   avatarUrl,
+                        Content:           content,
+                        Files:             fileUploads
                     ), ctx.RequestAborted);
 
-                    return Results.Ok(new { id });
+                    return Results.Ok(new { id = result.MessageId, failedFiles = result.FailedFileNames });
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -194,7 +228,8 @@ public static class MessagingEndpoints
                 {
                     return Results.Forbid();
                 }
-            }).DisableRequestTimeout();
+            }).DisableRequestTimeout()
+              .WithMetadata(new DisableRequestSizeLimitAttribute());
 
         // PATCH /api/rooms/{roomId}/messages/{messageId} — edit own message
         app.MapPatch("/api/rooms/{roomId:guid}/messages/{messageId:guid}",

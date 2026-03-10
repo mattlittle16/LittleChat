@@ -5,7 +5,7 @@ public record MessageDto(
     Guid RoomId,
     AuthorDto Author,
     string Content,
-    AttachmentDto? Attachment,
+    IReadOnlyList<AttachmentDto> Attachments,
     IReadOnlyList<ReactionDto> Reactions,
     DateTime CreatedAt,
     DateTime? EditedAt

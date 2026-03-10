@@ -8,7 +8,6 @@ public sealed class MessageSentIntegrationEvent : IntegrationEvent
     public string DisplayName { get; init; } = string.Empty;
     public string? AvatarUrl { get; init; }
     public string Content { get; init; } = string.Empty;
-    public string? FileName { get; init; }
-    public long? FileSize { get; init; }
+    public IReadOnlyList<AttachmentEventData> Attachments { get; init; } = [];
     public DateTime CreatedAt { get; init; }
 }

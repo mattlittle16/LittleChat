@@ -16,16 +16,22 @@ public sealed class MessageSentHandler : IIntegrationEventHandler<MessageSentInt
     public async Task HandleAsync(MessageSentIntegrationEvent evt, CancellationToken cancellationToken = default)
     {
         var dto = new MessageDto(
-            Id: evt.MessageId,
-            RoomId: evt.RoomId,
-            Author: new AuthorDto(evt.UserId, evt.DisplayName, evt.AvatarUrl),
-            Content: evt.Content,
-            Attachment: evt.FileName is not null && evt.FileSize is not null
-                ? new AttachmentDto(evt.FileName, evt.FileSize.Value, $"/api/files/{evt.MessageId}")
-                : null,
-            Reactions: [],
-            CreatedAt: evt.CreatedAt,
-            EditedAt: null
+            Id:          evt.MessageId,
+            RoomId:      evt.RoomId,
+            Author:      new AuthorDto(evt.UserId, evt.DisplayName, evt.AvatarUrl),
+            Content:     evt.Content,
+            Attachments: evt.Attachments
+                .Select(a => new AttachmentDto(
+                    a.AttachmentId,
+                    a.FileName,
+                    a.FileSize,
+                    a.ContentType,
+                    a.IsImage,
+                    $"/api/files/attachments/{a.AttachmentId}"))
+                .ToList(),
+            Reactions:   [],
+            CreatedAt:   evt.CreatedAt,
+            EditedAt:    null
         );
 
         await _notifier.BroadcastToRoomAsync(
