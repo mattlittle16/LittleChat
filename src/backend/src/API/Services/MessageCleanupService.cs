@@ -6,8 +6,8 @@ namespace API.Services;
 
 /// <summary>
 /// Daily background service that hard-deletes expired messages (30-day TTL).
-/// Runs at 03:00 each night. For messages with file attachments, the file is
-/// deleted first; the message row is only deleted on file-delete success.
+/// Runs at 03:00 each night. For messages with file attachments, files are
+/// deleted first (per attachment); the message row is deleted after all files succeed.
 /// Constitution Principle IV: hard deletes, no soft deletes.
 /// </summary>
 public sealed class MessageCleanupService : BackgroundService
@@ -44,30 +44,44 @@ public sealed class MessageCleanupService : BackgroundService
             var db = scope.ServiceProvider.GetRequiredService<LittleChatDbContext>();
             var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorageService>();
 
-            // 1. Delete file-attached messages (file first, then row)
-            var fileMessages = await db.Messages
-                .Where(m => m.ExpiresAt < DateTime.UtcNow && m.FilePath != null)
-                .Select(m => new { m.Id, m.FilePath })
+            // 1. Load expired messages that have attachments
+            var expiredWithFiles = await db.Messages
+                .Where(m => m.ExpiresAt < DateTime.UtcNow)
+                .Where(m => m.Attachments.Any())
+                .Select(m => new
+                {
+                    m.Id,
+                    Attachments = m.Attachments.Select(a => new { a.Id, a.FilePath }).ToList()
+                })
                 .ToListAsync(ct);
 
             var deletedCount = 0;
-            foreach (var msg in fileMessages)
+            foreach (var msg in expiredWithFiles)
             {
-                try
+                var allDeleted = true;
+                foreach (var att in msg.Attachments)
                 {
-                    await fileStorage.DeleteAsync(msg.FilePath!, ct);
+                    try
+                    {
+                        await fileStorage.DeleteAsync(att.FilePath, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        allDeleted = false;
+                        _logger.LogWarning(ex, "Failed to delete file for attachment {AttachmentId} on message {MessageId}; skipping row delete", att.Id, msg.Id);
+                    }
+                }
+
+                if (allDeleted)
+                {
                     await db.Messages.Where(m => m.Id == msg.Id).ExecuteDeleteAsync(ct);
                     deletedCount++;
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete file for message {MessageId}; skipping row delete", msg.Id);
-                }
             }
 
-            // 2. Bulk-delete plain text messages
+            // 2. Bulk-delete expired messages without attachments
             var textDeleted = await db.Messages
-                .Where(m => m.ExpiresAt < DateTime.UtcNow && m.FilePath == null)
+                .Where(m => m.ExpiresAt < DateTime.UtcNow && !m.Attachments.Any())
                 .ExecuteDeleteAsync(ct);
 
             _logger.LogInformation(

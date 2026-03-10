@@ -18,16 +18,30 @@ public sealed class MessageRepository : IMessageRepository
     {
         var entity = new MessageEntity
         {
-            Id = message.Id,
-            RoomId = message.RoomId,
-            UserId = message.UserId,
-            Content = message.Content,
-            FilePath = message.FilePath,
-            FileName = message.FileName,
-            FileSize = message.FileSize,
+            Id        = message.Id,
+            RoomId    = message.RoomId,
+            UserId    = message.UserId,
+            Content   = message.Content,
             CreatedAt = message.CreatedAt,
             ExpiresAt = message.ExpiresAt,
         };
+
+        // Add attachment entities
+        for (int i = 0; i < message.Attachments.Count; i++)
+        {
+            var att = message.Attachments[i];
+            entity.Attachments.Add(new MessageAttachmentEntity
+            {
+                Id           = att.Id,
+                MessageId    = att.MessageId,
+                FileName     = att.FileName,
+                FileSize     = att.FileSize,
+                FilePath     = att.FilePath,
+                ContentType  = att.ContentType,
+                IsImage      = att.IsImage,
+                DisplayOrder = att.DisplayOrder,
+            });
+        }
 
         _db.Messages.Add(entity);
 
@@ -50,6 +64,7 @@ public sealed class MessageRepository : IMessageRepository
     {
         var entity = await _db.Messages
             .Include(m => m.User)
+            .Include(m => m.Attachments)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
 
@@ -61,13 +76,14 @@ public sealed class MessageRepository : IMessageRepository
     {
         IQueryable<MessageEntity> query = _db.Messages
             .Include(m => m.User)
+            .Include(m => m.Attachments)
             .Include(m => m.Reactions).ThenInclude(r => r.User)
             .Where(m => m.RoomId == roomId);
 
-        // Keyset pagination: WHERE (created_at, id) < (before_ts, before_id)
+        // Keyset pagination
         if (before.HasValue && beforeId.HasValue)
         {
-            var ts = before.Value;
+            var ts  = before.Value;
             var bid = beforeId.Value;
             query = query.Where(m =>
                 m.CreatedAt < ts ||
@@ -81,8 +97,8 @@ public sealed class MessageRepository : IMessageRepository
             .ToListAsync(ct);
 
         var hasMore = messages.Count > limit;
-        var page = messages.Take(limit).Select(ToMessage).ToList();
-        page.Reverse(); // return chronological order
+        var page    = messages.Take(limit).Select(ToMessage).ToList();
+        page.Reverse();
 
         return new MessagePage(page, hasMore);
     }
@@ -119,7 +135,7 @@ public sealed class MessageRepository : IMessageRepository
         if (entity is null) throw new InvalidOperationException("Message not found.");
         if (entity.UserId != userId) throw new UnauthorizedAccessException("Cannot edit another user's message.");
 
-        entity.Content = newContent;
+        entity.Content  = newContent;
         entity.EditedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return entity.EditedAt!.Value;
@@ -136,19 +152,28 @@ public sealed class MessageRepository : IMessageRepository
     }
 
     private static Message ToMessage(MessageEntity e) => new(
-        Id: e.Id,
-        RoomId: e.RoomId,
-        UserId: e.UserId,
+        Id:                e.Id,
+        RoomId:            e.RoomId,
+        UserId:            e.UserId,
         AuthorDisplayName: e.User?.DisplayName ?? string.Empty,
-        AuthorAvatarUrl: e.User?.AvatarUrl,
-        Content: e.Content,
-        FilePath: e.FilePath,
-        FileName: e.FileName,
-        FileSize: e.FileSize,
-        CreatedAt: e.CreatedAt,
-        EditedAt: e.EditedAt,
-        ExpiresAt: e.ExpiresAt,
-        Reactions: e.Reactions
+        AuthorAvatarUrl:   e.User?.AvatarUrl,
+        Content:           e.Content,
+        Attachments:       e.Attachments
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => new MessageAttachment(
+                Id:           a.Id,
+                MessageId:    a.MessageId,
+                FileName:     a.FileName,
+                FileSize:     a.FileSize,
+                FilePath:     a.FilePath,
+                ContentType:  a.ContentType,
+                IsImage:      a.IsImage,
+                DisplayOrder: a.DisplayOrder))
+            .ToList(),
+        CreatedAt:         e.CreatedAt,
+        EditedAt:          e.EditedAt,
+        ExpiresAt:         e.ExpiresAt,
+        Reactions:         e.Reactions
             .OrderBy(r => r.CreatedAt)
             .Select(r => new MessageReaction(r.Emoji, r.User?.DisplayName ?? string.Empty))
             .ToList()

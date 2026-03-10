@@ -153,7 +153,8 @@ public sealed class ChatHub : Hub<IChatHubClient>
                 UserId: userId,
                 AuthorDisplayName: displayName,
                 AuthorAvatarUrl: avatarUrl,
-                Content: request.Content
+                Content: request.Content,
+                Files: []
             ));
         }
         catch (InvalidOperationException ex)

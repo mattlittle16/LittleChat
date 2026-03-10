@@ -6,7 +6,7 @@ using Shared.Contracts.Interfaces;
 
 namespace Messaging.Application.Commands;
 
-public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Guid>
+public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, SendMessageResult>
 {
     private const int MaxContentLength = 4_000;
     private static readonly Regex MentionRegex = new(@"@(\w+)", RegexOptions.Compiled);
@@ -28,39 +28,63 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
         _userLookup = userLookup;
     }
 
-    public async Task<Guid> Handle(SendMessageCommand request, CancellationToken cancellationToken)
+    public async Task<SendMessageResult> Handle(SendMessageCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Content))
-            throw new InvalidOperationException("Message content cannot be empty.");
+        var hasContent = !string.IsNullOrWhiteSpace(request.Content);
+        var hasFiles   = request.Files.Count > 0;
 
-        if (request.Content.Length > MaxContentLength)
+        if (!hasContent && !hasFiles)
+            throw new InvalidOperationException("Message must have text content or at least one file attachment.");
+
+        if (hasContent && request.Content.Length > MaxContentLength)
             throw new InvalidOperationException($"Message content exceeds {MaxContentLength} characters.");
 
         var isMember = await _messages.IsMemberAsync(request.RoomId, request.UserId, cancellationToken);
         if (!isMember)
             throw new UnauthorizedAccessException("User is not a member of this room.");
 
-        // Save file before creating message (rollback on DB failure)
-        string? savedPath = null;
-        if (request.FileStream is not null && request.OriginalFileName is not null && _fileStorage is not null)
+        // Upload files, collecting results
+        var savedAttachments = new List<MessageAttachment>();
+        var failedFileNames  = new List<string>();
+        var displayOrder     = 0;
+
+        if (_fileStorage is not null)
         {
-            savedPath = await _fileStorage.SaveAsync(request.FileStream, request.OriginalFileName, cancellationToken);
+            foreach (var file in request.Files)
+            {
+                try
+                {
+                    var result = await _fileStorage.SaveAsync(file.Stream, file.FileName, cancellationToken);
+                    savedAttachments.Add(new MessageAttachment(
+                        Id:           Guid.NewGuid(),
+                        MessageId:    request.MessageId,
+                        FileName:     result.StoredFileName,
+                        FileSize:     file.FileSize,
+                        FilePath:     result.RelativePath,
+                        ContentType:  result.ContentType,
+                        IsImage:      result.IsImage,
+                        DisplayOrder: displayOrder++
+                    ));
+                }
+                catch
+                {
+                    failedFileNames.Add(file.FileName);
+                }
+            }
         }
 
         var message = new Message(
-            Id: request.MessageId,
-            RoomId: request.RoomId,
-            UserId: request.UserId,
+            Id:                request.MessageId,
+            RoomId:            request.RoomId,
+            UserId:            request.UserId,
             AuthorDisplayName: request.AuthorDisplayName,
-            AuthorAvatarUrl: request.AuthorAvatarUrl,
-            Content: request.Content,
-            FilePath: savedPath,
-            FileName: savedPath is not null ? request.OriginalFileName : null,
-            FileSize: savedPath is not null ? request.FileSize : null,
-            CreatedAt: DateTime.UtcNow,
-            EditedAt: null,
-            ExpiresAt: DateTime.UtcNow.AddDays(30),
-            Reactions: []
+            AuthorAvatarUrl:   request.AuthorAvatarUrl,
+            Content:           request.Content,
+            Attachments:       savedAttachments,
+            CreatedAt:         DateTime.UtcNow,
+            EditedAt:          null,
+            ExpiresAt:         DateTime.UtcNow.AddDays(30),
+            Reactions:         []
         );
 
         try
@@ -70,28 +94,32 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
         }
         catch
         {
-            // Rollback file on DB failure
-            if (savedPath is not null && _fileStorage is not null)
-                await _fileStorage.DeleteAsync(savedPath, cancellationToken);
+            // Rollback all saved files on DB failure
+            if (_fileStorage is not null)
+            {
+                foreach (var att in savedAttachments)
+                    await _fileStorage.DeleteAsync(att.FilePath, cancellationToken);
+            }
             throw;
         }
 
         // Persist-first, then broadcast (Constitution Principle I)
         await _eventBus.PublishAsync(new MessageSentIntegrationEvent
         {
-            MessageId = message.Id,
-            RoomId = message.RoomId,
-            UserId = message.UserId,
+            MessageId   = message.Id,
+            RoomId      = message.RoomId,
+            UserId      = message.UserId,
             DisplayName = message.AuthorDisplayName,
-            AvatarUrl = message.AuthorAvatarUrl,
-            Content = message.Content,
-            FileName = message.FileName,
-            FileSize = message.FileSize,
-            CreatedAt = message.CreatedAt,
+            AvatarUrl   = message.AuthorAvatarUrl,
+            Content     = message.Content,
+            Attachments = message.Attachments
+                .Select(a => new AttachmentEventData(a.Id, a.FileName, a.FileSize, a.ContentType, a.IsImage))
+                .ToList(),
+            CreatedAt   = message.CreatedAt,
         }, cancellationToken);
 
         // Detect @mentions and publish one event per unique mentioned user
-        if (_userLookup is not null)
+        if (_userLookup is not null && hasContent)
         {
             var mentions = MentionRegex.Matches(message.Content)
                 .Select(m => m.Groups[1].Value)
@@ -107,19 +135,19 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
 
                 await _eventBus.PublishAsync(new MentionDetectedIntegrationEvent
                 {
-                    MessageId = message.Id,
-                    RoomId = message.RoomId,
-                    RoomName = roomName,
+                    MessageId       = message.Id,
+                    RoomId          = message.RoomId,
+                    RoomName        = roomName,
                     MentionedUserId = mentionedId.Value,
-                    FromUserId = message.UserId,
+                    FromUserId      = message.UserId,
                     FromDisplayName = message.AuthorDisplayName,
-                    ContentPreview = message.Content.Length > 100
+                    ContentPreview  = message.Content.Length > 100
                         ? message.Content[..100] + "…"
                         : message.Content,
                 }, cancellationToken);
             }
         }
 
-        return message.Id;
+        return new SendMessageResult(message.Id, failedFileNames);
     }
 }

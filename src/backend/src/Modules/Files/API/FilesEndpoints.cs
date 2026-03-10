@@ -13,34 +13,33 @@ public static class FilesEndpoints
 {
     public static IEndpointRouteBuilder MapFilesEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/files/{messageId} — serve attachment, authenticated + membership check
-        app.MapGet("/api/files/{messageId:guid}",
-            [Authorize] async (Guid messageId, HttpContext ctx, NpgsqlDataSource db, IConfiguration config) =>
+        // GET /api/files/attachments/{attachmentId} — serve attachment, authenticated + membership check
+        app.MapGet("/api/files/attachments/{attachmentId:guid}",
+            [Authorize] async (Guid attachmentId, HttpContext ctx, NpgsqlDataSource db, IConfiguration config) =>
             {
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null)
                     return Results.Unauthorized();
 
-                // Fetch message metadata
+                // Fetch attachment metadata + room via join
                 await using var cmd = db.CreateCommand(
                     """
-                    SELECT m.file_path, m.file_name, m.room_id
-                    FROM messages m
-                    WHERE m.id = $1
+                    SELECT a.file_path, a.file_name, a.content_type, m.room_id
+                    FROM message_attachments a
+                    JOIN messages m ON m.id = a.message_id
+                    WHERE a.id = $1
                     """);
-                cmd.Parameters.AddWithValue(messageId);
+                cmd.Parameters.AddWithValue(attachmentId);
 
                 await using var reader = await cmd.ExecuteReaderAsync(ctx.RequestAborted);
                 if (!await reader.ReadAsync(ctx.RequestAborted))
                     return Results.NotFound();
 
-                var filePath = reader.IsDBNull(0) ? null : reader.GetString(0);
-                var fileName = reader.IsDBNull(1) ? null : reader.GetString(1);
-                var roomId   = reader.GetGuid(2);
+                var filePath    = reader.GetString(0);
+                var fileName    = reader.GetString(1);
+                var contentType = reader.GetString(2);
+                var roomId      = reader.GetGuid(3);
                 await reader.CloseAsync();
-
-                if (filePath is null || fileName is null)
-                    return Results.NotFound();
 
                 // Check membership
                 await using var memberCmd = db.CreateCommand(
@@ -57,13 +56,6 @@ public static class FilesEndpoints
                     return Results.NotFound();
                 if (!File.Exists(fullPath))
                     return Results.NotFound();
-
-                // Detect MIME type
-                var provider = new FileExtensionContentTypeProvider();
-                provider.Mappings[".heic"] = "image/heic";
-                provider.Mappings[".heif"] = "image/heif";
-                if (!provider.TryGetContentType(fileName, out var contentType))
-                    contentType = "application/octet-stream";
 
                 var stream = File.OpenRead(fullPath);
                 return Results.File(stream, contentType,

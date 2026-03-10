@@ -9,7 +9,9 @@ import type { UserSearchResult } from '../../types'
 
 const TYPING_DEBOUNCE_MS = 500
 const MAX_LENGTH = 4_000
-const MAX_FILE_BYTES = 200 * 1024 * 1024 // 200 MB
+const MAX_FILE_COUNT = 15
+const MAX_PER_FILE_BYTES = 200 * 1024 * 1024   // 200 MB
+const MAX_COMBINED_BYTES = 500 * 1024 * 1024   // 500 MB
 
 interface MessageInputProps {
   roomId: string
@@ -18,17 +20,28 @@ interface MessageInputProps {
   onArrowDown?: () => boolean
 }
 
+interface StagedFile {
+  file: File
+  previewUrl: string | null  // object URL for images, null for non-images
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArrowDown }: MessageInputProps) {
   const [content, setContent] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [failedFiles, setFailedFiles] = useState<string[]>([])
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const editorRef = useRef<InlineMarkdownEditorRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Track latest content/cursor without stale closure issues
   const latestContentRef = useRef('')
   const cursorPosRef = useRef(0)
   const { enqueue, messages: outboxMessages, retryAll } = useOutboxStore()
@@ -37,7 +50,13 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const isDisabled = disabled || !isConnected
   const isUploading = uploadProgress !== null
 
-  // Fetch users when an active mention query changes
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => {
+      stagedFiles.forEach(sf => { if (sf.previewUrl) URL.revokeObjectURL(sf.previewUrl) })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (mentionQuery === null) return
     let cancelled = false
@@ -111,36 +130,68 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
     return false
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
-    if (!file) return
-    if (file.size > MAX_FILE_BYTES) {
-      alert(`File exceeds the 200 MB limit.`)
-      e.target.value = ''
-      return
+  function addFiles(newFiles: FileList | null) {
+    if (!newFiles || newFiles.length === 0) return
+
+    const combined = [...stagedFiles]
+    const errors: string[] = []
+
+    for (const file of Array.from(newFiles)) {
+      if (combined.length >= MAX_FILE_COUNT) {
+        errors.push(`Max ${MAX_FILE_COUNT} files per message`)
+        break
+      }
+      if (file.size > MAX_PER_FILE_BYTES) {
+        errors.push(`"${file.name}" exceeds the 200 MB per-file limit`)
+        continue
+      }
+      const combinedSize = combined.reduce((sum, sf) => sum + sf.file.size, 0) + file.size
+      if (combinedSize > MAX_COMBINED_BYTES) {
+        errors.push(`Adding "${file.name}" would exceed the 500 MB combined limit`)
+        continue
+      }
+      const isImage = file.type.startsWith('image/')
+      const previewUrl = isImage ? URL.createObjectURL(file) : null
+      combined.push({ file, previewUrl })
     }
-    setSelectedFile(file)
-    e.target.value = ''
+
+    if (errors.length > 0) alert(errors.join('\n'))
+    setStagedFiles(combined)
   }
 
-  function clearFile() {
-    setSelectedFile(null)
+  function removeFile(index: number) {
+    setStagedFiles(prev => {
+      const sf = prev[index]
+      if (sf.previewUrl) URL.revokeObjectURL(sf.previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  function clearFiles() {
+    stagedFiles.forEach(sf => { if (sf.previewUrl) URL.revokeObjectURL(sf.previewUrl) })
+    setStagedFiles([])
     setUploadProgress(null)
   }
 
-  async function submitWithFile(file: File) {
+  async function submitWithFiles() {
     const trimmed = content.trim()
-    if (!trimmed || trimmed.length > MAX_LENGTH) return
+    const hasFiles = stagedFiles.length > 0
+
+    if (!hasFiles) return
+    if (trimmed.length > MAX_LENGTH) return
 
     const token = getAccessToken()
     const formData = new FormData()
     formData.append('id', crypto.randomUUID())
     formData.append('content', trimmed)
-    formData.append('file', file)
+    for (const sf of stagedFiles) {
+      formData.append('file', sf.file)
+    }
 
     setContent('')
-    clearFile()
+    clearFiles()
     setUploadProgress(0)
+    setFailedFiles([])
 
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
@@ -154,26 +205,49 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
 
       xhr.onload = () => {
         setUploadProgress(null)
-        if (xhr.status >= 200 && xhr.status < 300) resolve()
-        else reject(new Error(`Upload failed: ${xhr.status}`))
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText)
+            if (data.failedFiles && data.failedFiles.length > 0) {
+              setFailedFiles(data.failedFiles)
+            }
+          } catch { /* ignore JSON parse errors — failedFiles defaults to empty */ }
+          resolve()
+        } else {
+          // Parse the error response to show a meaningful message
+          try {
+            const data = JSON.parse(xhr.responseText)
+            if (data.blockedFiles && data.blockedFiles.length > 0) {
+              setFailedFiles([`Blocked file type: ${data.blockedFiles.join(', ')}`])
+            } else if (typeof data === 'string') {
+              setFailedFiles([data])
+            } else if (data.error) {
+              setFailedFiles([`${data.error}${data.blockedFiles ? ': ' + data.blockedFiles.join(', ') : ''}`])
+            } else {
+              setFailedFiles(['Upload failed — please try again.'])
+            }
+          } catch {
+            setFailedFiles([xhr.responseText || 'Upload failed — please try again.'])
+          }
+          reject(new Error(`Upload failed: ${xhr.status}`))
+        }
       }
 
       xhr.onerror = () => {
         setUploadProgress(null)
+        setFailedFiles(['Upload failed — please check your connection and try again.'])
         reject(new Error('Upload error'))
       }
 
       xhr.send(formData)
-    }).catch(() => {
-      // Non-fatal — user can retry
-    })
+    }).catch(() => {})
 
     editorRef.current?.focus()
   }
 
   async function submit() {
-    if (selectedFile) {
-      await submitWithFile(selectedFile)
+    if (stagedFiles.length > 0) {
+      await submitWithFiles()
       return
     }
     const trimmed = content.trim()
@@ -185,6 +259,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
 
   const remaining = MAX_LENGTH - content.length
   const overLimit = remaining < 0
+  const canSend = !isDisabled && !isUploading && !overLimit && (content.trim().length > 0 || stagedFiles.length > 0)
 
   return (
     <div className="border-t p-3 flex flex-col gap-2 bg-white/[0.06]">
@@ -197,43 +272,81 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
         </div>
       )}
 
-      {/* File preview chip */}
-      {selectedFile && uploadProgress === null && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span className="truncate max-w-[200px]">📎 {selectedFile.name}</span>
-          <span className="text-muted-foreground/60">
-            ({(selectedFile.size / 1024).toFixed(0)} KB)
-          </span>
-          <button
-            onClick={clearFile}
-            className="ml-1 rounded hover:bg-muted/60 px-1"
-            aria-label="Remove file"
-          >
-            ×
+      {/* Partial upload failure warning */}
+      {failedFiles.length > 0 && (
+        <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">
+          <span>⚠️ Some files failed to upload: {failedFiles.join(', ')}</span>
+          <button onClick={() => setFailedFiles([])} className="ml-auto flex-shrink-0 underline">
+            Dismiss
           </button>
         </div>
       )}
 
+      {/* Staging area */}
+      {stagedFiles.length > 0 && uploadProgress === null && (
+        <div className="flex flex-wrap gap-2">
+          {stagedFiles.map((sf, i) => (
+            <div key={i} className="relative group">
+              {sf.previewUrl ? (
+                <img
+                  src={sf.previewUrl}
+                  alt={sf.file.name}
+                  className="h-16 w-16 rounded-md border object-cover"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-md border flex flex-col items-center justify-center bg-muted text-xs text-center px-1 gap-0.5">
+                  <span>📎</span>
+                  <span className="truncate w-full text-center leading-tight">{sf.file.name.split('.').pop()?.toUpperCase()}</span>
+                </div>
+              )}
+              <div className="text-[10px] text-muted-foreground text-center mt-0.5 max-w-[64px] truncate">{sf.file.name}</div>
+              <div className="text-[10px] text-muted-foreground text-center">{formatBytes(sf.file.size)}</div>
+              <button
+                onClick={() => removeFile(i)}
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="Remove file"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {stagedFiles.length < MAX_FILE_COUNT && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-16 w-16 rounded-md border border-dashed flex items-center justify-center text-muted-foreground hover:bg-muted/40 text-xl"
+              aria-label="Add more files"
+            >
+              +
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Upload progress bar */}
-      {isUploading && selectedFile && (
-        <FileUploadProgress fileName={selectedFile.name} progress={uploadProgress!} />
+      {isUploading && (
+        <FileUploadProgress
+          fileName={stagedFiles.length > 1 ? `${stagedFiles.length} files` : (stagedFiles[0]?.file.name ?? 'file')}
+          progress={uploadProgress!}
+        />
       )}
 
       <div className="flex items-end gap-2">
-        {/* Hidden file input */}
+        {/* Hidden file input — multiple */}
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           className="hidden"
-          onChange={handleFileChange}
+          onChange={e => { addFiles(e.target.files); e.target.value = '' }}
         />
 
         {/* Clip button */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isDisabled || isUploading}
-          title="Attach file"
+          disabled={isDisabled || isUploading || stagedFiles.length >= MAX_FILE_COUNT}
+          title="Attach files"
           className="self-stretch rounded-md px-2 hover:opacity-90
                      disabled:opacity-50 flex-shrink-0 flex items-center"
           style={{ background: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))' }}
@@ -267,7 +380,6 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
             </div>
           )}
 
-          {/* Inline markdown editor — replaces the old textarea + Write/Preview toggle */}
           <div onKeyDown={e => { handleMentionKeyDown(e) }}>
             <InlineMarkdownEditor
               ref={editorRef}
@@ -293,7 +405,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
 
         <button
           onClick={submit}
-          disabled={isDisabled || isUploading || (!content.trim() && !selectedFile) || overLimit}
+          disabled={!canSend}
           className="self-stretch rounded-md bg-primary px-4 text-sm text-primary-foreground
                      hover:opacity-90 disabled:opacity-50 flex items-center"
         >

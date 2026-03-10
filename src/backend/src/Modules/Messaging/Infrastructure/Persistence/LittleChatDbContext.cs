@@ -12,6 +12,7 @@ public sealed class LittleChatDbContext : DbContext
     public DbSet<RoomMembershipEntity> RoomMemberships => Set<RoomMembershipEntity>();
     public DbSet<MessageEntity> Messages => Set<MessageEntity>();
     public DbSet<ReactionEntity> Reactions => Set<ReactionEntity>();
+    public DbSet<MessageAttachmentEntity> MessageAttachments => Set<MessageAttachmentEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
