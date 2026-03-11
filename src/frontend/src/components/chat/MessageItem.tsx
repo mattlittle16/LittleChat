@@ -119,9 +119,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
     setConfirmDelete(false)
   }
 
-  function handleOpenEmojiPicker() {
-    const rect = emojiButtonRef.current?.getBoundingClientRect()
-    if (!rect) return
+  function openPickerAt(rect: DOMRect) {
     const openBelow = rect.top < PICKER_HEIGHT + PICKER_MARGIN
     const top = openBelow
       ? rect.bottom + PICKER_MARGIN
@@ -129,6 +127,11 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
     const left = Math.min(rect.left, window.innerWidth - PICKER_WIDTH - 8)
     setPickerPosition({ top, left })
     setPickerOpen(true)
+  }
+
+  function handleOpenEmojiPicker() {
+    const rect = emojiButtonRef.current?.getBoundingClientRect()
+    if (rect) openPickerAt(rect)
   }
 
   function handleEmojiClick(data: EmojiClickData) {
@@ -237,7 +240,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
 
         <AttachmentGrid attachments={message.attachments} />
 
-        <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions ?? []} />
+        <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions ?? []} onOpenEmojiPicker={openPickerAt} />
       </div>
 
       {/* Unified hover action pill — emoji + edit/delete (own only) */}
