@@ -291,7 +291,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const canSend = !isDisabled && !isUploading && !overLimit && (content.trim().length > 0 || stagedFiles.length > 0)
 
   return (
-    <div className="border-t p-3 flex flex-col gap-2 bg-white/[0.06]" onPaste={handlePaste}>
+    <div className="border-t p-3 flex flex-col gap-2 bg-muted/90 dark:bg-white/[0.06]" onPaste={handlePaste}>
       {gifSearchTerm !== null && (
         <GifPicker
           searchTerm={gifSearchTerm}
