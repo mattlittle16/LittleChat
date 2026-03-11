@@ -78,6 +78,8 @@ jobs:
           echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env
           echo "MESSAGE_PAGE_SIZE=${{ secrets.MESSAGE_PAGE_SIZE }}" >> .env
           echo "POSTGRES_DATA_PATH=${{ secrets.POSTGRES_DATA_PATH }}" >> .env
+          echo "GIT_COMMIT=${{ github.sha }}" >> .env
+          echo "KLIPY_API_KEY=${{ secrets.KLIPY_API_KEY }}" >> .env
 
       - name: Build images
         run: docker compose -f docker-compose.prod.yml build
