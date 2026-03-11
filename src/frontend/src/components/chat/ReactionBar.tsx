@@ -77,10 +77,10 @@ export function ReactionBar({ messageId, roomId, reactions, onOpenEmojiPicker }:
         ref={plusButtonRef}
         onClick={() => onOpenEmojiPicker?.(plusButtonRef.current!.getBoundingClientRect())}
         title="Add reaction"
-        className="flex items-center justify-center rounded-full border bg-muted/40 px-2 py-0.5
-                   text-xs text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+        className="flex items-center justify-center rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2 py-0.5
+                   text-xs text-muted-foreground hover:bg-zinc-300 dark:hover:bg-zinc-500 hover:text-foreground transition-colors"
       >
-        <Plus className="w-3 h-3" />
+        <Plus className="w-4 h-4" />
       </button>
 
       {hoveredEmoji && popoverPosition && hoveredReaction && createPortal(
@@ -112,8 +112,8 @@ function ReactionChip({ reaction, onClick }: { reaction: Reaction; onClick: () =
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5
-                 text-xs hover:bg-muted/80 transition-colors"
+      className="flex items-center gap-1 rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2 py-0.5
+                 text-xs hover:bg-zinc-300 dark:hover:bg-zinc-500 transition-colors"
     >
       <span>{reaction.emoji}</span>
       <span className="font-medium">{reaction.count}</span>

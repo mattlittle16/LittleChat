@@ -245,8 +245,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         {/* Unified hover action pill — emoji + edit/delete (own only) */}
         {showPill && (
         <div
-          className="absolute right-0 top-0 -translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20"
-          style={{ background: 'hsl(var(--background))' }}
+          className="absolute right-0 top-0 -translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600"
         >
           {/* Emoji reaction button — always shown */}
           <button
