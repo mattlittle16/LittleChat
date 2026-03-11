@@ -16,6 +16,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const { messages: outbox } = useOutboxStore()
   const listRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
 
   const roomMessages = useMemo(
@@ -35,8 +36,9 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   // Also clears the unread badge — but only when the tab is visible, so the tab
   // title count accumulates correctly when the user is in another browser tab.
   useEffect(() => {
-    if (isNearBottomRef.current && listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight
+    if (isNearBottomRef.current && bottomRef.current) {
+      const el = bottomRef.current
+      requestAnimationFrame(() => el.scrollIntoView())
       if (!document.hidden) {
         const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
         if (room && room.unreadCount > 0) {
@@ -142,6 +144,8 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
       {roomOutbox.map(msg => (
         <MessageItem key={msg.clientId} message={msg} />
       ))}
-    </div>
+
+      {/* Bottom anchor — scrolled into view to land at the end of the list */}
+      <div ref={bottomRef} /></div>
   )
 }

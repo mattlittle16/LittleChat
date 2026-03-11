@@ -147,7 +147,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
 
   return (
     <div
-      className={cn('group relative px-4 hover:bg-muted/40 hover:z-10', isGrouped ? 'pt-0 pb-0' : 'py-1', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
+      className={cn('group relative px-4 hover:bg-muted/90 dark:hover:bg-white/[0.06] hover:z-10', isGrouped ? 'pt-0 pb-0' : 'py-1', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
