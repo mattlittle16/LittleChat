@@ -228,7 +228,7 @@ export function ChatLayout() {
                 <button
                   onClick={() => { setRoomMenuOpen(o => !o); setRoomConfirming(false) }}
                   title="Room options"
-                  className="rounded px-1.5 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  className="rounded px-1.5 py-1 text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60"
                 >
                   ⋯
                 </button>
@@ -271,7 +271,7 @@ export function ChatLayout() {
                 <button
                   onClick={() => { setDmMenuOpen(o => !o); setDmConfirming(false) }}
                   title="DM options"
-                  className="rounded px-1.5 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  className="rounded px-1.5 py-1 text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60"
                 >
                   ⋯
                 </button>
@@ -311,7 +311,7 @@ export function ChatLayout() {
             <button
               onClick={() => setSearchOpen(true)}
               title="Search (Ctrl+K)"
-              className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -326,7 +326,7 @@ export function ChatLayout() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(o => !o)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors"
                   title="Account"
                 >
                   <span className="max-w-[120px] truncate">{displayName}</span>

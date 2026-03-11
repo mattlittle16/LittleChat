@@ -15,6 +15,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const { messages, hasMoreByRoom, loadPage } = useMessageStore()
   const { messages: outbox } = useOutboxStore()
   const listRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
@@ -113,39 +114,56 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     return () => observer.disconnect()
   }, [roomId, hasMore, roomMessages, loadPage])
 
+  // Re-scroll when content grows (e.g. images finish loading), if still near bottom
+  useEffect(() => {
+    const content = contentRef.current
+    const list = listRef.current
+    if (!content || !list) return
+    const observer = new ResizeObserver(() => {
+      if (isNearBottomRef.current) {
+        list.scrollTop = list.scrollHeight
+      }
+    })
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div ref={listRef} className="flex-1 overflow-y-auto py-2">
       {/* Sentinel for infinite scroll (prepend older messages) */}
       <div ref={sentinelRef} className="h-px" />
 
-      {hasMore && (
-        <p className="text-center text-xs text-muted-foreground py-2">Loading older messages…</p>
-      )}
+      <div ref={contentRef}>
+        {hasMore && (
+          <p className="text-center text-xs text-muted-foreground py-2">Loading older messages…</p>
+        )}
 
-      {roomMessages.map((msg, i) => {
-        const prev = i > 0 ? roomMessages[i - 1] : null
-        const isGrouped = prev != null
-          && msg.author.id === prev.author.id
-          && new Date(msg.createdAt).toDateString() === new Date(prev.createdAt).toDateString()
-          && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 30_000
-        return (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            isGrouped={isGrouped}
-            isKeyboardSelected={msg.id === selectedMessageId}
-            deleteConfirmPending={deleteConfirmPending}
-            shouldStartEditing={msg.id === editingMessageId}
-          />
-        )
-      })}
+        {roomMessages.map((msg, i) => {
+          const prev = i > 0 ? roomMessages[i - 1] : null
+          const isGrouped = prev != null
+            && msg.author.id === prev.author.id
+            && new Date(msg.createdAt).toDateString() === new Date(prev.createdAt).toDateString()
+            && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 30_000
+          return (
+            <MessageItem
+              key={msg.id}
+              message={msg}
+              isGrouped={isGrouped}
+              isKeyboardSelected={msg.id === selectedMessageId}
+              deleteConfirmPending={deleteConfirmPending}
+              shouldStartEditing={msg.id === editingMessageId}
+            />
+          )
+        })}
 
-      {/* Outbox (pending/sending/failed messages from this room) */}
-      {roomOutbox.map(msg => (
-        <MessageItem key={msg.clientId} message={msg} />
-      ))}
+        {/* Outbox (pending/sending/failed messages from this room) */}
+        {roomOutbox.map(msg => (
+          <MessageItem key={msg.clientId} message={msg} />
+        ))}
 
-      {/* Bottom anchor — scrolled into view to land at the end of the list */}
-      <div ref={bottomRef} /></div>
+        {/* Bottom anchor — scrolled into view to land at the end of the list */}
+        <div ref={bottomRef} />
+      </div>
+    </div>
   )
 }
