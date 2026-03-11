@@ -210,7 +210,7 @@ export function ChatLayout() {
           <NotificationSettingsPage onBack={() => setView('chat')} />
         ) : (<>
         {/* Toolbar */}
-        <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0 bg-muted">
+        <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
           <span className="font-semibold text-sm truncate">
             {roomName ?? 'LittleChat'}
           </span>

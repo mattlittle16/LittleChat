@@ -154,7 +154,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="relative min-w-0 max-w-4xl">
+      <div className="relative min-w-0 max-w-screen-xl">
         {!isGrouped && (
           <div className="flex items-baseline gap-2">
             <button
