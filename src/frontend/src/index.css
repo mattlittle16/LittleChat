@@ -67,6 +67,15 @@
   }
 }
 
+/* Grouped messages: collapse prose paragraph margins so consecutive messages stack tightly */
+.grouped-prose p,
+.grouped-prose ul,
+.grouped-prose ol,
+.grouped-prose pre {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 @layer base {
   * {
     border-color: hsl(var(--border));

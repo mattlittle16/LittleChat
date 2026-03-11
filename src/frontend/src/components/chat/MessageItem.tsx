@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
 import { InlineMarkdownEditor } from './InlineMarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -15,8 +17,13 @@ import { cn } from '../../lib/utils'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
+const PICKER_HEIGHT = 350
+const PICKER_WIDTH = 300
+const PICKER_MARGIN = 8
+
 interface MessageItemProps {
   message: Message | OutboxMessage
+  isGrouped?: boolean
   isPending?: boolean
   isKeyboardSelected?: boolean
   deleteConfirmPending?: boolean
@@ -39,7 +46,7 @@ async function openDmWithUser(userId: string) {
   setActiveRoom(room.id)
 }
 
-export function MessageItem({ message, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
+export function MessageItem({ message, isGrouped = false, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
   const authorId = isOutbox(message) ? null : message.author.id
   const isAuthorOnline = usePresenceStore(s => authorId ? s.isOnline(authorId) : false)
   const currentUserId = useCurrentUserStore(s => s.id)
@@ -49,10 +56,10 @@ export function MessageItem({ message, isPending = false, isKeyboardSelected = f
   const [editContent, setEditContent] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null)
+  const emojiButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Keyboard shortcut: parent sets shouldStartEditing to trigger inline edit mode.
-  // React "derived state during render" pattern — setState inside render is processed
-  // in the same cycle without an extra effect flush.
   const [prevShouldStartEditing, setPrevShouldStartEditing] = useState(shouldStartEditing)
   if (prevShouldStartEditing !== shouldStartEditing) {
     setPrevShouldStartEditing(shouldStartEditing)
@@ -112,30 +119,56 @@ export function MessageItem({ message, isPending = false, isKeyboardSelected = f
     setConfirmDelete(false)
   }
 
+  function handleOpenEmojiPicker() {
+    const rect = emojiButtonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const openBelow = rect.top < PICKER_HEIGHT + PICKER_MARGIN
+    const top = openBelow
+      ? rect.bottom + PICKER_MARGIN
+      : rect.top - PICKER_HEIGHT - PICKER_MARGIN
+    const left = Math.min(rect.left, window.innerWidth - PICKER_WIDTH - 8)
+    setPickerPosition({ top, left })
+    setPickerOpen(true)
+  }
+
+  function handleEmojiClick(data: EmojiClickData) {
+    setPickerOpen(false)
+    setPickerPosition(null)
+    const connection = getConnection()
+    if (connection?.state !== 'Connected') return
+    connection.invoke('AddReaction', {
+      messageId: (message as Message).id,
+      roomId: message.roomId,
+      emoji: data.emoji,
+    }).catch(() => {})
+  }
+
+  const showPill = !editing && (hovered || confirmDelete || pickerOpen)
+
   return (
     <div
-      className={cn('relative px-4 py-1 hover:bg-muted/40', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
+      className={cn('group relative px-4 hover:bg-muted/40 hover:z-10', isGrouped ? 'pt-0 pb-0' : 'py-1', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="min-w-0">
-        <div className="flex items-baseline gap-2">
-          <button
-            className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
-            onClick={() => openDmWithUser(message.author.id)}
-            title={`DM ${message.author.displayName}`}
-          >
-            <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
-            {message.author.displayName}
-          </button>
-          <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
-          {/* T095: edited label */}
-          {message.editedAt && (
-            <span className="text-xs text-muted-foreground">(edited)</span>
-          )}
-        </div>
+        {!isGrouped && (
+          <div className="flex items-baseline gap-2">
+            <button
+              className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
+              onClick={() => openDmWithUser(message.author.id)}
+              title={`DM ${message.author.displayName}`}
+            >
+              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+              {message.author.displayName}
+            </button>
+            <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
+            {message.editedAt && (
+              <span className="text-xs text-muted-foreground">(edited)</span>
+            )}
+          </div>
+        )}
 
-        {/* Inline edit textarea */}
         {editing ? (
           <div className="mt-1">
             <div onKeyDown={e => { if (e.key === 'Escape') cancelEdit() }}>
@@ -149,23 +182,13 @@ export function MessageItem({ message, isPending = false, isKeyboardSelected = f
               />
             </div>
             <div className="flex gap-2 mt-1">
-              <button
-                onClick={submitEdit}
-                className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
-              >
-                Save
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="rounded border px-3 py-1 text-xs hover:bg-muted/60"
-              >
-                Cancel
-              </button>
+              <button onClick={submitEdit} className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90">Save</button>
+              <button onClick={cancelEdit} className="rounded border px-3 py-1 text-xs hover:bg-muted/60">Cancel</button>
               <span className="text-xs text-muted-foreground self-center">Enter to save · Esc to cancel</span>
             </div>
           </div>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none mt-0.5">
+          <div className={cn('prose prose-sm dark:prose-invert max-w-none', isGrouped ? 'grouped-prose' : 'mt-0.5')}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -214,44 +237,57 @@ export function MessageItem({ message, isPending = false, isKeyboardSelected = f
 
         <AttachmentGrid attachments={message.attachments} />
 
-        <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions} />
+        <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions ?? []} />
       </div>
 
-      {/* Hover context menu — own messages only (T094) */}
-      {isOwn && !editing && (hovered || confirmDelete) && (
-        <div className="absolute right-4 top-1 flex items-center gap-1 border rounded shadow-sm px-1 py-0.5"
-          style={{ background: 'hsl(var(--background))' }}>
+      {/* Unified hover action pill — emoji + edit/delete (own only) */}
+      {showPill && (
+        <div
+          className="absolute right-4 top-0 -translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20"
+          style={{ background: 'hsl(var(--background))' }}
+        >
+          {/* Emoji reaction button — always shown */}
           <button
-            onClick={startEdit}
-            className="rounded px-2 py-0.5 text-xs hover:bg-muted/60"
+            ref={emojiButtonRef}
+            onClick={handleOpenEmojiPicker}
+            className="rounded-full w-6 h-6 flex items-center justify-center text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            title="Add reaction"
           >
-            Edit
+            🙂
           </button>
-          {confirmDelete ? (
+
+          {/* Edit / delete — own messages only */}
+          {isOwn && !confirmDelete && (
             <>
-              <span className="text-xs text-muted-foreground">Delete?</span>
-              <button
-                onClick={handleDelete}
-                className="rounded px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-              >
-                Yes
+              <div className="w-px h-3 bg-border mx-0.5" />
+              <button onClick={startEdit} className="rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground">
+                Edit
               </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="rounded px-2 py-0.5 text-xs hover:bg-muted/60"
-              >
-                No
+              <button onClick={() => setConfirmDelete(true)} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">
+                Delete
               </button>
             </>
-          ) : (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="rounded px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-            >
-              Delete
-            </button>
+          )}
+          {isOwn && confirmDelete && (
+            <>
+              <div className="w-px h-3 bg-border mx-0.5" />
+              <span className="text-xs text-muted-foreground px-1">Delete?</span>
+              <button onClick={handleDelete} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">Yes</button>
+              <button onClick={() => setConfirmDelete(false)} className="rounded-full px-2 py-0.5 text-xs hover:bg-muted/60">No</button>
+            </>
           )}
         </div>
+      )}
+
+      {/* Emoji picker portal */}
+      {pickerOpen && pickerPosition && createPortal(
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => { setPickerOpen(false); setPickerPosition(null) }} />
+          <div style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left, zIndex: 9999 }}>
+            <EmojiPicker onEmojiClick={handleEmojiClick} lazyLoadEmojis height={PICKER_HEIGHT} width={PICKER_WIDTH} />
+          </div>
+        </>,
+        document.body
       )}
     </div>
   )

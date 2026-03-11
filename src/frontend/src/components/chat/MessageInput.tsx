@@ -5,6 +5,7 @@ import { useOutboxStore } from '../../stores/outboxStore'
 import { getConnection } from '../../services/signalrClient'
 import { getAccessToken, api } from '../../services/apiClient'
 import { FileUploadProgress } from '../files/FileUploadProgress'
+import { GifPicker } from './GifPicker'
 import type { UserSearchResult } from '../../types'
 
 const TYPING_DEBOUNCE_MS = 500
@@ -39,6 +40,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
+  const [gifSearchTerm, setGifSearchTerm] = useState<string | null>(null)
   const editorRef = useRef<InlineMarkdownEditorRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -95,6 +97,19 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
     setTimeout(() => editorRef.current?.focus(), 0)
   }
 
+  async function sendGif(gifUrl: string) {
+    setContent('')
+    setGifSearchTerm(null)
+    await enqueue(roomId, `![gif](${gifUrl})`)
+    editorRef.current?.focus()
+  }
+
+  function dismissGifPicker() {
+    setContent('')
+    setGifSearchTerm(null)
+    editorRef.current?.focus()
+  }
+
   function notifyTyping() {
     const connection = getConnection()
     if (connection?.state !== 'Connected') return
@@ -128,6 +143,18 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
       return true
     }
     return false
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const items = Array.from(e.clipboardData.items)
+    const imageItem = items.find(item => item.kind === 'file' && item.type.startsWith('image/'))
+    if (!imageItem) return
+    e.preventDefault()
+    const file = imageItem.getAsFile()
+    if (!file) return
+    const dt = new DataTransfer()
+    dt.items.add(file)
+    addFiles(dt.files)
   }
 
   function addFiles(newFiles: FileList | null) {
@@ -252,6 +279,8 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
     }
     const trimmed = content.trim()
     if (!trimmed || trimmed.length > MAX_LENGTH) return
+    // Don't send the raw /klipy command — it's a GIF picker trigger, not a message
+    if (trimmed.startsWith('/klipy')) return
     setContent('')
     await enqueue(roomId, trimmed)
     editorRef.current?.focus()
@@ -262,7 +291,14 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const canSend = !isDisabled && !isUploading && !overLimit && (content.trim().length > 0 || stagedFiles.length > 0)
 
   return (
-    <div className="border-t p-3 flex flex-col gap-2 bg-white/[0.06]">
+    <div className="border-t p-3 flex flex-col gap-2 bg-white/[0.06]" onPaste={handlePaste}>
+      {gifSearchTerm !== null && (
+        <GifPicker
+          searchTerm={gifSearchTerm}
+          onSelect={sendGif}
+          onDismiss={dismissGifPicker}
+        />
+      )}
       {hasFailed && (
         <div className="flex items-center gap-2 text-sm text-destructive">
           <span>Some messages failed to send.</span>
@@ -341,19 +377,6 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
           onChange={e => { addFiles(e.target.files); e.target.value = '' }}
         />
 
-        {/* Clip button */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isDisabled || isUploading || stagedFiles.length >= MAX_FILE_COUNT}
-          title="Attach files"
-          className="self-stretch rounded-md px-2 hover:opacity-90
-                     disabled:opacity-50 flex-shrink-0 flex items-center"
-          style={{ background: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))' }}
-        >
-          📎
-        </button>
-
         <div className="flex-1 min-w-0 relative">
           {/* @mention autocomplete dropdown */}
           {mentionQuery !== null && mentionUsers.length > 0 && (
@@ -389,6 +412,13 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
                 setContent(md)
                 if (md.length > 0) notifyTyping()
                 detectMention(md, cursorPosRef.current)
+                const trimmed = md.trimStart()
+                if (trimmed.startsWith('/klipy ')) {
+                  const term = trimmed.slice('/klipy '.length).trim()
+                  setGifSearchTerm(term || null)
+                } else {
+                  setGifSearchTerm(null)
+                }
               }}
               onCursorChange={(pos) => {
                 cursorPosRef.current = pos
@@ -397,11 +427,24 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
               onSubmit={submit}
               onArrowUpOnEmpty={onArrowUpOnEmpty}
               onArrowDown={onArrowDown}
-              placeholder={isDisabled ? 'Reconnecting…' : 'Message (*bold* _italic_ `code` ~~strike~~)'}
+              placeholder={isDisabled ? 'Reconnecting…' : 'Message (*bold* _italic_ `code` ~~strike~~) · /klipy [term] for GIFs'}
               disabled={isDisabled || isUploading}
             />
           </div>
         </div>
+
+        {/* Clip button — between text area and Send */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isDisabled || isUploading || stagedFiles.length >= MAX_FILE_COUNT}
+          title="Attach files"
+          className="self-stretch rounded-md px-2 hover:opacity-90
+                     disabled:opacity-50 flex-shrink-0 flex items-center"
+          style={{ background: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))' }}
+        >
+          📎
+        </button>
 
         <button
           onClick={submit}

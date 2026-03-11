@@ -119,15 +119,23 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
         <p className="text-center text-xs text-muted-foreground py-2">Loading older messages…</p>
       )}
 
-      {roomMessages.map(msg => (
-        <MessageItem
-          key={msg.id}
-          message={msg}
-          isKeyboardSelected={msg.id === selectedMessageId}
-          deleteConfirmPending={deleteConfirmPending}
-          shouldStartEditing={msg.id === editingMessageId}
-        />
-      ))}
+      {roomMessages.map((msg, i) => {
+        const prev = i > 0 ? roomMessages[i - 1] : null
+        const isGrouped = prev != null
+          && msg.author.id === prev.author.id
+          && new Date(msg.createdAt).toDateString() === new Date(prev.createdAt).toDateString()
+          && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 30_000
+        return (
+          <MessageItem
+            key={msg.id}
+            message={msg}
+            isGrouped={isGrouped}
+            isKeyboardSelected={msg.id === selectedMessageId}
+            deleteConfirmPending={deleteConfirmPending}
+            shouldStartEditing={msg.id === editingMessageId}
+          />
+        )
+      })}
 
       {/* Outbox (pending/sending/failed messages from this room) */}
       {roomOutbox.map(msg => (

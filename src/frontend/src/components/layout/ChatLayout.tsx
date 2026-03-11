@@ -143,6 +143,7 @@ export function ChatLayout() {
     if (selectedMessageId === null) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault()
         setEditingMessageId(selectedMessageId)
         setSelectedMessageId(null)
         setDeleteConfirmPending(false)
