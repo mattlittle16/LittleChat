@@ -2,7 +2,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
+ARG GIT_COMMIT=dev
 COPY . .
+RUN echo "{\"version\":\"$GIT_COMMIT\"}" > public/version.json
 RUN npm run build
 
 FROM nginx:alpine AS final

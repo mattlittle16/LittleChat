@@ -55,6 +55,8 @@ services:
       context: src/frontend
       dockerfile: Dockerfile
       target: final
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-dev}
     expose:
       - "80"
     restart: unless-stopped
