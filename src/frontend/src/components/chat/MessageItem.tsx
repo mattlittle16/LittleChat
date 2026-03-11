@@ -154,7 +154,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="min-w-0">
+      <div className="relative min-w-0 max-w-4xl">
         {!isGrouped && (
           <div className="flex items-baseline gap-2">
             <button
@@ -191,7 +191,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
             </div>
           </div>
         ) : (
-          <div className={cn('prose prose-sm dark:prose-invert max-w-none', isGrouped ? 'grouped-prose' : 'mt-0.5')}>
+          <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words', isGrouped ? 'grouped-prose' : 'mt-0.5')}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -241,12 +241,11 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         <AttachmentGrid attachments={message.attachments} />
 
         <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions ?? []} onOpenEmojiPicker={openPickerAt} />
-      </div>
 
-      {/* Unified hover action pill — emoji + edit/delete (own only) */}
-      {showPill && (
+        {/* Unified hover action pill — emoji + edit/delete (own only) */}
+        {showPill && (
         <div
-          className="absolute right-4 top-0 -translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20"
+          className="absolute right-0 top-0 -translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20"
           style={{ background: 'hsl(var(--background))' }}
         >
           {/* Emoji reaction button — always shown */}
@@ -280,7 +279,8 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
             </>
           )}
         </div>
-      )}
+        )}
+      </div>
 
       {/* Emoji picker portal */}
       {pickerOpen && pickerPosition && createPortal(
