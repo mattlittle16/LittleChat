@@ -25,8 +25,9 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const roomOutbox = outbox.filter(m => m.roomId === roomId)
   const hasMore = hasMoreByRoom.get(roomId) ?? false
 
-  // Initial load
+  // Initial load — reset near-bottom flag so new room always scrolls to bottom
   useEffect(() => {
+    isNearBottomRef.current = true
     loadPage(roomId)
   }, [roomId, loadPage])
 

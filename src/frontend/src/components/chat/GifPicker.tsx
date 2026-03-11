@@ -17,10 +17,13 @@ export function GifPicker({ searchTerm, onSelect, onDismiss }: GifPickerProps) {
   useEffect(() => {
     if (!searchTerm.trim()) return
     let cancelled = false
-    setLoading(true)
-    setError(false)
-    searchGifs(searchTerm).then(data => {
+    Promise.resolve().then(() => {
       if (cancelled) return
+      setLoading(true)
+      setError(false)
+      return searchGifs(searchTerm)
+    }).then(data => {
+      if (cancelled || data === undefined) return
       setLoading(false)
       if (data === null) {
         setError(true)
