@@ -19,6 +19,7 @@ services:
       - UPLOAD_PATH=/uploads
       - MESSAGE_PAGE_SIZE=${MESSAGE_PAGE_SIZE:-100}
       - CORS_ORIGIN=${CORS_ORIGIN}
+      - KLIPY_API_KEY=${KLIPY_API_KEY}
     depends_on:
       chat-db:
         condition: service_healthy
