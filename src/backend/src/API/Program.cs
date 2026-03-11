@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using API;
 using API.Services;
 using Files.API;
 using Microsoft.EntityFrameworkCore;
@@ -191,6 +192,16 @@ builder.Services
         options.Configuration.AbortOnConnectFail = false;
     });
 
+// ── Klipy HttpClient ──────────────────────────────────────────────────────────
+var klipyApiKey = builder.Configuration["Klipy:ApiKey"]
+    ?? builder.Configuration["KLIPY_API_KEY"]
+    ?? string.Empty;
+builder.Services.AddHttpClient("Klipy", client =>
+{
+    client.BaseAddress = new Uri("https://api.klipy.com/v2/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
 // ── Problem Details / RFC 7807 ────────────────────────────────────────────────
 builder.Services.AddHostedService<MessageCleanupService>();
 
@@ -284,6 +295,8 @@ app.MapReactionsEndpoints();
 app.MapSearchEndpoints();
 app.MapFilesEndpoints();
 app.MapNotificationsEndpoints();
+app.MapGifEndpoints();
+app.MapVideoTokenEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 
 app.Run();

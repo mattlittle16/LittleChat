@@ -22,6 +22,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-01
 - PostgreSQL (EF Core for Messaging schema); local filesystem via `LocalFileStorageService` (UPLOAD_PATH volume) (008-multi-file-attachments)
 - TypeScript 5.9 / React 19 (frontend only) + Vite 7 (`define` API), React hooks (`useEffect`, `useState`), Tailwind CSS v4, nginx alpine (009-update-detection)
 - N/A — no persistence; all state is transient in-memory (009-update-detection)
+- C# .NET 8 (backend) · TypeScript 5.9 / React 19 (frontend) + ASP.NET Core (SignalR, MediatR, EF Core), Tiptap v2, react-markdown + remark-gfm, Zustand v5, Tailwind CSS v4, shadcn/ui (010-chat-media-ux)
+- PostgreSQL (Npgsql) — no schema changes for this feature (010-chat-media-ux)
 
 - C# (.NET 8 or 9) — backend; TypeScript — frontend + ASP.NET Core SignalR + `Microsoft.AspNetCore.SignalR.StackExchangeRedis`; Entity Framework Core; MediatR; `Microsoft.AspNetCore.Authentication.JwtBearer`; React; `@microsoft/signalr`; `idb`; Zustand; Tailwind CSS; shadcn/ui (001-chat-mvp)
 
@@ -41,9 +43,9 @@ npm test && npm run lint
 C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventions
 
 ## Recent Changes
+- 010-chat-media-ux: Added C# .NET 8 (backend) · TypeScript 5.9 / React 19 (frontend) + ASP.NET Core (SignalR, MediatR, EF Core), Tiptap v2, react-markdown + remark-gfm, Zustand v5, Tailwind CSS v4, shadcn/ui
 - 009-update-detection: Added TypeScript 5.9 / React 19 (frontend only) + Vite 7 (`define` API), React hooks (`useEffect`, `useState`), Tailwind CSS v4, nginx alpine
 - 008-multi-file-attachments: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core minimal API, EF Core (Npgsql), MediatR, SignalR, Zustand v5, Tailwind CSS v4, shadcn/ui, SixLabors.ImageSharp 3.x + SixLabors.ImageSharp.Formats.Heic (new)
-- 007-chat-ux-fixes: Added TypeScript 5.9 / React 19 + Tiptap v2 (`@tiptap/react`, `@tiptap/starter-kit`), `react-markdown` + `remark-gfm`, Zustand v5, Tailwind CSS v4, shadcn/ui (slate/cssVariables), lucide-reac
 
 
 <!-- MANUAL ADDITIONS START -->

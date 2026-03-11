@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticFiles;
@@ -55,6 +56,63 @@ public static class FilesEndpoints
                 var isMember = await memberCmd.ExecuteScalarAsync(ctx.RequestAborted) is not null;
                 if (!isMember)
                     return Results.Forbid();
+
+                var uploadPath = config["UPLOAD_PATH"] ?? "/uploads";
+                var fullPath = Path.GetFullPath(Path.Combine(uploadPath, filePath));
+                if (!fullPath.StartsWith(Path.GetFullPath(uploadPath) + Path.DirectorySeparatorChar))
+                    return Results.NotFound();
+                if (!File.Exists(fullPath))
+                    return Results.NotFound();
+
+                var stream = File.OpenRead(fullPath);
+                return Results.File(stream, contentType,
+                    fileDownloadName: fileName,
+                    enableRangeProcessing: true);
+            });
+
+        // GET /api/files/video/{token} [AllowAnonymous]
+        // Streams an MP4 using a signed token issued by VideoTokenEndpoints.
+        // The token encodes the attachmentId and expires after 1 hour.
+        app.MapGet("/api/files/video/{token}",
+            [AllowAnonymous] async (
+                string token,
+                HttpContext ctx,
+                NpgsqlDataSource db,
+                IDataProtectionProvider dataProtection,
+                IConfiguration config,
+                CancellationToken cancellationToken) =>
+            {
+                Guid attachmentId;
+                try
+                {
+                    var protector = dataProtection
+                        .CreateProtector("VideoToken")
+                        .ToTimeLimitedDataProtector();
+
+                    var decoded = protector.Unprotect(token);
+                    attachmentId = Guid.Parse(decoded);
+                }
+                catch
+                {
+                    return Results.Unauthorized();
+                }
+
+                await using var cmd = db.CreateCommand(
+                    """
+                    SELECT a.file_path, a.file_name, a.content_type
+                    FROM message_attachments a
+                    WHERE a.id = $1
+                    """);
+                cmd.Parameters.AddWithValue(attachmentId);
+
+                await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                if (!await reader.ReadAsync(cancellationToken))
+                    return Results.NotFound();
+
+                var filePath = reader.GetString(0);
+                var fileName = reader.GetString(1);
+                var contentType = reader.GetString(2);
+                await reader.CloseAsync();
 
                 var uploadPath = config["UPLOAD_PATH"] ?? "/uploads";
                 var fullPath = Path.GetFullPath(Path.Combine(uploadPath, filePath));
