@@ -15,6 +15,8 @@ public sealed class RoomConfiguration : IEntityTypeConfiguration<RoomEntity>
         builder.Property(r => r.IsDm).HasColumnName("is_dm").HasDefaultValue(false);
         builder.Property(r => r.Visibility).HasColumnName("visibility").HasDefaultValue("public");
         builder.Property(r => r.CreatedBy).HasColumnName("created_by");
+        builder.Property(r => r.OwnerId).HasColumnName("owner_id");
+        builder.Property(r => r.IsProtected).HasColumnName("is_protected").HasDefaultValue(false);
         builder.Property(r => r.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
     }
 }

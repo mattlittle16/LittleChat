@@ -44,6 +44,10 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 user.MentionNotification(e.MessageId, e.RoomId, e.RoomName, e.FromUserId, e.FromDisplayName, e.ContentPreview),
             "DmCreated" when payload is DmCreatedIntegrationEvent c =>
                 user.DmCreated(c.RoomId),
+            "RoomMembershipChanged" when payload is MemberAddedIntegrationEvent a =>
+                user.RoomMembershipChanged(a.RoomId, a.AddedUserId, "added"),
+            "RemovedFromRoom" when payload is MemberRemovedIntegrationEvent r =>
+                user.RemovedFromRoom(r.RoomId),
             _ => Task.CompletedTask,
         };
     }

@@ -19,6 +19,7 @@ public static class MessagingModuleExtensions
 
         services.AddScoped<IRoomRepository, RoomRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<ISidebarGroupRepository, SidebarGroupRepository>();
 
         return services;
     }

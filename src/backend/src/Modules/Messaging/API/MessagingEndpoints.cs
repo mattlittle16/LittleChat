@@ -43,11 +43,16 @@ public static class MessagingEndpoints
 
                 try
                 {
-                    var room = await sender.Send(new CreateRoomCommand(body.Name, userId.Value), ctx.RequestAborted);
+                    var room = await sender.Send(
+                        new CreateRoomCommand(body.Name, userId.Value, body.IsPrivate, body.InvitedUserIds),
+                        ctx.RequestAborted);
+                    var memberCount = 1 + (body.InvitedUserIds?.Count ?? 0);
                     return Results.Created($"/api/rooms/{room.Id}", new RoomDto(
                         room.Id, room.Name, room.IsDm,
                         UnreadCount: 0, HasMention: false, LastMessagePreview: null,
-                        room.CreatedAt));
+                        room.CreatedAt,
+                        IsPrivate: room.IsPrivate, OwnerId: room.OwnerId,
+                        IsProtected: room.IsProtected, MemberCount: memberCount));
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -88,7 +93,8 @@ public static class MessagingEndpoints
                             .Select(g => new ReactionDto(g.Key, g.Count(), g.Select(r => r.UserDisplayName).ToList()))
                             .ToList(),
                         CreatedAt: m.CreatedAt,
-                        EditedAt: m.EditedAt
+                        EditedAt: m.EditedAt,
+                        IsSystem: m.IsSystem
                     )).ToList();
 
                     return Results.Ok(new { messages = dtos, hasMore = page.HasMore });
@@ -320,6 +326,226 @@ public static class MessagingEndpoints
                 }
             });
 
+        // GET /api/rooms/{roomId}/members — list members (must be a member)
+        app.MapGet("/api/rooms/{roomId:guid}/members",
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    var members = await sender.Send(new GetRoomMembersQuery(roomId, userId.Value), ctx.RequestAborted);
+                    return Results.Ok(members);
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // POST /api/rooms/{roomId}/invite — invite a user (any member can invite)
+        app.MapPost("/api/rooms/{roomId:guid}/invite",
+            [Authorize] async (Guid roomId, InviteBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new InviteToRoomCommand(roomId, userId.Value, body.TargetUserId), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // DELETE /api/rooms/{roomId}/members/{targetUserId} — remove member (owner only)
+        app.MapDelete("/api/rooms/{roomId:guid}/members/{targetUserId:guid}",
+            [Authorize] async (Guid roomId, Guid targetUserId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new RemoveMemberCommand(roomId, userId.Value, targetUserId), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // POST /api/rooms/{roomId}/transfer-ownership — transfer ownership (owner only)
+        app.MapPost("/api/rooms/{roomId:guid}/transfer-ownership",
+            [Authorize] async (Guid roomId, TransferOwnershipBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                var currentDisplayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Unknown";
+
+                try
+                {
+                    await sender.Send(new TransferOwnershipCommand(
+                        roomId, userId.Value, currentDisplayName,
+                        body.NewOwnerUserId, body.NewOwnerDisplayName), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // POST /api/rooms/{roomId}/leave — leave a topic
+        app.MapPost("/api/rooms/{roomId:guid}/leave",
+            [Authorize] async (Guid roomId, LeaveRoomBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                var displayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Unknown";
+
+                try
+                {
+                    await sender.Send(new LeaveRoomCommand(
+                        roomId, userId.Value, displayName,
+                        body.NewOwnerUserId, body.NewOwnerDisplayName), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // GET /api/rooms/discover — discover public topics not already joined
+        app.MapGet("/api/rooms/discover",
+            [Authorize] async (HttpContext ctx, ISender sender, string? q) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                var results = await sender.Send(new DiscoverTopicsQuery(userId.Value, q), ctx.RequestAborted);
+                return Results.Ok(results);
+            });
+
+        // POST /api/rooms/{roomId}/join — join a public topic
+        app.MapPost("/api/rooms/{roomId:guid}/join",
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new JoinRoomCommand(roomId, userId.Value), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // ── Sidebar Groups ─────────────────────────────────────────────────────────
+
+        // GET /api/sidebar-groups — get all groups for the current user
+        app.MapGet("/api/sidebar-groups",
+            [Authorize] async (HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                var groups = await sender.Send(new GetSidebarGroupsQuery(userId.Value), ctx.RequestAborted);
+                return Results.Ok(groups);
+            });
+
+        // POST /api/sidebar-groups — create a new group
+        app.MapPost("/api/sidebar-groups",
+            [Authorize] async (SidebarGroupCreateBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    var group = await sender.Send(new CreateSidebarGroupCommand(userId.Value, body.Name), ctx.RequestAborted);
+                    return Results.Created($"/api/sidebar-groups/{group.Id}", group);
+                }
+                catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
+            });
+
+        // PATCH /api/sidebar-groups/{groupId} — rename
+        app.MapPatch("/api/sidebar-groups/{groupId:guid}",
+            [Authorize] async (Guid groupId, SidebarGroupCreateBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new RenameSidebarGroupCommand(groupId, userId.Value, body.Name), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // DELETE /api/sidebar-groups/{groupId} — delete a group (rooms unassigned, not deleted)
+        app.MapDelete("/api/sidebar-groups/{groupId:guid}",
+            [Authorize] async (Guid groupId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new DeleteSidebarGroupCommand(groupId, userId.Value), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // PUT /api/sidebar-groups/{groupId}/rooms/{roomId} — assign room to group
+        app.MapPut("/api/sidebar-groups/{groupId:guid}/rooms/{roomId:guid}",
+            [Authorize] async (Guid groupId, Guid roomId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new AssignRoomToGroupCommand(groupId, userId.Value, roomId), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
+        // DELETE /api/sidebar-groups/rooms/{roomId} — remove room from its group
+        app.MapDelete("/api/sidebar-groups/rooms/{roomId:guid}",
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                await sender.Send(new UnassignRoomFromGroupCommand(userId.Value, roomId), ctx.RequestAborted);
+                return Results.NoContent();
+            });
+
+        // PATCH /api/sidebar-groups/{groupId}/collapsed — set collapse state
+        app.MapPatch("/api/sidebar-groups/{groupId:guid}/collapsed",
+            [Authorize] async (Guid groupId, SidebarGroupCollapsedBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    await sender.Send(new SetGroupCollapsedCommand(groupId, userId.Value, body.IsCollapsed), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
         // POST /api/rooms/{roomId}/read — mark conversation as fully read (US3)
         app.MapPost("/api/rooms/{roomId:guid}/read",
             [Authorize] async (Guid roomId, HttpContext ctx, ISender sender, Messaging.Domain.IRoomRepository rooms) =>
@@ -410,5 +636,11 @@ internal sealed class LimitedStream(Stream inner, long maxBytes) : Stream
 
 internal sealed record SendMessageBody(Guid? MessageId, string Content);
 internal sealed record EditMessageBody(string Content);
-internal sealed record CreateRoomBody(string Name);
+internal sealed record CreateRoomBody(string Name, bool IsPrivate = false, IReadOnlyList<Guid>? InvitedUserIds = null);
 internal sealed record DmBody(Guid TargetUserId);
+internal sealed record InviteBody(Guid TargetUserId);
+internal sealed record RemoveMemberBody(Guid TargetUserId);
+internal sealed record TransferOwnershipBody(Guid NewOwnerUserId, string NewOwnerDisplayName);
+internal sealed record LeaveRoomBody(Guid? NewOwnerUserId = null, string? NewOwnerDisplayName = null);
+internal sealed record SidebarGroupCreateBody(string Name);
+internal sealed record SidebarGroupCollapsedBody(bool IsCollapsed);

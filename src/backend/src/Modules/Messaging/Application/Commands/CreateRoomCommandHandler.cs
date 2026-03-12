@@ -17,10 +17,15 @@ public sealed class CreateRoomCommandHandler : IRequestHandler<CreateRoomCommand
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new InvalidOperationException("Room name cannot be empty.");
 
-        // GetAllRoomIdsAsync gives us existing IDs, but we need ALL user IDs here.
-        // IRoomRepository.CreateAsync accepts allUserIds for bulk membership insert.
-        var allUserIds = await _rooms.GetAllUserIdsAsync(cancellationToken);
+        var room = await _rooms.CreateAsync(request.Name, request.CreatedBy, request.IsPrivate, cancellationToken);
 
-        return await _rooms.CreateAsync(request.Name, request.CreatedBy, allUserIds, cancellationToken);
+        // Bulk-add any initial invitees (skip creator, deduplicate, ignore already-members)
+        if (request.InvitedUserIds is { Count: > 0 })
+        {
+            foreach (var inviteeId in request.InvitedUserIds.Distinct().Where(id => id != request.CreatedBy))
+                await _rooms.AddMemberAsync(room.Id, inviteeId, cancellationToken);
+        }
+
+        return room;
     }
 }

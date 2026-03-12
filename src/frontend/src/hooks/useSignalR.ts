@@ -97,6 +97,23 @@ export function useSignalR(roomId: string | null) {
         useRoomStore.getState().removeRoom(roomId)
       })
 
+      // User was added to a topic (invited)
+      connection.on('RoomMembershipChanged', (_roomId: string, _userId: string, action: string) => {
+        if (action === 'added') {
+          // Reload rooms to get the full RoomDto for the newly joined topic
+          useRoomStore.getState().loadRooms().then(() => {
+            connection.invoke('JoinRoom', _roomId).catch(() => {})
+          })
+        }
+      })
+
+      // User was removed from a topic
+      connection.on('RemovedFromRoom', (roomId: string) => {
+        const store = useRoomStore.getState()
+        store.removeRoom(roomId)
+        connection.invoke('LeaveRoom', roomId).catch(() => {})
+      })
+
       // T071: wire presence updates from server
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)

@@ -1,0 +1,116 @@
+using Messaging.Domain;
+using Messaging.Infrastructure.Persistence;
+using Messaging.Infrastructure.Persistence.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace Messaging.Infrastructure;
+
+public sealed class SidebarGroupRepository : ISidebarGroupRepository
+{
+    private readonly LittleChatDbContext _db;
+
+    public SidebarGroupRepository(LittleChatDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<SidebarGroupInfo>> GetGroupsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var groups = await _db.SidebarGroups
+            .Where(g => g.UserId == userId)
+            .OrderBy(g => g.DisplayOrder)
+            .Select(g => new SidebarGroupInfo(
+                g.Id,
+                g.Name,
+                g.DisplayOrder,
+                g.IsCollapsed,
+                g.Memberships
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.RoomId)
+                    .ToList()))
+            .ToListAsync(ct);
+
+        return groups;
+    }
+
+    public async Task<SidebarGroupInfo> CreateAsync(Guid userId, string name, CancellationToken ct = default)
+    {
+        var maxOrder = await _db.SidebarGroups
+            .Where(g => g.UserId == userId)
+            .Select(g => (int?)g.DisplayOrder)
+            .MaxAsync(ct) ?? -1;
+
+        var entity = new SidebarGroupEntity
+        {
+            Id           = Guid.NewGuid(),
+            UserId       = userId,
+            Name         = name,
+            DisplayOrder = maxOrder + 1,
+            IsCollapsed  = false,
+            CreatedAt    = DateTime.UtcNow,
+        };
+
+        _db.SidebarGroups.Add(entity);
+        await _db.SaveChangesAsync(ct);
+
+        return new SidebarGroupInfo(entity.Id, entity.Name, entity.DisplayOrder, entity.IsCollapsed, []);
+    }
+
+    public async Task RenameAsync(Guid groupId, Guid userId, string name, CancellationToken ct = default)
+    {
+        var rows = await _db.SidebarGroups
+            .Where(g => g.Id == groupId && g.UserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.Name, name), ct);
+
+        if (rows == 0)
+            throw new KeyNotFoundException("Sidebar group not found.");
+    }
+
+    public async Task DeleteAsync(Guid groupId, Guid userId, CancellationToken ct = default)
+    {
+        // Un-assign all rooms first (SetNull on cascade handles this, but explicit is safer)
+        await _db.RoomMemberships
+            .Where(m => m.UserId == userId && m.SidebarGroupId == groupId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.SidebarGroupId, (Guid?)null), ct);
+
+        var rows = await _db.SidebarGroups
+            .Where(g => g.Id == groupId && g.UserId == userId)
+            .ExecuteDeleteAsync(ct);
+
+        if (rows == 0)
+            throw new KeyNotFoundException("Sidebar group not found.");
+    }
+
+    public async Task AssignRoomAsync(Guid groupId, Guid userId, Guid roomId, CancellationToken ct = default)
+    {
+        var groupExists = await _db.SidebarGroups
+            .AnyAsync(g => g.Id == groupId && g.UserId == userId, ct);
+
+        if (!groupExists)
+            throw new KeyNotFoundException("Sidebar group not found.");
+
+        var rows = await _db.RoomMemberships
+            .Where(m => m.UserId == userId && m.RoomId == roomId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.SidebarGroupId, groupId), ct);
+
+        if (rows == 0)
+            throw new KeyNotFoundException("Room membership not found.");
+    }
+
+    public async Task UnassignRoomAsync(Guid userId, Guid roomId, CancellationToken ct = default)
+    {
+        await _db.RoomMemberships
+            .Where(m => m.UserId == userId && m.RoomId == roomId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.SidebarGroupId, (Guid?)null), ct);
+    }
+
+    public async Task SetCollapsedAsync(Guid groupId, Guid userId, bool isCollapsed, CancellationToken ct = default)
+    {
+        var rows = await _db.SidebarGroups
+            .Where(g => g.Id == groupId && g.UserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.IsCollapsed, isCollapsed), ct);
+
+        if (rows == 0)
+            throw new KeyNotFoundException("Sidebar group not found.");
+    }
+}

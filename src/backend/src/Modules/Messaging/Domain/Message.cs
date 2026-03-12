@@ -3,7 +3,7 @@ namespace Messaging.Domain;
 public sealed record Message(
     Guid Id,
     Guid RoomId,
-    Guid UserId,
+    Guid? UserId,
     string AuthorDisplayName,
     string? AuthorAvatarUrl,
     string Content,
@@ -11,7 +11,8 @@ public sealed record Message(
     DateTime CreatedAt,
     DateTime? EditedAt,
     DateTime ExpiresAt,
-    IReadOnlyList<MessageReaction> Reactions
+    IReadOnlyList<MessageReaction> Reactions,
+    bool IsSystem = false
 );
 
 public sealed record MessageReaction(string Emoji, string UserDisplayName);

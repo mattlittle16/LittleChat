@@ -14,72 +14,33 @@ public sealed class RoomRepository : IRoomRepository
         _db = db;
     }
 
-    public async Task<IReadOnlyList<Guid>> GetAllRoomIdsAsync(CancellationToken ct = default)
-    {
-        return await _db.Rooms
-            .Where(r => !r.IsDm)
-            .Select(r => r.Id)
-            .ToListAsync(ct);
-    }
-
-    public async Task<IReadOnlyList<Guid>> GetAllUserIdsAsync(CancellationToken ct = default)
-    {
-        return await _db.Users
-            .Select(u => u.Id)
-            .ToListAsync(ct);
-    }
-
-    public async Task AddMemberToAllRoomsAsync(Guid userId, IReadOnlyList<Guid> roomIds, CancellationToken ct = default)
-    {
-        foreach (var roomId in roomIds)
-        {
-            _db.RoomMemberships.Add(new RoomMembershipEntity
-            {
-                UserId = userId,
-                RoomId = roomId,
-                LastReadAt = DateTime.UtcNow,
-                JoinedAt = DateTime.UtcNow,
-            });
-        }
-
-        try
-        {
-            await _db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex) when (
-            ex.InnerException?.Message.Contains("duplicate key") == true ||
-            ex.InnerException?.Message.Contains("23505") == true)
-        {
-            // Race condition: membership already exists — ignore
-            _db.ChangeTracker.Clear();
-        }
-    }
-
-    public async Task<Room> CreateAsync(string name, Guid createdBy, IReadOnlyList<Guid> allUserIds, CancellationToken ct = default)
+    public async Task<Room> CreateAsync(string name, Guid createdBy, bool isPrivate = false, CancellationToken ct = default)
     {
         var entity = new RoomEntity
         {
-            Id = Guid.NewGuid(),
-            Name = name,
-            IsDm = false,
-            CreatedBy = createdBy,
-            CreatedAt = DateTime.UtcNow,
+            Id          = Guid.NewGuid(),
+            Name        = name,
+            IsDm        = false,
+            Visibility  = isPrivate ? "private" : "public",
+            OwnerId     = createdBy,
+            CreatedBy   = createdBy,
+            CreatedAt   = DateTime.UtcNow,
         };
 
         _db.Rooms.Add(entity);
 
-        // Bulk insert memberships for ALL existing users
-        _db.RoomMemberships.AddRange(allUserIds.Select(userId => new RoomMembershipEntity
+        // Only the creator joins on creation
+        _db.RoomMemberships.Add(new RoomMembershipEntity
         {
-            UserId = userId,
-            RoomId = entity.Id,
+            UserId     = createdBy,
+            RoomId     = entity.Id,
             LastReadAt = DateTime.UtcNow,
-            JoinedAt = DateTime.UtcNow,
-        }));
+            JoinedAt   = DateTime.UtcNow,
+        });
 
         await _db.SaveChangesAsync(ct);
 
-        return new Room(entity.Id, entity.Name, entity.IsDm, entity.CreatedBy, entity.CreatedAt);
+        return MapRoom(entity);
     }
 
     public async Task<IReadOnlyList<RoomSummary>> GetForUserAsync(Guid userId, CancellationToken ct = default)
@@ -93,8 +54,12 @@ public sealed class RoomRepository : IRoomRepository
                 rm.Room.IsDm,
                 rm.Room.CreatedBy,
                 rm.Room.CreatedAt,
+                rm.Room.OwnerId,
+                IsPrivate   = rm.Room.Visibility == "private",
+                rm.Room.IsProtected,
+                MemberCount = rm.Room.Memberships.Count(),
                 UnreadCount = rm.Room.Messages.Count(m => m.CreatedAt > rm.LastReadAt),
-                HasMention = rm.Room.Messages.Any(m =>
+                HasMention  = rm.Room.Messages.Any(m =>
                     m.CreatedAt > rm.LastReadAt &&
                     m.Content.Contains("@" + rm.User.DisplayName)),
                 LastPreview = rm.Room.Messages
@@ -127,14 +92,116 @@ public sealed class RoomRepository : IRoomRepository
             .ToListAsync(ct);
 
         return results.Select(r => new RoomSummary(
-            Room: new Room(r.Id, r.Name, r.IsDm, r.CreatedBy, r.CreatedAt),
-            UnreadCount: r.UnreadCount,
-            HasMention: r.HasMention,
-            LastMessagePreview: r.LastPreview,
-            OtherUserId: r.OtherUserId,
+            Room: new Room(r.Id, r.Name, r.IsDm, r.CreatedBy, r.CreatedAt,
+                OwnerId: r.OwnerId, IsPrivate: r.IsPrivate, IsProtected: r.IsProtected),
+            UnreadCount:          r.UnreadCount,
+            HasMention:           r.HasMention,
+            LastMessagePreview:   r.LastPreview,
+            MemberCount:          r.MemberCount,
+            OtherUserId:          r.OtherUserId,
             OtherUserDisplayName: r.OtherUserDisplayName,
-            OtherUserAvatarUrl: r.OtherUserAvatarUrl
+            OtherUserAvatarUrl:   r.OtherUserAvatarUrl
         )).ToList();
+    }
+
+    public async Task AddMemberToGeneralRoomAsync(Guid userId, CancellationToken ct = default)
+    {
+        var generalRoomId = await _db.Rooms
+            .Where(r => r.IsProtected && !r.IsDm)
+            .Select(r => (Guid?)r.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (generalRoomId is null) return;
+
+        _db.RoomMemberships.Add(new RoomMembershipEntity
+        {
+            UserId     = userId,
+            RoomId     = generalRoomId.Value,
+            LastReadAt = DateTime.UtcNow,
+            JoinedAt   = DateTime.UtcNow,
+        });
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException?.Message.Contains("duplicate key") == true ||
+            ex.InnerException?.Message.Contains("23505") == true)
+        {
+            // Already a member — idempotent, ignore
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    public async Task<IReadOnlyList<RoomMember>> GetMembersAsync(Guid roomId, CancellationToken ct = default)
+    {
+        return await _db.RoomMemberships
+            .Where(rm => rm.RoomId == roomId)
+            .Select(rm => new RoomMember(rm.UserId, rm.User.DisplayName, rm.User.AvatarUrl))
+            .ToListAsync(ct);
+    }
+
+    public async Task AddMemberAsync(Guid roomId, Guid userId, CancellationToken ct = default)
+    {
+        _db.RoomMemberships.Add(new RoomMembershipEntity
+        {
+            UserId     = userId,
+            RoomId     = roomId,
+            LastReadAt = DateTime.UtcNow,
+            JoinedAt   = DateTime.UtcNow,
+        });
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException?.Message.Contains("duplicate key") == true ||
+            ex.InnerException?.Message.Contains("23505") == true)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    public async Task RemoveMemberAsync(Guid roomId, Guid userId, CancellationToken ct = default)
+    {
+        await _db.RoomMemberships
+            .Where(rm => rm.RoomId == roomId && rm.UserId == userId)
+            .ExecuteDeleteAsync(ct);
+    }
+
+    public async Task SetOwnerAsync(Guid roomId, Guid newOwnerId, CancellationToken ct = default)
+    {
+        await _db.Rooms
+            .Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.OwnerId, newOwnerId), ct);
+    }
+
+    public async Task<bool> IsMemberAsync(Guid roomId, Guid userId, CancellationToken ct = default)
+    {
+        return await _db.RoomMemberships
+            .AnyAsync(rm => rm.RoomId == roomId && rm.UserId == userId, ct);
+    }
+
+    public async Task<bool> IsOwnerAsync(Guid roomId, Guid userId, CancellationToken ct = default)
+    {
+        return await _db.Rooms
+            .AnyAsync(r => r.Id == roomId && r.OwnerId == userId, ct);
+    }
+
+    public async Task<Guid?> GetOwnerIdAsync(Guid roomId, CancellationToken ct = default)
+    {
+        return await _db.Rooms
+            .Where(r => r.Id == roomId)
+            .Select(r => r.OwnerId)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<int> GetMemberCountAsync(Guid roomId, CancellationToken ct = default)
+    {
+        return await _db.RoomMemberships
+            .CountAsync(rm => rm.RoomId == roomId, ct);
     }
 
     public async Task<Guid?> FindDmAsync(Guid userA, Guid userB, CancellationToken ct = default)
@@ -151,9 +218,9 @@ public sealed class RoomRepository : IRoomRepository
     {
         var entity = new RoomEntity
         {
-            Id = Guid.NewGuid(),
-            Name = string.Empty,
-            IsDm = true,
+            Id        = Guid.NewGuid(),
+            Name      = string.Empty,
+            IsDm      = true,
             CreatedBy = userA,
             CreatedAt = DateTime.UtcNow,
         };
@@ -166,7 +233,7 @@ public sealed class RoomRepository : IRoomRepository
 
         await _db.SaveChangesAsync(ct);
 
-        return new Room(entity.Id, entity.Name, entity.IsDm, entity.CreatedBy, entity.CreatedAt);
+        return MapRoom(entity);
     }
 
     public async Task<IReadOnlyList<Guid>> GetRoomIdsForUserAsync(Guid userId, CancellationToken ct = default)
@@ -182,9 +249,7 @@ public sealed class RoomRepository : IRoomRepository
         var entity = await _db.Rooms
             .FirstOrDefaultAsync(r => r.Id == roomId, ct);
 
-        return entity is null
-            ? null
-            : new Room(entity.Id, entity.Name, entity.IsDm, entity.CreatedBy, entity.CreatedAt);
+        return entity is null ? null : MapRoom(entity);
     }
 
     public async Task<IReadOnlyList<Guid>> GetRoomMemberIdsAsync(Guid roomId, CancellationToken ct = default)
@@ -209,4 +274,34 @@ public sealed class RoomRepository : IRoomRepository
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.LastReadAt, DateTime.UtcNow), ct);
         return rowsAffected > 0;
     }
+
+    public async Task<IReadOnlyList<DiscoverTopicResult>> DiscoverTopicsAsync(Guid userId, string? searchTerm, CancellationToken ct = default)
+    {
+        var query = _db.Rooms
+            .Where(r => !r.IsDm
+                && r.Visibility == "public"
+                && !r.Memberships.Any(m => m.UserId == userId));
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            query = query.Where(r => r.Name.ToLower().Contains(term));
+        }
+
+        return await query
+            .OrderBy(r => r.Name)
+            .Select(r => new DiscoverTopicResult(
+                r.Id,
+                r.Name,
+                r.Memberships.Count(),
+                r.CreatedAt))
+            .ToListAsync(ct);
+    }
+
+    private static Room MapRoom(RoomEntity e) => new(
+        e.Id, e.Name, e.IsDm, e.CreatedBy, e.CreatedAt,
+        OwnerId:     e.OwnerId,
+        IsPrivate:   e.Visibility == "private",
+        IsProtected: e.IsProtected
+    );
 }

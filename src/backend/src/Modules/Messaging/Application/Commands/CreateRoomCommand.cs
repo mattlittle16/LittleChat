@@ -3,4 +3,9 @@ using Messaging.Domain;
 
 namespace Messaging.Application.Commands;
 
-public sealed record CreateRoomCommand(string Name, Guid CreatedBy) : IRequest<Room>;
+public sealed record CreateRoomCommand(
+    string Name,
+    Guid CreatedBy,
+    bool IsPrivate = false,
+    IReadOnlyList<Guid>? InvitedUserIds = null
+) : IRequest<Room>;

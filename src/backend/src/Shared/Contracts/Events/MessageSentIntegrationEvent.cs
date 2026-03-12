@@ -10,4 +10,5 @@ public sealed class MessageSentIntegrationEvent : IntegrationEvent
     public string Content { get; init; } = string.Empty;
     public IReadOnlyList<AttachmentEventData> Attachments { get; init; } = [];
     public DateTime CreatedAt { get; init; }
+    public bool IsSystem { get; init; }
 }
