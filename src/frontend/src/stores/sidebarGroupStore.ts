@@ -11,6 +11,7 @@ interface SidebarGroupState {
   assignRoom: (groupId: string, roomId: string) => Promise<void>
   unassignRoom: (roomId: string) => Promise<void>
   setCollapsed: (groupId: string, isCollapsed: boolean) => Promise<void>
+  reorderRooms: (groupId: string | null, roomIds: string[]) => Promise<void>
 }
 
 export const useSidebarGroupStore = create<SidebarGroupState>((set) => ({
@@ -65,5 +66,25 @@ export const useSidebarGroupStore = create<SidebarGroupState>((set) => ({
     set(s => ({
       groups: s.groups.map(g => g.id === groupId ? { ...g, isCollapsed } : g),
     }))
+  },
+
+  reorderRooms: async (groupId, roomIds) => {
+    // Optimistic update
+    const prevGroups = useSidebarGroupStore.getState().groups
+    set(s => ({
+      groups: s.groups.map(g => {
+        if (groupId === null) return g  // uncategorized handled by filtering ungrouped
+        return g.id === groupId ? { ...g, roomIds } : g
+      }),
+    }))
+    // For uncategorized (groupId === null), there's no group to update in the groups array
+    // The ungrouped list is derived elsewhere; we still call the API to persist.
+    try {
+      await api.patch('/api/sidebar-groups/rooms/reorder', { groupId, roomIds })
+    } catch {
+      // Roll back optimistic update on failure
+      set({ groups: prevGroups })
+      throw new Error('Failed to save topic order. Changes have been reverted.')
+    }
   },
 }))

@@ -8,6 +8,7 @@ public sealed class RoomMembershipEntity
     public DateTime JoinedAt { get; set; }
 
     public Guid? SidebarGroupId { get; set; }
+    public int Position { get; set; }
 
     public UserEntity User { get; set; } = null!;
     public RoomEntity Room { get; set; } = null!;

@@ -27,6 +27,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-01
 - TypeScript 5.9 / React 19 + `emoji-picker-react` v4.18, `lucide-react` v0.576, Tailwind CSS v4, React DOM `createPortal` (011-emoji-reaction-ux)
 - C# (.NET 8) backend; TypeScript 5.9 / React 19 frontend + ASP.NET Core minimal API, SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui, lucide-reac (012-topics-overhaul)
 - PostgreSQL — Messaging module EF Core schema (rooms, room_memberships, messages, new sidebar_groups) (012-topics-overhaul)
+- C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui; **new**: `@dnd-kit/core` ^6.x, `@dnd-kit/sortable` ^8.x, `@dnd-kit/utilities` ^3.x (013-topic-dnd-membership)
+- PostgreSQL via EF Core (Messaging module); one new column on `room_memberships` (013-topic-dnd-membership)
 
 - C# (.NET 8 or 9) — backend; TypeScript — frontend + ASP.NET Core SignalR + `Microsoft.AspNetCore.SignalR.StackExchangeRedis`; Entity Framework Core; MediatR; `Microsoft.AspNetCore.Authentication.JwtBearer`; React; `@microsoft/signalr`; `idb`; Zustand; Tailwind CSS; shadcn/ui (001-chat-mvp)
 
@@ -46,9 +48,9 @@ npm test && npm run lint
 C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventions
 
 ## Recent Changes
+- 013-topic-dnd-membership: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui; **new**: `@dnd-kit/core` ^6.x, `@dnd-kit/sortable` ^8.x, `@dnd-kit/utilities` ^3.x
 - 012-topics-overhaul: Added C# (.NET 8) backend; TypeScript 5.9 / React 19 frontend + ASP.NET Core minimal API, SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui, lucide-reac
 - 011-emoji-reaction-ux: Added TypeScript 5.9 / React 19 + `emoji-picker-react` v4.18, `lucide-react` v0.576, Tailwind CSS v4, React DOM `createPortal`
-- 010-chat-media-ux: Added C# .NET 8 (backend) · TypeScript 5.9 / React 19 (frontend) + ASP.NET Core (SignalR, MediatR, EF Core), Tiptap v2, react-markdown + remark-gfm, Zustand v5, Tailwind CSS v4, shadcn/ui
 
 
 <!-- MANUAL ADDITIONS START -->

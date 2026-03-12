@@ -91,7 +91,16 @@ export interface SidebarGroup {
   name: string
   displayOrder: number
   isCollapsed: boolean
+  /** Ordered list of room IDs as returned by the API (display order). Do NOT re-sort client-side. */
   roomIds: string[]
+}
+
+/** 013-topic-dnd-membership: member info returned by GET /api/rooms/{roomId}/members */
+export interface RoomMember {
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+  isOwner: boolean
 }
 
 // Notification preferences types (005-notification-settings)

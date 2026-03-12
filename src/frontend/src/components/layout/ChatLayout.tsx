@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Users } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
@@ -7,6 +7,7 @@ import { TypingIndicator } from '../chat/TypingIndicator'
 import { SearchModal } from '../search/SearchModal'
 import { MentionToastContainer } from '../chat/MentionToast'
 import { NotificationSettingsPage } from '../settings/NotificationSettingsPage'
+import { TopicMemberPanel } from '../topics/TopicMemberPanel'
 import { useRoomStore } from '../../stores/roomStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { useMessageStore, getRoomMessages } from '../../stores/messageStore'
@@ -26,6 +27,7 @@ export function ChatLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
   const [roomConfirming, setRoomConfirming] = useState(false)
+  const [showMemberPanel, setShowMemberPanel] = useState(false)
   const dmMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const roomMenuRef = useRef<HTMLDivElement>(null)
@@ -63,6 +65,9 @@ export function ChatLayout() {
     })
     return unsub
   }, [])
+
+  // Close member panel when switching rooms
+  useEffect(() => { setShowMemberPanel(false) }, [activeRoomId])
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const roomName = activeRoom
@@ -222,6 +227,21 @@ export function ChatLayout() {
               </span>
             )}
 
+            {/* Members button — only shown for topic (non-DM) rooms */}
+            {activeRoom && !activeRoom.isDm && (
+              <button
+                onClick={() => setShowMemberPanel(o => !o)}
+                title="Members"
+                className="flex items-center gap-1 rounded px-1.5 py-1 text-sm transition-colors"
+                style={{
+                  color: showMemberPanel ? 'hsl(var(--foreground))' : 'hsl(var(--foreground) / 0.6)',
+                  background: showMemberPanel ? 'hsl(var(--muted))' : 'transparent',
+                }}
+              >
+                <Users className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Group room actions menu — only shown when viewing a non-DM room */}
             {activeRoom && !activeRoom.isDm && (
               <div className="relative" ref={roomMenuRef}>
@@ -354,49 +374,61 @@ export function ChatLayout() {
           </div>
         </header>
 
-        {/* Main chat area */}
-        {activeRoomId ? (
-          <>
-            <MessageList
-              roomId={activeRoomId}
-              selectedMessageId={selectedMessageId}
-              deleteConfirmPending={deleteConfirmPending}
-              editingMessageId={editingMessageId}
-            />
-            <TypingIndicator roomId={activeRoomId} />
-            <MessageInput
-              roomId={activeRoomId}
-              disabled={isDisconnected}
-              onArrowUpOnEmpty={() => {
-                if (myMessages.length === 0) return
-                setEditingMessageId(null)
-                if (!selectedMessageId) {
-                  setSelectedMessageId(myMessages.at(-1)!.id)
-                } else {
-                  const idx = myMessages.findIndex(m => m.id === selectedMessageId)
-                  if (idx > 0) setSelectedMessageId(myMessages[idx - 1].id)
-                }
-              }}
-              onArrowDown={() => {
-                if (!selectedMessageId) return false
-                const idx = myMessages.findIndex(m => m.id === selectedMessageId)
-                if (idx < myMessages.length - 1) {
-                  setSelectedMessageId(myMessages[idx + 1].id)
-                  setEditingMessageId(null)
-                } else {
-                  setSelectedMessageId(null)
-                  setEditingMessageId(null)
-                  setDeleteConfirmPending(false)
-                }
-                return true
-              }}
-            />
-          </>
-        ) : (
-          <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-            Select a room to start chatting.
+        {/* Main chat area + optional member panel */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex flex-1 flex-col min-w-0">
+            {activeRoomId ? (
+              <>
+                <MessageList
+                  roomId={activeRoomId}
+                  selectedMessageId={selectedMessageId}
+                  deleteConfirmPending={deleteConfirmPending}
+                  editingMessageId={editingMessageId}
+                />
+                <TypingIndicator roomId={activeRoomId} />
+                <MessageInput
+                  roomId={activeRoomId}
+                  disabled={isDisconnected}
+                  onArrowUpOnEmpty={() => {
+                    if (myMessages.length === 0) return
+                    setEditingMessageId(null)
+                    if (!selectedMessageId) {
+                      setSelectedMessageId(myMessages.at(-1)!.id)
+                    } else {
+                      const idx = myMessages.findIndex(m => m.id === selectedMessageId)
+                      if (idx > 0) setSelectedMessageId(myMessages[idx - 1].id)
+                    }
+                  }}
+                  onArrowDown={() => {
+                    if (!selectedMessageId) return false
+                    const idx = myMessages.findIndex(m => m.id === selectedMessageId)
+                    if (idx < myMessages.length - 1) {
+                      setSelectedMessageId(myMessages[idx + 1].id)
+                      setEditingMessageId(null)
+                    } else {
+                      setSelectedMessageId(null)
+                      setEditingMessageId(null)
+                      setDeleteConfirmPending(false)
+                    }
+                    return true
+                  }}
+                />
+              </>
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
+                Select a room to start chatting.
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Member panel — shown when toggled on a topic room */}
+          {showMemberPanel && activeRoomId && activeRoom && !activeRoom.isDm && (
+            <TopicMemberPanel
+              roomId={activeRoomId}
+              onClose={() => setShowMemberPanel(false)}
+            />
+          )}
+        </div>
         </>)}
       </div>
 

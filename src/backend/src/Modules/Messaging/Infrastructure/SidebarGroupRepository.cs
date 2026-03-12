@@ -26,6 +26,8 @@ public sealed class SidebarGroupRepository : ISidebarGroupRepository
                 g.IsCollapsed,
                 g.Memberships
                     .Where(m => m.UserId == userId)
+                    .OrderBy(m => m.Position)
+                    .ThenBy(m => m.Room.Name)
                     .Select(m => m.RoomId)
                     .ToList()))
             .ToListAsync(ct);
@@ -89,9 +91,16 @@ public sealed class SidebarGroupRepository : ISidebarGroupRepository
         if (!groupExists)
             throw new KeyNotFoundException("Sidebar group not found.");
 
+        var maxPosition = await _db.RoomMemberships
+            .Where(m => m.UserId == userId && m.SidebarGroupId == groupId)
+            .Select(m => (int?)m.Position)
+            .MaxAsync(ct) ?? -1;
+
         var rows = await _db.RoomMemberships
             .Where(m => m.UserId == userId && m.RoomId == roomId)
-            .ExecuteUpdateAsync(s => s.SetProperty(m => m.SidebarGroupId, groupId), ct);
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(m => m.SidebarGroupId, groupId)
+                .SetProperty(m => m.Position, maxPosition + 1), ct);
 
         if (rows == 0)
             throw new KeyNotFoundException("Room membership not found.");
@@ -99,9 +108,28 @@ public sealed class SidebarGroupRepository : ISidebarGroupRepository
 
     public async Task UnassignRoomAsync(Guid userId, Guid roomId, CancellationToken ct = default)
     {
+        var maxPosition = await _db.RoomMemberships
+            .Where(m => m.UserId == userId && m.SidebarGroupId == null)
+            .Select(m => (int?)m.Position)
+            .MaxAsync(ct) ?? -1;
+
         await _db.RoomMemberships
             .Where(m => m.UserId == userId && m.RoomId == roomId)
-            .ExecuteUpdateAsync(s => s.SetProperty(m => m.SidebarGroupId, (Guid?)null), ct);
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(m => m.SidebarGroupId, (Guid?)null)
+                .SetProperty(m => m.Position, maxPosition + 1), ct);
+    }
+
+    public async Task ReorderAsync(Guid userId, Guid? groupId, IReadOnlyList<Guid> roomIds, CancellationToken ct = default)
+    {
+        for (var i = 0; i < roomIds.Count; i++)
+        {
+            var roomId = roomIds[i];
+            var position = i;
+            await _db.RoomMemberships
+                .Where(m => m.UserId == userId && m.RoomId == roomId && m.SidebarGroupId == groupId)
+                .ExecuteUpdateAsync(s => s.SetProperty(m => m.Position, position), ct);
+        }
     }
 
     public async Task SetCollapsedAsync(Guid groupId, Guid userId, bool isCollapsed, CancellationToken ct = default)

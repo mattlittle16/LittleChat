@@ -12,10 +12,18 @@ public sealed class MemberRemovedHandler : IIntegrationEventHandler<MemberRemove
         _notifier = notifier;
     }
 
-    public Task HandleAsync(MemberRemovedIntegrationEvent evt, CancellationToken cancellationToken = default)
-        => _notifier.SendToUserAsync(
+    public async Task HandleAsync(MemberRemovedIntegrationEvent evt, CancellationToken cancellationToken = default)
+    {
+        await _notifier.SendToUserAsync(
             evt.RemovedUserId.ToString(),
             "RemovedFromRoom",
             evt,
             cancellationToken);
+
+        await _notifier.BroadcastToRoomAsync(
+            evt.RoomId.ToString(),
+            "MemberListChanged",
+            evt.RoomId,
+            cancellationToken);
+    }
 }

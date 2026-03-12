@@ -12,10 +12,18 @@ public sealed class MemberAddedHandler : IIntegrationEventHandler<MemberAddedInt
         _notifier = notifier;
     }
 
-    public Task HandleAsync(MemberAddedIntegrationEvent evt, CancellationToken cancellationToken = default)
-        => _notifier.SendToUserAsync(
+    public async Task HandleAsync(MemberAddedIntegrationEvent evt, CancellationToken cancellationToken = default)
+    {
+        await _notifier.SendToUserAsync(
             evt.AddedUserId.ToString(),
             "RoomMembershipChanged",
             evt,
             cancellationToken);
+
+        await _notifier.BroadcastToRoomAsync(
+            evt.RoomId.ToString(),
+            "MemberListChanged",
+            evt.RoomId,
+            cancellationToken);
+    }
 }

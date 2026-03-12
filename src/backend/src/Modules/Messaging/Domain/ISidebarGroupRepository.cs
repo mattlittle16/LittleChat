@@ -11,4 +11,5 @@ public interface ISidebarGroupRepository
     Task AssignRoomAsync(Guid groupId, Guid userId, Guid roomId, CancellationToken ct = default);
     Task UnassignRoomAsync(Guid userId, Guid roomId, CancellationToken ct = default);
     Task SetCollapsedAsync(Guid groupId, Guid userId, bool isCollapsed, CancellationToken ct = default);
+    Task ReorderAsync(Guid userId, Guid? groupId, IReadOnlyList<Guid> roomIds, CancellationToken ct = default);
 }
