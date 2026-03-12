@@ -17,4 +17,5 @@ public interface IChatHubClient
     Task RoomDeleted(Guid roomId);
     Task RoomMembershipChanged(Guid roomId, Guid userId, string action);
     Task RemovedFromRoom(Guid roomId);
+    Task MemberListChanged(Guid roomId);
 }

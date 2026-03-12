@@ -16,6 +16,7 @@ public sealed class RoomMembershipConfiguration : IEntityTypeConfiguration<RoomM
         builder.Property(m => m.JoinedAt).HasColumnName("joined_at").HasDefaultValueSql("NOW()");
 
         builder.Property(m => m.SidebarGroupId).HasColumnName("sidebar_group_id");
+        builder.Property(m => m.Position).HasColumnName("position").HasDefaultValue(0);
 
         builder.HasOne(m => m.User).WithMany(u => u.Memberships).HasForeignKey(m => m.UserId);
         builder.HasOne(m => m.Room).WithMany(r => r.Memberships).HasForeignKey(m => m.RoomId);

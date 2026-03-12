@@ -114,6 +114,11 @@ export function useSignalR(roomId: string | null) {
         connection.invoke('LeaveRoom', roomId).catch(() => {})
       })
 
+      // Member list changed in a topic — notify open member panels to re-fetch
+      connection.on('MemberListChanged', (roomId: string) => {
+        window.dispatchEvent(new CustomEvent('memberListChanged', { detail: { roomId } }))
+      })
+
       // T071: wire presence updates from server
       connection.on('PresenceUpdate', (userId: string, isOnline: boolean) => {
         if (isOnline) setOnline(userId)

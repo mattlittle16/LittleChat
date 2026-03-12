@@ -201,7 +201,9 @@ This constitution supersedes all other implicit practices. Amendments require:
    - **MINOR**: New principle or section added, or material guidance expanded.
    - **PATCH**: Clarifications, wording improvements, typo fixes, non-semantic changes.
 
-When implementing any spec. You MUST pause between stories for me to review. 
+
+For any work that does database changes, you MUST use Entity Framework tools to generate migrations. Do not attempt to create manually. 
+
 
 All pull requests MUST verify compliance with each applicable principle before merge.
 Complexity MUST be justified; default answer to "should we add this?" is no.

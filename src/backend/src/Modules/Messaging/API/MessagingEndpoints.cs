@@ -349,9 +349,11 @@ public static class MessagingEndpoints
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null) return Results.Unauthorized();
 
+                var inviterDisplayName = ctx.User.FindFirst("preferred_username")?.Value ?? "Someone";
+
                 try
                 {
-                    await sender.Send(new InviteToRoomCommand(roomId, userId.Value, body.TargetUserId), ctx.RequestAborted);
+                    await sender.Send(new InviteToRoomCommand(roomId, userId.Value, inviterDisplayName, body.TargetUserId), ctx.RequestAborted);
                     return Results.NoContent();
                 }
                 catch (UnauthorizedAccessException) { return Results.Forbid(); }
@@ -531,6 +533,25 @@ public static class MessagingEndpoints
                 return Results.NoContent();
             });
 
+        // PATCH /api/sidebar-groups/rooms/reorder — reorder rooms within a bucket
+        app.MapPatch("/api/sidebar-groups/rooms/reorder",
+            [Authorize] async (ReorderRoomsBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                if (body.RoomIds is null || body.RoomIds.Count == 0)
+                    return Results.BadRequest("RoomIds must not be empty.");
+
+                try
+                {
+                    await sender.Send(new ReorderRoomMembershipsCommand(userId.Value, body.GroupId, body.RoomIds), ctx.RequestAborted);
+                    return Results.NoContent();
+                }
+                catch (UnauthorizedAccessException) { return Results.Forbid(); }
+                catch (KeyNotFoundException) { return Results.NotFound(); }
+            });
+
         // PATCH /api/sidebar-groups/{groupId}/collapsed — set collapse state
         app.MapPatch("/api/sidebar-groups/{groupId:guid}/collapsed",
             [Authorize] async (Guid groupId, SidebarGroupCollapsedBody body, HttpContext ctx, ISender sender) =>
@@ -644,3 +665,4 @@ internal sealed record TransferOwnershipBody(Guid NewOwnerUserId, string NewOwne
 internal sealed record LeaveRoomBody(Guid? NewOwnerUserId = null, string? NewOwnerDisplayName = null);
 internal sealed record SidebarGroupCreateBody(string Name);
 internal sealed record SidebarGroupCollapsedBody(bool IsCollapsed);
+internal sealed record ReorderRoomsBody(Guid? GroupId, IReadOnlyList<Guid> RoomIds);

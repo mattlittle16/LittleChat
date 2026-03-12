@@ -31,6 +31,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 group.DmDeleted(d.RoomId),
             "RoomDeleted" when payload is RoomDeletedIntegrationEvent r =>
                 group.RoomDeleted(r.RoomId),
+            "MemberListChanged" when payload is Guid mlcRoomId =>
+                group.MemberListChanged(mlcRoomId),
             _ => Task.CompletedTask,
         };
     }

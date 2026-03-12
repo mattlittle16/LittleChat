@@ -19,7 +19,8 @@ public sealed class GetRoomMembersQueryHandler : IRequestHandler<GetRoomMembersQ
         if (!isMember)
             throw new UnauthorizedAccessException("You are not a member of this topic.");
 
+        var ownerId = await _rooms.GetOwnerIdAsync(request.RoomId, cancellationToken);
         var members = await _rooms.GetMembersAsync(request.RoomId, cancellationToken);
-        return members.Select(m => new RoomMemberDto(m.UserId, m.DisplayName, m.AvatarUrl)).ToList();
+        return members.Select(m => new RoomMemberDto(m.UserId, m.DisplayName, m.AvatarUrl, m.UserId == ownerId)).ToList();
     }
 }
