@@ -7,6 +7,8 @@ public sealed class RoomEntity
     public bool IsDm { get; set; }
     public string Visibility { get; set; } = "public";
     public Guid? CreatedBy { get; set; }
+    public Guid? OwnerId { get; set; }
+    public bool IsProtected { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public ICollection<RoomMembershipEntity> Memberships { get; set; } = [];

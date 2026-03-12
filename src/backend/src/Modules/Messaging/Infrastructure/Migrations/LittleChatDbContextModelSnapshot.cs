@@ -100,6 +100,12 @@ namespace Messaging.Infrastructure.Migrations
                         .HasColumnName("expires_at")
                         .HasDefaultValueSql("NOW() + INTERVAL '30 days'");
 
+                    b.Property<bool>("IsSystem")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_system");
+
                     b.Property<Guid>("RoomId")
                         .HasColumnType("uuid")
                         .HasColumnName("room_id");
@@ -110,7 +116,7 @@ namespace Messaging.Infrastructure.Migrations
                         .HasColumnName("search_vector")
                         .HasComputedColumnSql("to_tsvector('english', content)", true);
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -181,10 +187,20 @@ namespace Messaging.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_dm");
 
+                    b.Property<bool>("IsProtected")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_protected");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
 
                     b.Property<string>("Visibility")
                         .IsRequired()
@@ -220,11 +236,61 @@ namespace Messaging.Infrastructure.Migrations
                         .HasColumnName("last_read_at")
                         .HasDefaultValueSql("NOW()");
 
+                    b.Property<Guid?>("SidebarGroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sidebar_group_id");
+
                     b.HasKey("UserId", "RoomId");
 
                     b.HasIndex("RoomId");
 
+                    b.HasIndex("SidebarGroupId");
+
                     b.ToTable("room_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("Messaging.Infrastructure.Persistence.Entities.SidebarGroupEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display_order");
+
+                    b.Property<bool>("IsCollapsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_collapsed");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("idx_sidebar_groups_user_id");
+
+                    b.ToTable("sidebar_groups", (string)null);
                 });
 
             modelBuilder.Entity("Messaging.Infrastructure.Persistence.Entities.UserEntity", b =>
@@ -283,9 +349,7 @@ namespace Messaging.Infrastructure.Migrations
 
                     b.HasOne("Messaging.Infrastructure.Persistence.Entities.UserEntity", "User")
                         .WithMany("Messages")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.Navigation("Room");
 
@@ -319,6 +383,11 @@ namespace Messaging.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Messaging.Infrastructure.Persistence.Entities.SidebarGroupEntity", "SidebarGroup")
+                        .WithMany("Memberships")
+                        .HasForeignKey("SidebarGroupId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Messaging.Infrastructure.Persistence.Entities.UserEntity", "User")
                         .WithMany("Memberships")
                         .HasForeignKey("UserId")
@@ -326,6 +395,19 @@ namespace Messaging.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Room");
+
+                    b.Navigation("SidebarGroup");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Messaging.Infrastructure.Persistence.Entities.SidebarGroupEntity", b =>
+                {
+                    b.HasOne("Messaging.Infrastructure.Persistence.Entities.UserEntity", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -342,6 +424,11 @@ namespace Messaging.Infrastructure.Migrations
                     b.Navigation("Memberships");
 
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("Messaging.Infrastructure.Persistence.Entities.SidebarGroupEntity", b =>
+                {
+                    b.Navigation("Memberships");
                 });
 
             modelBuilder.Entity("Messaging.Infrastructure.Persistence.Entities.UserEntity", b =>

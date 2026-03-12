@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { BellOff } from 'lucide-react'
+import { BellOff, Search, Settings, ChevronDown, ChevronRight, Lock } from 'lucide-react'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
-import { api } from '../../services/apiClient'
+import { useCurrentUserStore } from '../../stores/currentUserStore'
+import { useSidebarGroupStore } from '../../stores/sidebarGroupStore'
 import { ComposeDialog } from './ComposeDialog'
+import { CreateTopicDialog } from './CreateTopicDialog'
+import { TransferOwnershipDialog } from '../topics/TransferOwnershipDialog'
+import { TopicDiscoveryDialog } from '../topics/TopicDiscoveryDialog'
+import { SidebarGroupManager } from '../topics/SidebarGroupManager'
 import { ThemeToggle } from '../ThemeToggle'
 import logoSvg from '../../assets/logo.svg'
 import type { ConversationOverrideLevel, Room } from '../../types'
@@ -17,12 +22,15 @@ const sidebarStyle = {
 export function Sidebar() {
   const { rooms, activeRoomId, loadRooms, setActiveRoom } = useRoomStore()
   const [creating, setCreating] = useState(false)
-  const [newRoomName, setNewRoomName] = useState('')
   const [composing, setComposing] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
+  const [managingGroups, setManagingGroups] = useState(false)
+  const { groups, fetchGroups, setCollapsed } = useSidebarGroupStore()
 
   useEffect(() => {
     loadRooms()
-  }, [loadRooms])
+    fetchGroups()
+  }, [loadRooms, fetchGroups])
 
   // Restore last-viewed room on mount
   useEffect(() => {
@@ -34,21 +42,7 @@ export function Sidebar() {
     }
   }, [rooms, activeRoomId, setActiveRoom])
 
-  async function handleCreateRoom(e: React.FormEvent) {
-    e.preventDefault()
-    const name = newRoomName.trim()
-    if (!name) return
-    try {
-      const room = await api.post<Room>('/api/rooms', { name })
-      await loadRooms()
-      setActiveRoom(room.id)
-    } finally {
-      setCreating(false)
-      setNewRoomName('')
-    }
-  }
-
-  const channelRooms = rooms.filter(r => !r.isDm)
+  const topicRooms = rooms.filter(r => !r.isDm)
   const dmRooms = rooms.filter(r => r.isDm)
 
   return (
@@ -62,83 +56,94 @@ export function Sidebar() {
           </span>
         </div>
 
-        {/* Channels section */}
+        {/* Topics section */}
         <div className="flex items-center justify-between px-4 py-2 mt-1">
           <span
             className="text-xs font-semibold uppercase tracking-wider"
             style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
           >
-            Channels
+            Topics
           </span>
-          <button
-            onClick={() => setCreating(c => !c)}
-            className="text-lg leading-none transition-colors"
-            style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
-            title="Create Channel"
-          >
-            +
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setBrowsing(true)}
+              className="flex items-center justify-center w-5 h-5 rounded transition-colors"
+              style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
+              title="Browse Topics"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setManagingGroups(true)}
+              className="flex items-center justify-center w-5 h-5 rounded transition-colors"
+              style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
+              title="Manage Groups"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCreating(c => !c)}
+              className="text-lg leading-none transition-colors"
+              style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
+              title="Create Topic"
+            >
+              +
+            </button>
+          </div>
         </div>
 
-        {creating && (
-          <form onSubmit={handleCreateRoom} className="px-3 pb-2 flex flex-col gap-1.5">
-            <input
-              autoFocus
-              value={newRoomName}
-              onChange={e => setNewRoomName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  setCreating(false)
-                  setNewRoomName('')
-                }
-              }}
-              placeholder="Channel name"
-              className="w-full rounded border px-2 py-1 text-sm focus:outline-none focus:ring-1"
-              style={{
-                background: 'hsl(var(--sidebar-active-bg))',
-                borderColor: 'hsl(var(--sidebar-muted-fg) / 0.4)',
-                color: 'hsl(var(--sidebar-fg))',
-              }}
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="rounded px-2 py-1 text-xs font-medium"
-                style={{
-                  background: 'hsl(var(--primary))',
-                  color: 'hsl(var(--primary-foreground))',
-                }}
-              >
-                Create
-              </button>
-              <button
-                type="button"
-                onClick={() => { setCreating(false); setNewRoomName('') }}
-                className="rounded px-2 py-1 text-xs font-medium"
-                style={{
-                  color: 'hsl(var(--sidebar-muted-fg))',
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
-
         <nav className="flex-1 overflow-y-auto">
-          {channelRooms.map(room => (
-            <RoomItem
-              key={room.id}
-              room={room}
-              isActive={room.id === activeRoomId}
-              onClick={() => setActiveRoom(room.id)}
-            />
-          ))}
-          {channelRooms.length === 0 && (
+          {/* Grouped topics */}
+          {groups.map(group => {
+            const groupRooms = topicRooms.filter(r => group.roomIds.includes(r.id))
+            if (groupRooms.length === 0) return null
+            return (
+              <div key={group.id}>
+                <button
+                  className="w-full flex items-center gap-1 px-3 py-1 text-xs font-semibold uppercase tracking-wider transition-colors"
+                  style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+                  onClick={() => setCollapsed(group.id, !group.isCollapsed)}
+                >
+                  {group.isCollapsed
+                    ? <ChevronRight className="w-3 h-3 shrink-0" />
+                    : <ChevronDown className="w-3 h-3 shrink-0" />}
+                  <span className="truncate">{group.name}</span>
+                </button>
+                {!group.isCollapsed && groupRooms.map(room => (
+                  <RoomItem
+                    key={room.id}
+                    room={room}
+                    isActive={room.id === activeRoomId}
+                    onClick={() => setActiveRoom(room.id)}
+                  />
+                ))}
+              </div>
+            )
+          })}
+
+          {/* Ungrouped topics */}
+          {(() => {
+            const assignedRoomIds = new Set(groups.flatMap(g => g.roomIds))
+            const ungrouped = topicRooms.filter(r => !assignedRoomIds.has(r.id))
+            return ungrouped.map(room => (
+              <RoomItem
+                key={room.id}
+                room={room}
+                isActive={room.id === activeRoomId}
+                onClick={() => setActiveRoom(room.id)}
+              />
+            ))
+          })()}
+
+          {topicRooms.length === 0 && (
             <p className="px-4 py-1 text-xs" style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>
-              No channels yet
+              No topics yet
             </p>
           )}
 
@@ -187,6 +192,9 @@ export function Sidebar() {
       </aside>
 
       {composing && <ComposeDialog onClose={() => setComposing(false)} />}
+      {creating && <CreateTopicDialog onClose={() => setCreating(false)} />}
+      {browsing && <TopicDiscoveryDialog onClose={() => setBrowsing(false)} />}
+      {managingGroups && <SidebarGroupManager onClose={() => setManagingGroups(false)} />}
     </>
   )
 }
@@ -194,11 +202,15 @@ export function Sidebar() {
 function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; onClick: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [notifMenuOpen, setNotifMenuOpen] = useState(false)
+  const [showTransfer, setShowTransfer] = useState(false)
   const confirmRef = useRef<HTMLDivElement>(null)
   const notifMenuRef = useRef<HTMLDivElement>(null)
   const setOverride = useNotificationPreferencesStore(s => s.setOverride)
   const overrides = useNotificationPreferencesStore(s => s.overrides)
   const currentOverride: ConversationOverrideLevel | undefined = overrides[room.id]
+  const currentUserId = useCurrentUserStore(s => s.id)
+  const isOwner = currentUserId !== null && room.ownerId === currentUserId
+  const leaveTopic = useRoomStore(s => s.leaveTopic)
 
   // Close confirm popover when clicking outside
   useEffect(() => {
@@ -229,7 +241,17 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
     await useRoomStore.getState().deleteRoom(room.id)
   }
 
+  async function handleLeave() {
+    setConfirming(false)
+    if (isOwner && room.memberCount > 1) {
+      setShowTransfer(true)
+    } else {
+      await leaveTopic(room.id)
+    }
+  }
+
   return (
+    <>
     <div className="relative group">
       <button
         onClick={onClick}
@@ -246,7 +268,10 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
           if (!isActive) e.currentTarget.style.background = 'transparent'
         }}
       >
-        <span style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>#</span>
+        {room.isPrivate
+          ? <Lock className="w-3 h-3 shrink-0" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
+          : <span style={{ color: 'hsl(var(--sidebar-muted-fg))' }}>#</span>
+        }
         <span className="flex-1 truncate">{room.name}</span>
         {currentOverride && (
           <BellOff className="w-3 h-3 flex-shrink-0 opacity-60 group-hover:hidden" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
@@ -290,19 +315,21 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
         )}
       </div>
 
-      {/* Hover-reveal delete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center
-          justify-center w-5 h-5 rounded transition-colors"
-        style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--destructive))')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
-        title="Delete room"
-        aria-label="Delete room"
-      >
-        &#x2715;
-      </button>
+      {/* Hover-reveal action button: Delete (owner) or Leave (non-owner) */}
+      {!room.isProtected && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center
+            justify-center w-5 h-5 rounded transition-colors"
+          style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--destructive))')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
+          title={isOwner ? 'Delete topic' : 'Leave topic'}
+          aria-label={isOwner ? 'Delete topic' : 'Leave topic'}
+        >
+          &#x2715;
+        </button>
+      )}
 
       {/* Two-step confirm popover */}
       {confirming && (
@@ -315,9 +342,9 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
             color: 'hsl(var(--foreground))',
           }}
         >
-          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Delete?</span>
+          <span style={{ color: 'hsl(var(--muted-foreground))' }}>{isOwner ? 'Delete?' : 'Leave?'}</span>
           <button
-            onClick={handleConfirmDelete}
+            onClick={isOwner ? handleConfirmDelete : handleLeave}
             className="rounded px-1.5 py-0.5 hover:opacity-90"
             style={{ background: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }}
           >
@@ -333,6 +360,14 @@ function RoomItem({ room, isActive, onClick }: { room: Room; isActive: boolean; 
         </div>
       )}
     </div>
+    {showTransfer && currentUserId && (
+      <TransferOwnershipDialog
+        roomId={room.id}
+        currentUserId={currentUserId}
+        onClose={() => setShowTransfer(false)}
+      />
+    )}
+    </>
   )
 }
 

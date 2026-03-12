@@ -8,5 +8,6 @@ public record MessageDto(
     IReadOnlyList<AttachmentDto> Attachments,
     IReadOnlyList<ReactionDto> Reactions,
     DateTime CreatedAt,
-    DateTime? EditedAt
+    DateTime? EditedAt,
+    bool IsSystem = false
 );

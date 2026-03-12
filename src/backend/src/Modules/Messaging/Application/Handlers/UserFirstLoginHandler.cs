@@ -15,10 +15,7 @@ public sealed class UserFirstLoginHandler : IIntegrationEventHandler<UserFirstLo
 
     public async Task HandleAsync(UserFirstLoginIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        var allRoomIds = await _rooms.GetAllRoomIdsAsync(cancellationToken);
-        if (allRoomIds.Count == 0) return;
-
-        // INSERT ... ON CONFLICT DO NOTHING — idempotent, handles race conditions
-        await _rooms.AddMemberToAllRoomsAsync(integrationEvent.UserId, allRoomIds, cancellationToken);
+        // New users join only the General room (the protected default topic)
+        await _rooms.AddMemberToGeneralRoomAsync(integrationEvent.UserId, cancellationToken);
     }
 }

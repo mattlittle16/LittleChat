@@ -117,7 +117,7 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
         {
             MessageId   = message.Id,
             RoomId      = message.RoomId,
-            UserId      = message.UserId,
+            UserId      = message.UserId!.Value, // non-null for user-sent messages
             DisplayName = message.AuthorDisplayName,
             AvatarUrl   = message.AuthorAvatarUrl,
             Content     = message.Content,
@@ -148,7 +148,7 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
                     RoomId          = message.RoomId,
                     RoomName        = roomName,
                     MentionedUserId = mentionedId.Value,
-                    FromUserId      = message.UserId,
+                    FromUserId      = message.UserId!.Value,
                     FromDisplayName = message.AuthorDisplayName,
                     ContentPreview  = message.Content.Length > 100
                         ? message.Content[..100] + "…"

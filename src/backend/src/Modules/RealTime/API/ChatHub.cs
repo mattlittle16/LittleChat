@@ -78,6 +78,9 @@ public sealed class ChatHub : Hub<IChatHubClient>
     public Task JoinRoom(string roomId)
         => Groups.AddToGroupAsync(Context.ConnectionId, $"room:{roomId}");
 
+    public Task LeaveRoom(string roomId)
+        => Groups.RemoveFromGroupAsync(Context.ConnectionId, $"room:{roomId}");
+
     public async Task<(bool Added, int Count)> AddReaction(AddReactionRequest request)
     {
         var userId = Context.User?.GetInternalUserId()

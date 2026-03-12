@@ -14,6 +14,7 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<MessageEntit
         builder.Property(m => m.Id).HasColumnName("id").ValueGeneratedNever(); // client-generated
         builder.Property(m => m.RoomId).HasColumnName("room_id");
         builder.Property(m => m.UserId).HasColumnName("user_id");
+        builder.Property(m => m.IsSystem).HasColumnName("is_system").HasDefaultValue(false);
         builder.Property(m => m.Content).HasColumnName("content").IsRequired().HasMaxLength(4000);
         builder.Property(m => m.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
         builder.Property(m => m.EditedAt).HasColumnName("edited_at");
@@ -27,7 +28,8 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<MessageEntit
             .HasComputedColumnSql("to_tsvector('english', content)", stored: true);
 
         builder.HasOne(m => m.Room).WithMany(r => r.Messages).HasForeignKey(m => m.RoomId);
-        builder.HasOne(m => m.User).WithMany(u => u.Messages).HasForeignKey(m => m.UserId);
+        builder.HasOne(m => m.User).WithMany(u => u.Messages).HasForeignKey(m => m.UserId)
+            .IsRequired(false);
 
         // GIN index for full-text search
         builder.HasIndex(m => m.SearchVector)

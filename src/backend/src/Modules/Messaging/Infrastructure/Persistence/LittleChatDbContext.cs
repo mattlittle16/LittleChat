@@ -13,6 +13,7 @@ public sealed class LittleChatDbContext : DbContext
     public DbSet<MessageEntity> Messages => Set<MessageEntity>();
     public DbSet<ReactionEntity> Reactions => Set<ReactionEntity>();
     public DbSet<MessageAttachmentEntity> MessageAttachments => Set<MessageAttachmentEntity>();
+    public DbSet<SidebarGroupEntity> SidebarGroups => Set<SidebarGroupEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

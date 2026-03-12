@@ -14,6 +14,11 @@ export interface Room {
   hasMention: boolean
   lastMessagePreview: string | null
   createdAt: string // ISO8601
+  // Topic fields (012-topics-overhaul)
+  isPrivate: boolean
+  ownerId: string | null
+  isProtected: boolean
+  memberCount: number
   // DM-only fields
   otherUserId: string | null
   otherUserDisplayName: string | null
@@ -51,6 +56,7 @@ export interface Message {
   reactions: Reaction[]
   createdAt: string // ISO8601
   editedAt: string | null
+  isSystem?: boolean
 }
 
 // Client-side outbox entry (IndexedDB, mirrors data-model.md OutboxMessage)
@@ -77,6 +83,15 @@ export interface MessagePage {
   messages: Message[]
   hasMore: boolean
   nextCursor: string | null
+}
+
+// 012-topics-overhaul: sidebar groups
+export interface SidebarGroup {
+  id: string
+  name: string
+  displayOrder: number
+  isCollapsed: boolean
+  roomIds: string[]
 }
 
 // Notification preferences types (005-notification-settings)

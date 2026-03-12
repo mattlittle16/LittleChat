@@ -15,10 +15,11 @@ public sealed class MessageSentHandler : IIntegrationEventHandler<MessageSentInt
 
     public async Task HandleAsync(MessageSentIntegrationEvent evt, CancellationToken cancellationToken = default)
     {
+        var authorId = evt.IsSystem ? (Guid?)null : (Guid?)evt.UserId;
         var dto = new MessageDto(
             Id:          evt.MessageId,
             RoomId:      evt.RoomId,
-            Author:      new AuthorDto(evt.UserId, evt.DisplayName, evt.AvatarUrl),
+            Author:      new AuthorDto(authorId, evt.DisplayName, evt.AvatarUrl),
             Content:     evt.Content,
             Attachments: evt.Attachments
                 .Select(a => new AttachmentDto(
@@ -31,7 +32,8 @@ public sealed class MessageSentHandler : IIntegrationEventHandler<MessageSentInt
                 .ToList(),
             Reactions:   [],
             CreatedAt:   evt.CreatedAt,
-            EditedAt:    null
+            EditedAt:    null,
+            IsSystem:    evt.IsSystem
         );
 
         await _notifier.BroadcastToRoomAsync(

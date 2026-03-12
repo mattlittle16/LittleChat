@@ -228,6 +228,8 @@ builder.Services.AddScoped<IIntegrationEventHandler<MentionDetectedIntegrationEv
 builder.Services.AddScoped<IIntegrationEventHandler<DmCreatedIntegrationEvent>, DmCreatedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<DmDeletedIntegrationEvent>, DmDeletedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<RoomDeletedIntegrationEvent>, RoomDeletedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MemberAddedIntegrationEvent>, MemberAddedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MemberRemovedIntegrationEvent>, MemberRemovedHandler>();
 
 // Other modules
 builder.Services.AddPresenceModule();
@@ -252,6 +254,54 @@ var app = builder.Build();
     await messagingDb.Database.MigrateAsync();
     var notificationsDb = scope.ServiceProvider.GetRequiredService<Notifications.Infrastructure.NotificationsDbContext>();
     await notificationsDb.Database.MigrateAsync();
+
+    // Seed the General room if it doesn't exist yet (idempotent — checks is_protected flag)
+    var generalRoom = messagingDb.Rooms
+        .FirstOrDefault(r => r.IsProtected && !r.IsDm);
+    if (generalRoom is null)
+    {
+        var newGeneral = new Messaging.Infrastructure.Persistence.Entities.RoomEntity
+        {
+            Id          = Guid.NewGuid(),
+            Name        = "General",
+            IsDm        = false,
+            Visibility  = "public",
+            IsProtected = true,
+            CreatedBy   = null,
+            OwnerId     = null,
+            CreatedAt   = DateTime.UtcNow,
+        };
+        messagingDb.Rooms.Add(newGeneral);
+        await messagingDb.SaveChangesAsync();
+        generalRoom = newGeneral;
+    }
+
+    // Backfill: ensure every existing user is a member of General (idempotent)
+    var existingMemberIds = messagingDb.RoomMemberships
+        .Where(m => m.RoomId == generalRoom.Id)
+        .Select(m => m.UserId)
+        .ToHashSet();
+
+    var allUserIds = messagingDb.Users
+        .Select(u => u.Id)
+        .ToList();
+
+    var toAdd = allUserIds
+        .Where(id => !existingMemberIds.Contains(id))
+        .Select(id => new Messaging.Infrastructure.Persistence.Entities.RoomMembershipEntity
+        {
+            UserId     = id,
+            RoomId     = generalRoom.Id,
+            LastReadAt = DateTime.UtcNow,
+            JoinedAt   = DateTime.UtcNow,
+        })
+        .ToList();
+
+    if (toAdd.Count > 0)
+    {
+        messagingDb.RoomMemberships.AddRange(toAdd);
+        await messagingDb.SaveChangesAsync();
+    }
 }
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions

@@ -84,6 +84,15 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
     )
   }
 
+  // System messages (e.g. ownership transfer announcements) — render centered, no avatar, no actions
+  if (!isOutbox(message) && message.isSystem) {
+    return (
+      <div className="px-4 py-1.5 flex items-center justify-center">
+        <span className="text-xs italic text-muted-foreground text-center">{message.content}</span>
+      </div>
+    )
+  }
+
   function startEdit() {
     setEditContent(message.content)
     setEditing(true)

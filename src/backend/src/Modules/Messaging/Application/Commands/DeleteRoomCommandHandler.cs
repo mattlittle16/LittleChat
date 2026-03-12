@@ -12,7 +12,7 @@ public sealed class DeleteRoomCommandHandler : IRequestHandler<DeleteRoomCommand
 
     public DeleteRoomCommandHandler(IRoomRepository rooms, IEventBus eventBus)
     {
-        _rooms = rooms;
+        _rooms    = rooms;
         _eventBus = eventBus;
     }
 
@@ -24,9 +24,12 @@ public sealed class DeleteRoomCommandHandler : IRequestHandler<DeleteRoomCommand
         if (room.IsDm)
             throw new InvalidOperationException("Use the DM deletion path for direct message conversations.");
 
-        var memberIds = await _rooms.GetRoomMemberIdsAsync(request.RoomId, cancellationToken);
-        if (!memberIds.Contains(request.RequestingUserId))
-            throw new UnauthorizedAccessException("You are not a member of this room.");
+        if (room.IsProtected)
+            throw new InvalidOperationException("The General topic cannot be deleted.");
+
+        var isOwner = await _rooms.IsOwnerAsync(request.RoomId, request.RequestingUserId, cancellationToken);
+        if (!isOwner)
+            throw new UnauthorizedAccessException("Only the topic owner can delete this topic.");
 
         // Publish before deleting so SignalR can still broadcast to the room group
         await _eventBus.PublishAsync(new RoomDeletedIntegrationEvent
