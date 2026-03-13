@@ -13,4 +13,6 @@ public interface IUserRepository
     Task UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
     Task UpdateAvatarAsync(Guid id, string profileImagePath, float cropX, float cropY, float cropZoom, CancellationToken ct = default);
     Task DeleteAvatarAsync(Guid id, CancellationToken ct = default);
+    Task<OnboardingStatus> GetOnboardingStatusAsync(Guid id, CancellationToken ct = default);
+    Task SetOnboardingStatusAsync(Guid id, OnboardingStatus status, CancellationToken ct = default);
 }

@@ -86,15 +86,16 @@ public static class IdentityEndpoints
 
             return Results.Ok(new
             {
-                id             = user.Id,
-                displayName    = user.DisplayName,
-                avatarUrl      = user.AvatarUrl,
+                id               = user.Id,
+                displayName      = user.DisplayName,
+                avatarUrl        = user.AvatarUrl,
                 email,
                 profileImageUrl,
-                cropX          = user.CropX,
-                cropY          = user.CropY,
-                cropZoom       = user.CropZoom,
-                createdAt      = user.CreatedAt,
+                cropX            = user.CropX,
+                cropY            = user.CropY,
+                cropZoom         = user.CropZoom,
+                createdAt        = user.CreatedAt,
+                onboardingStatus = user.OnboardingStatus,
             });
         });
 
@@ -265,6 +266,24 @@ public static class IdentityEndpoints
             return Results.File(stream, contentType, enableRangeProcessing: false);
         });
 
+        // Authenticated — set current user's onboarding wizard status
+        app.MapPut("/api/users/me/onboarding", [Authorize] async (HttpContext ctx, IUserRepository users) =>
+        {
+            var userId = ctx.User.GetInternalUserId();
+            if (userId is null)
+                return Results.Unauthorized();
+
+            var body = await ctx.Request.ReadFromJsonAsync<SetOnboardingStatusRequest>(ctx.RequestAborted);
+            if (body?.Status is null)
+                return Results.BadRequest(new { error = "Status must be 'dismissed' or 'remind_later'." });
+
+            if (body.Status == OnboardingStatus.NotStarted)
+                return Results.BadRequest(new { error = "Status must be 'dismissed' or 'remind_later'." });
+
+            await users.SetOnboardingStatusAsync(userId.Value, body.Status.Value, ctx.RequestAborted);
+            return Results.NoContent();
+        });
+
         // Authenticated — returns all users with online status; supports ?q= name filter
         app.MapGet("/api/users", [Authorize] async (HttpContext ctx, IUserRepository users,
             IPresenceService presence, string? q) =>
@@ -299,4 +318,5 @@ public static class IdentityEndpoints
     }
 
     private sealed record UpdateDisplayNameRequest(string? DisplayName);
+    private sealed record SetOnboardingStatusRequest(OnboardingStatus? Status);
 }

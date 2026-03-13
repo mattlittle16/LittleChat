@@ -11,6 +11,7 @@ public sealed class UserEntity
     public float? CropX { get; set; }
     public float? CropY { get; set; }
     public float? CropZoom { get; set; }
+    public string OnboardingStatus { get; set; } = "not_started";
 
     public ICollection<RoomMembershipEntity> Memberships { get; set; } = [];
     public ICollection<MessageEntity> Messages { get; set; } = [];

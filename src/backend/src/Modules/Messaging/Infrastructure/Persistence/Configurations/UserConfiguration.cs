@@ -21,5 +21,10 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<UserEntity>
         builder.Property(u => u.CropX).HasColumnName("crop_x");
         builder.Property(u => u.CropY).HasColumnName("crop_y");
         builder.Property(u => u.CropZoom).HasColumnName("crop_zoom");
+        builder.Property(u => u.OnboardingStatus)
+            .HasColumnName("onboarding_status")
+            .IsRequired()
+            .HasMaxLength(20)
+            .HasDefaultValue("not_started");
     }
 }
