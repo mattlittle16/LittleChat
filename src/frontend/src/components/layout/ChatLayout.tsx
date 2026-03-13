@@ -200,30 +200,32 @@ export function ChatLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden relative">
-      {/* Subtle background shapes — main app */}
+      {/* Background blobs — outer div owns blur, inner div owns animation and themed color via CSS var */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div style={{
-          position: 'absolute',
-          top: '-15%',
-          right: '-5%',
-          width: '40%',
-          paddingBottom: '34%',
-          borderRadius: '55% 45% 40% 60% / 50% 38% 62% 50%',
-          background: 'radial-gradient(ellipse at 45% 45%, hsl(243 72% 60% / 0.10), transparent 68%)',
-          filter: 'blur(52px)',
-          transform: 'rotate(10deg)',
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: '-8%',
-          left: '20%',
-          width: '38%',
-          paddingBottom: '28%',
-          borderRadius: '40% 60% 55% 45% / 58% 44% 56% 42%',
-          background: 'radial-gradient(ellipse at 55% 55%, hsl(260 65% 65% / 0.08), transparent 68%)',
-          filter: 'blur(56px)',
-          transform: 'rotate(-8deg)',
-        }} />
+        {/* Blob 1 — purple-indigo, top right */}
+        <div style={{ position: 'absolute', top: '-15%', right: '-5%', width: '42%', paddingBottom: '36%', filter: 'blur(52px)' }}>
+          <div className="blob-1" style={{ position: 'absolute', inset: 0, borderRadius: '55% 45% 40% 60% / 50% 38% 62% 50%', background: 'radial-gradient(ellipse at 45% 45%, var(--blob-1), transparent 68%)' }} />
+        </div>
+        {/* Blob 2 — cyan-blue, bottom center-left */}
+        <div style={{ position: 'absolute', bottom: '-8%', left: '15%', width: '40%', paddingBottom: '30%', filter: 'blur(56px)' }}>
+          <div className="blob-2" style={{ position: 'absolute', inset: 0, borderRadius: '40% 60% 55% 45% / 58% 44% 56% 42%', background: 'radial-gradient(ellipse at 55% 55%, var(--blob-2), transparent 68%)' }} />
+        </div>
+        {/* Blob 3 — rose-pink, top left */}
+        <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: '34%', paddingBottom: '28%', filter: 'blur(58px)' }}>
+          <div className="blob-3" style={{ position: 'absolute', inset: 0, borderRadius: '45% 55% 38% 62% / 52% 42% 58% 48%', background: 'radial-gradient(ellipse at 50% 50%, var(--blob-3), transparent 68%)' }} />
+        </div>
+        {/* Blob 4 — electric blue, mid right */}
+        <div style={{ position: 'absolute', top: '28%', right: '-6%', width: '32%', paddingBottom: '26%', filter: 'blur(54px)' }}>
+          <div className="blob-4" style={{ position: 'absolute', inset: 0, borderRadius: '60% 40% 52% 48% / 44% 58% 42% 56%', background: 'radial-gradient(ellipse at 48% 52%, var(--blob-4), transparent 68%)' }} />
+        </div>
+        {/* Blob 5 — teal-green, bottom right */}
+        <div style={{ position: 'absolute', bottom: '-6%', right: '5%', width: '30%', paddingBottom: '24%', filter: 'blur(60px)' }}>
+          <div className="blob-5" style={{ position: 'absolute', inset: 0, borderRadius: '50% 50% 44% 56% / 56% 44% 60% 40%', background: 'radial-gradient(ellipse at 52% 48%, var(--blob-5), transparent 68%)' }} />
+        </div>
+        {/* Blob 6 — violet, mid left */}
+        <div style={{ position: 'absolute', top: '42%', left: '-8%', width: '28%', paddingBottom: '24%', filter: 'blur(62px)' }}>
+          <div className="blob-6" style={{ position: 'absolute', inset: 0, borderRadius: '42% 58% 56% 44% / 48% 54% 46% 52%', background: 'radial-gradient(ellipse at 50% 50%, var(--blob-6), transparent 68%)' }} />
+        </div>
       </div>
 
       <Sidebar />

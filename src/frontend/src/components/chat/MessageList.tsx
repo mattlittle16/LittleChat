@@ -133,7 +133,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
       {/* Sentinel for infinite scroll (prepend older messages) */}
       <div ref={sentinelRef} className="h-px" />
 
-      <div ref={contentRef}>
+      <div ref={contentRef} className="max-w-5xl ml-8">
         {hasMore && (
           <p className="text-center text-xs text-muted-foreground py-2">Loading older messages…</p>
         )}
