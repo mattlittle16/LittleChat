@@ -15,6 +15,7 @@ import { useUserProfileStore } from '../../stores/userProfileStore'
 import { ReactionBar } from './ReactionBar'
 import { AttachmentGrid } from './AttachmentGrid'
 import { UserAvatar } from '../common/UserAvatar'
+import { AvatarLightbox } from '../common/AvatarLightbox'
 import { cn } from '../../lib/utils'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
@@ -61,6 +62,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
   const [hovered, setHovered] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null)
+  const [lightbox, setLightbox] = useState<{ src: string; authed: boolean } | null>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
 
   const [prevShouldStartEditing, setPrevShouldStartEditing] = useState(shouldStartEditing)
@@ -169,13 +171,23 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
       <div className="relative min-w-0 max-w-screen-xl">
         {!isGrouped && (
           <div className="flex items-center gap-2">
-            <UserAvatar
-              userId={message.author.id}
-              displayName={authorProfile?.displayName ?? message.author.displayName}
-              profileImageUrl={authorProfile?.profileImageUrl ?? message.author.profileImageUrl ?? null}
-              avatarUrl={message.author.avatarUrl}
-              size={32}
-            />
+            <button
+              className="flex-shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              onClick={() => {
+                const profileUrl = authorProfile?.profileImageUrl ?? message.author.profileImageUrl ?? null
+                const avatarUrl = message.author.avatarUrl ?? null
+                if (profileUrl) setLightbox({ src: profileUrl, authed: true })
+                else if (avatarUrl) setLightbox({ src: avatarUrl, authed: false })
+              }}
+            >
+              <UserAvatar
+                userId={message.author.id}
+                displayName={authorProfile?.displayName ?? message.author.displayName}
+                profileImageUrl={authorProfile?.profileImageUrl ?? message.author.profileImageUrl ?? null}
+                avatarUrl={message.author.avatarUrl}
+                size={32}
+              />
+            </button>
             <div className="flex items-baseline gap-2">
               <button
                 className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
@@ -301,6 +313,15 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         </div>
         )}
       </div>
+
+      {lightbox && (
+        <AvatarLightbox
+          src={lightbox.src}
+          alt="Profile photo"
+          authed={lightbox.authed}
+          onClose={() => setLightbox(null)}
+        />
+      )}
 
       {/* Emoji picker portal */}
       {pickerOpen && pickerPosition && createPortal(

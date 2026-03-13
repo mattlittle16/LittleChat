@@ -46,9 +46,7 @@ export async function startConnection(
   })
 
   _connection.on('UserProfileUpdated', ({ userId, displayName, profileImageUrl }: { userId: string; displayName: string; profileImageUrl: string | null }) => {
-    // Append a timestamp so AuthedImg sees a new src and re-fetches the updated image
-    const bustedUrl = profileImageUrl ? `${profileImageUrl}?t=${Date.now()}` : null
-    useUserProfileStore.getState().updateUser(userId, { displayName, profileImageUrl: bustedUrl })
+    useUserProfileStore.getState().updateUser(userId, { displayName, profileImageUrl })
   })
 
   await _connection.start()

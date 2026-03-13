@@ -17,6 +17,7 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [cropFile, setCropFile] = useState<File | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const setProfile_ = useUserProfileStore(s => s.setProfile)
   const updateUser = useUserProfileStore(s => s.updateUser)
@@ -58,12 +59,10 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
     try {
       const file = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' })
       const result = await uploadAvatar(file, 0, 0, 1)
-      // Append timestamp so AuthedImg sees a new src and re-fetches immediately
-      const freshUrl = result.profileImageUrl ? `${result.profileImageUrl}?t=${Date.now()}` : null
       if (profile) {
-        setProfile({ ...profile, profileImageUrl: freshUrl })
+        setProfile({ ...profile, profileImageUrl: result.profileImageUrl })
       }
-      updateUser(userId, { profileImageUrl: freshUrl })
+      updateUser(userId, { profileImageUrl: result.profileImageUrl })
       setSuccessMsg('Avatar updated.')
       setTimeout(() => setSuccessMsg(null), 3000)
     } catch (e: unknown) {
@@ -74,6 +73,7 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
   }
 
   async function handleDeleteAvatar() {
+    setConfirmRemove(false)
     setSaving(true)
     setError(null)
     try {
@@ -82,10 +82,10 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
         setProfile({ ...profile, profileImageUrl: null })
       }
       updateUser(userId, { profileImageUrl: null })
-      setSuccessMsg('Avatar removed.')
+      setSuccessMsg('Photo removed.')
       setTimeout(() => setSuccessMsg(null), 3000)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to remove avatar.')
+      setError(e instanceof Error ? e.message : 'Failed to remove photo.')
     } finally {
       setSaving(false)
     }
@@ -125,14 +125,33 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
                 </div>
               </button>
 
-              {profile?.profileImageUrl && (
+              {profile?.profileImageUrl && !confirmRemove && (
                 <button
-                  onClick={handleDeleteAvatar}
+                  onClick={() => setConfirmRemove(true)}
                   disabled={saving}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                  className="rounded border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   Remove photo
                 </button>
+              )}
+
+              {profile?.profileImageUrl && confirmRemove && (
+                <div className="flex items-center gap-2 rounded border border-destructive/40 px-3 py-1.5 bg-destructive/5">
+                  <span className="text-xs text-muted-foreground">Remove photo?</span>
+                  <button
+                    onClick={handleDeleteAvatar}
+                    disabled={saving}
+                    className="rounded bg-destructive px-2 py-0.5 text-xs text-destructive-foreground hover:opacity-90"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirmRemove(false)}
+                    className="rounded border px-2 py-0.5 text-xs hover:bg-muted/60"
+                  >
+                    No
+                  </button>
+                </div>
               )}
 
               <input
