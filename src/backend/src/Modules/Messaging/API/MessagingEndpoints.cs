@@ -368,9 +368,11 @@ public static class MessagingEndpoints
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null) return Results.Unauthorized();
 
+                var ownerDisplayName = ctx.User.FindFirst("preferred_username")?.Value ?? "The owner";
+
                 try
                 {
-                    await sender.Send(new RemoveMemberCommand(roomId, userId.Value, targetUserId), ctx.RequestAborted);
+                    await sender.Send(new RemoveMemberCommand(roomId, userId.Value, ownerDisplayName, targetUserId), ctx.RequestAborted);
                     return Results.NoContent();
                 }
                 catch (UnauthorizedAccessException) { return Results.Forbid(); }
