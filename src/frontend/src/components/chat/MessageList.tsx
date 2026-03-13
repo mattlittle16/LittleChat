@@ -17,7 +17,6 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const listRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
 
   const roomMessages = useMemo(
@@ -37,9 +36,13 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   // Also clears the unread badge — but only when the tab is visible, so the tab
   // title count accumulates correctly when the user is in another browser tab.
   useEffect(() => {
-    if (isNearBottomRef.current && bottomRef.current) {
-      const el = bottomRef.current
-      requestAnimationFrame(() => el.scrollIntoView())
+    if (isNearBottomRef.current && listRef.current) {
+      const list = listRef.current
+      // Double-RAF: first frame lets React flush the DOM, second lets the browser
+      // complete layout (font metrics, images, etc.) before we measure scrollHeight.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        list.scrollTop = list.scrollHeight
+      }))
       if (!document.hidden) {
         const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
         if (room && room.unreadCount > 0) {
@@ -161,8 +164,6 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
           <MessageItem key={msg.clientId} message={msg} />
         ))}
 
-        {/* Bottom anchor — scrolled into view to land at the end of the list */}
-        <div ref={bottomRef} />
       </div>
     </div>
   )
