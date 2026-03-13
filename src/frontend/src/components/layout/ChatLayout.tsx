@@ -27,7 +27,9 @@ export function ChatLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
   const [roomConfirming, setRoomConfirming] = useState(false)
-  const [showMemberPanel, setShowMemberPanel] = useState(false)
+  const [memberPanelRoomId, setMemberPanelRoomId] = useState<string | null>(null)
+  const showMemberPanel = memberPanelRoomId === activeRoomId
+  const setShowMemberPanel = (show: boolean) => setMemberPanelRoomId(show ? activeRoomId : null)
   const dmMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const roomMenuRef = useRef<HTMLDivElement>(null)
@@ -65,9 +67,6 @@ export function ChatLayout() {
     })
     return unsub
   }, [])
-
-  // Close member panel when switching rooms
-  useEffect(() => { setShowMemberPanel(false) }, [activeRoomId])
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const roomName = activeRoom
