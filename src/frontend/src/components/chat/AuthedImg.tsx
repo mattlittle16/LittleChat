@@ -5,13 +5,14 @@ interface AuthedImgProps {
   src: string
   alt: string
   className?: string
+  style?: React.CSSProperties
 }
 
 /**
  * Fetches an authenticated API image URL and renders it via a blob URL.
  * Necessary because <img src> doesn't send Authorization headers.
  */
-export function AuthedImg({ src, alt, className }: AuthedImgProps) {
+export function AuthedImg({ src, alt, className, style }: AuthedImgProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -40,5 +41,5 @@ export function AuthedImg({ src, alt, className }: AuthedImgProps) {
 
   if (!blobUrl) return null
 
-  return <img src={blobUrl} alt={alt} className={className} />
+  return <img src={blobUrl} alt={alt} className={className} style={style} />
 }

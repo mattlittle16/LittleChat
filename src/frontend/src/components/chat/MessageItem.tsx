@@ -11,8 +11,10 @@ import { getConnection } from '../../services/signalrClient'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
+import { useUserProfileStore } from '../../stores/userProfileStore'
 import { ReactionBar } from './ReactionBar'
 import { AttachmentGrid } from './AttachmentGrid'
+import { UserAvatar } from '../common/UserAvatar'
 import { cn } from '../../lib/utils'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
@@ -51,6 +53,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
   const isAuthorOnline = usePresenceStore(s => authorId ? s.isOnline(authorId) : false)
   const currentUserId = useCurrentUserStore(s => s.id)
   const isOwn = !isOutbox(message) && message.author.id === currentUserId
+  const authorProfile = useUserProfileStore(s => authorId ? s.profiles[authorId] : undefined)
 
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
@@ -165,19 +168,28 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
     >
       <div className="relative min-w-0 max-w-screen-xl">
         {!isGrouped && (
-          <div className="flex items-baseline gap-2">
-            <button
-              className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
-              onClick={() => openDmWithUser(message.author.id)}
-              title={`DM ${message.author.displayName}`}
-            >
-              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
-              {message.author.displayName}
-            </button>
-            <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
-            {message.editedAt && (
-              <span className="text-xs text-muted-foreground">(edited)</span>
-            )}
+          <div className="flex items-center gap-2">
+            <UserAvatar
+              userId={message.author.id}
+              displayName={authorProfile?.displayName ?? message.author.displayName}
+              profileImageUrl={authorProfile?.profileImageUrl ?? message.author.profileImageUrl ?? null}
+              avatarUrl={message.author.avatarUrl}
+              size={32}
+            />
+            <div className="flex items-baseline gap-2">
+              <button
+                className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                onClick={() => openDmWithUser(message.author.id)}
+                title={`DM ${message.author.displayName}`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+                {authorProfile?.displayName ?? message.author.displayName}
+              </button>
+              <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
+              {message.editedAt && (
+                <span className="text-xs text-muted-foreground">(edited)</span>
+              )}
+            </div>
           </div>
         )}
 

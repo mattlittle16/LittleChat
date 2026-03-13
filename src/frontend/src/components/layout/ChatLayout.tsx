@@ -16,6 +16,8 @@ import { useNotificationPreferencesStore } from '../../stores/notificationPrefer
 import { useSignalR } from '../../hooks/useSignalR'
 import { getCurrentUserDisplayName, logout } from '../../services/authService'
 import { api } from '../../services/apiClient'
+import { getMyProfile } from '../../services/profileService'
+import { useUserProfileStore } from '../../stores/userProfileStore'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
@@ -38,6 +40,7 @@ export function ChatLayout() {
   const currentUserId = useCurrentUserStore(s => s.id)
   const loadPreferences = useNotificationPreferencesStore(s => s.loadPreferences)
   const loadOverrides = useNotificationPreferencesStore(s => s.loadOverrides)
+  const setProfile = useUserProfileStore(s => s.setProfile)
 
   // US4: keyboard-selection state
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
@@ -54,10 +57,24 @@ export function ChatLayout() {
   // The JWT sub claim (used by getCurrentUserId) is Authentik's identifier,
   // not the internal UUID stored on messages — so we need /api/users/me.
   useEffect(() => {
-    api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(() => {})
+    getMyProfile()
+      .then(u => {
+        setCurrentUserId(u.id)
+        setProfile(u.id, { displayName: u.displayName, profileImageUrl: u.profileImageUrl })
+      })
+      .catch(() => {
+        // Fallback to legacy call that only returns id
+        api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(() => {})
+      })
+    // Seed profile store for all users so avatars render on first render
+    api.get<Array<{ id: string; displayName: string; profileImageUrl: string | null }>>('/api/users')
+      .then(users => {
+        users.forEach(u => setProfile(u.id, { displayName: u.displayName, profileImageUrl: u.profileImageUrl }))
+      })
+      .catch(() => {})
     loadPreferences().catch(() => {})
     loadOverrides().catch(() => {})
-  }, [setCurrentUserId, loadPreferences, loadOverrides])
+  }, [setCurrentUserId, setProfile, loadPreferences, loadOverrides])
 
   // Update document title with total unread count
   useEffect(() => {

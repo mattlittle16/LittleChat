@@ -17,11 +17,14 @@ import { usePresenceStore } from '../../stores/presenceStore'
 import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { useSidebarGroupStore } from '../../stores/sidebarGroupStore'
+import { useUserProfileStore } from '../../stores/userProfileStore'
 import { ComposeDialog } from './ComposeDialog'
 import { CreateTopicDialog } from './CreateTopicDialog'
 import { TransferOwnershipDialog } from '../topics/TransferOwnershipDialog'
 import { TopicDiscoveryDialog } from '../topics/TopicDiscoveryDialog'
 import { SidebarGroupManager } from '../topics/SidebarGroupManager'
+import { UserProfileDialog } from '../profile/UserProfileDialog'
+import { UserAvatar } from '../common/UserAvatar'
 import { ThemeToggle } from '../ThemeToggle'
 import logoSvg from '../../assets/logo.svg'
 import type { ConversationOverrideLevel, Room } from '../../types'
@@ -51,8 +54,11 @@ export function Sidebar() {
   const [composing, setComposing] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const [managingGroups, setManagingGroups] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const { groups, fetchGroups, setCollapsed, assignRoom, unassignRoom, reorderRooms } = useSidebarGroupStore()
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  const currentUserId = useCurrentUserStore(s => s.id)
+  const currentProfile = useUserProfileStore(s => currentUserId ? s.profiles[currentUserId] : undefined)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -318,9 +324,26 @@ export function Sidebar() {
 
         {/* Bottom user/theme area */}
         <div
-          className="flex items-center justify-end px-3 py-2"
+          className="flex items-center justify-between px-3 py-2"
           style={{ borderTop: '1px solid hsl(var(--sidebar-muted-fg) / 0.2)' }}
         >
+          {currentUserId && (
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="flex items-center gap-2 rounded px-1 py-0.5 transition-colors hover:bg-sidebar-active-bg/50 min-w-0 flex-1"
+              title="Edit profile"
+            >
+              <UserAvatar
+                userId={currentUserId}
+                displayName={currentProfile?.displayName ?? '?'}
+                profileImageUrl={currentProfile?.profileImageUrl ?? null}
+                size={24}
+              />
+              <span className="text-xs truncate" style={{ color: 'hsl(var(--sidebar-fg))' }}>
+                {currentProfile?.displayName ?? ''}
+              </span>
+            </button>
+          )}
           <ThemeToggle />
         </div>
       </aside>
@@ -329,6 +352,9 @@ export function Sidebar() {
       {creating && <CreateTopicDialog onClose={() => setCreating(false)} />}
       {browsing && <TopicDiscoveryDialog onClose={() => setBrowsing(false)} />}
       {managingGroups && <SidebarGroupManager onClose={() => setManagingGroups(false)} />}
+      {profileOpen && currentUserId && (
+        <UserProfileDialog userId={currentUserId} onClose={() => setProfileOpen(false)} />
+      )}
     </>
   )
 }
@@ -595,8 +621,8 @@ function RoomItem({
 
 function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; onClick: () => void }) {
   const name = room.otherUserDisplayName ?? room.name
-  const avatar = room.otherUserAvatarUrl
   const online = usePresenceStore(s => room.otherUserId ? s.isOnline(room.otherUserId) : false)
+  const otherProfile = useUserProfileStore(s => room.otherUserId ? s.profiles[room.otherUserId] : undefined)
   const [confirming, setConfirming] = useState(false)
   const [notifMenuOpen, setNotifMenuOpen] = useState(false)
   const confirmRef = useRef<HTMLDivElement>(null)
@@ -652,16 +678,13 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
         }}
       >
         <div className="relative flex-shrink-0">
-          {avatar ? (
-            <img src={avatar} alt={name} className="w-5 h-5 rounded-full object-cover" />
-          ) : (
-            <div
-              className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold"
-              style={{ background: 'hsl(var(--sidebar-active-bg))', color: 'hsl(var(--sidebar-fg))' }}
-            >
-              {name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <UserAvatar
+            userId={room.otherUserId ?? room.id}
+            displayName={otherProfile?.displayName ?? name}
+            profileImageUrl={otherProfile?.profileImageUrl ?? null}
+            avatarUrl={room.otherUserAvatarUrl}
+            size={20}
+          />
           <span
             className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ${online ? 'bg-green-400' : 'bg-red-400'}`}
             style={{ boxShadow: '0 0 0 2px hsl(var(--sidebar-bg))' }}

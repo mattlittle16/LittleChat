@@ -10,4 +10,7 @@ public interface IUserRepository
 
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<User>> GetAllAsync(string? nameFilter, CancellationToken cancellationToken = default);
+    Task UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
+    Task UpdateAvatarAsync(Guid id, string profileImagePath, float cropX, float cropY, float cropZoom, CancellationToken ct = default);
+    Task DeleteAvatarAsync(Guid id, CancellationToken ct = default);
 }

@@ -9,10 +9,12 @@ namespace RealTime.API;
 public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
 {
     private readonly IHubContext<ChatHub, IChatHubClient> _hubContext;
+    private readonly IHubContext<ChatHub> _untypedHubContext;
 
-    public SignalRRealtimeNotifier(IHubContext<ChatHub, IChatHubClient> hubContext)
+    public SignalRRealtimeNotifier(IHubContext<ChatHub, IChatHubClient> hubContext, IHubContext<ChatHub> untypedHubContext)
     {
         _hubContext = hubContext;
+        _untypedHubContext = untypedHubContext;
     }
 
     public Task BroadcastToRoomAsync(string roomId, string eventName, object payload, CancellationToken cancellationToken = default)
@@ -36,6 +38,9 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
             _ => Task.CompletedTask,
         };
     }
+
+    public Task BroadcastToAllAsync(string eventName, object payload, CancellationToken ct = default)
+        => _untypedHubContext.Clients.All.SendAsync(eventName, payload, ct);
 
     public Task SendToUserAsync(string userId, string eventName, object payload, CancellationToken cancellationToken = default)
     {
