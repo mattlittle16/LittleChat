@@ -48,7 +48,7 @@ public sealed class InviteToRoomCommandHandler : IRequestHandler<InviteToRoomCom
             Id:                Guid.NewGuid(),
             RoomId:            request.RoomId,
             UserId:            null,
-            AuthorDisplayName: "System",
+            AuthorDisplayName: "Chat Bot",
             AuthorAvatarUrl:   null,
             Content:           $"{request.InviterDisplayName} added {targetName} to the topic.",
             Attachments:       [],
@@ -56,7 +56,7 @@ public sealed class InviteToRoomCommandHandler : IRequestHandler<InviteToRoomCom
             EditedAt:          null,
             ExpiresAt:         DateTime.UtcNow.AddDays(30),
             Reactions:         [],
-            IsSystem:          true
+            IsSystem:          false
         );
 
         await _messages.CreateAsync(systemMessage, cancellationToken);
@@ -66,12 +66,12 @@ public sealed class InviteToRoomCommandHandler : IRequestHandler<InviteToRoomCom
             MessageId   = systemMessage.Id,
             RoomId      = systemMessage.RoomId,
             UserId      = Guid.Empty,
-            DisplayName = "System",
+            DisplayName = "Chat Bot",
             AvatarUrl   = null,
             Content     = systemMessage.Content,
             Attachments = [],
             CreatedAt   = systemMessage.CreatedAt,
-            IsSystem    = true,
+            IsSystem    = false,
         }, cancellationToken);
     }
 }
