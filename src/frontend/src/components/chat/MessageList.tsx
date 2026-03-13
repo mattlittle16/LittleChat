@@ -120,14 +120,19 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     return () => observer.disconnect()
   }, [roomId, hasMore, roomMessages, loadPage])
 
-  // Re-scroll when content grows (e.g. images finish loading), if still near bottom
+  // Re-scroll when content grows (e.g. images/videos finish loading), if still near bottom.
+  // We check BOTH isNearBottomRef AND the live distance from bottom. The live check
+  // catches the race where a scroll event fires after our programmatic scroll but sees
+  // a larger scrollHeight (content grew in the gap), incorrectly clearing isNearBottomRef.
   useEffect(() => {
     const content = contentRef.current
     const list = listRef.current
     if (!content || !list) return
     const observer = new ResizeObserver(() => {
-      if (isNearBottomRef.current) {
+      const distFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight
+      if (isNearBottomRef.current || distFromBottom < list.clientHeight) {
         list.scrollTop = list.scrollHeight
+        isNearBottomRef.current = true
       }
     })
     observer.observe(content)
