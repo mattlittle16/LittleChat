@@ -24,7 +24,8 @@
       "Bash(read hash:*)",
       "Bash(python3:*)",
       "WebFetch(domain:developers.google.com)",
-      "WebFetch(domain:developer.chrome.com)"
+      "WebFetch(domain:developer.chrome.com)",
+      "Bash(npm test:*)"
     ]
   }
 }

@@ -229,7 +229,7 @@ export function ChatLayout() {
             {/* Members button — only shown for topic (non-DM) rooms */}
             {activeRoom && !activeRoom.isDm && (
               <button
-                onClick={() => setShowMemberPanel((o: boolean) => !o)}
+                onClick={() => setShowMemberPanel(!showMemberPanel)}
                 title="Members"
                 className="flex items-center gap-1 rounded px-1.5 py-1 text-sm transition-colors"
                 style={{
