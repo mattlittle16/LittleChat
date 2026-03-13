@@ -40,8 +40,11 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
       const list = listRef.current
       // Double-RAF: first frame lets React flush the DOM, second lets the browser
       // complete layout (font metrics, images, etc.) before we measure scrollHeight.
+      // Explicitly mark near-bottom after scrolling so the ResizeObserver correctly
+      // catches any media (videos, images) that finish loading after this scroll.
       requestAnimationFrame(() => requestAnimationFrame(() => {
         list.scrollTop = list.scrollHeight
+        isNearBottomRef.current = true
       }))
       if (!document.hidden) {
         const room = useRoomStore.getState().rooms.find(r => r.id === roomId)

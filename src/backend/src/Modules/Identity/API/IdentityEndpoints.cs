@@ -95,7 +95,12 @@ public static class IdentityEndpoints
                 cropY            = user.CropY,
                 cropZoom         = user.CropZoom,
                 createdAt        = user.CreatedAt,
-                onboardingStatus = user.OnboardingStatus,
+                onboardingStatus = user.OnboardingStatus switch
+                {
+                    OnboardingStatus.RemindLater => "remind_later",
+                    OnboardingStatus.Dismissed   => "dismissed",
+                    _                            => "not_started",
+                },
             });
         });
 
@@ -274,13 +279,16 @@ public static class IdentityEndpoints
                 return Results.Unauthorized();
 
             var body = await ctx.Request.ReadFromJsonAsync<SetOnboardingStatusRequest>(ctx.RequestAborted);
-            if (body?.Status is null)
+            var status = body?.Status switch
+            {
+                "dismissed"    => (OnboardingStatus?)OnboardingStatus.Dismissed,
+                "remind_later" => (OnboardingStatus?)OnboardingStatus.RemindLater,
+                _              => null,
+            };
+            if (status is null)
                 return Results.BadRequest(new { error = "Status must be 'dismissed' or 'remind_later'." });
 
-            if (body.Status == OnboardingStatus.NotStarted)
-                return Results.BadRequest(new { error = "Status must be 'dismissed' or 'remind_later'." });
-
-            await users.SetOnboardingStatusAsync(userId.Value, body.Status.Value, ctx.RequestAborted);
+            await users.SetOnboardingStatusAsync(userId.Value, status.Value, ctx.RequestAborted);
             return Results.NoContent();
         });
 
@@ -318,5 +326,5 @@ public static class IdentityEndpoints
     }
 
     private sealed record UpdateDisplayNameRequest(string? DisplayName);
-    private sealed record SetOnboardingStatusRequest(OnboardingStatus? Status);
+    private sealed record SetOnboardingStatusRequest(string? Status);
 }
