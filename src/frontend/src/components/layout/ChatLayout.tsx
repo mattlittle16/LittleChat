@@ -18,6 +18,7 @@ import { getCurrentUserDisplayName, logout } from '../../services/authService'
 import { api } from '../../services/apiClient'
 import { getMyProfile } from '../../services/profileService'
 import { useUserProfileStore } from '../../stores/userProfileStore'
+import { UserProfileDialog } from '../profile/UserProfileDialog'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
@@ -27,6 +28,7 @@ export function ChatLayout() {
   const [dmMenuOpen, setDmMenuOpen] = useState(false)
   const [dmConfirming, setDmConfirming] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
   const [roomConfirming, setRoomConfirming] = useState(false)
   const [memberPanelRoomId, setMemberPanelRoomId] = useState<string | null>(null)
@@ -371,6 +373,12 @@ export function ChatLayout() {
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded border bg-background shadow-md text-sm">
                     <button
+                      onClick={() => { setUserMenuOpen(false); setProfileOpen(true) }}
+                      className="w-full px-3 py-2 text-left hover:bg-muted/60"
+                    >
+                      Edit Profile
+                    </button>
+                    <button
                       onClick={() => { setUserMenuOpen(false); setView('notifications') }}
                       className="w-full px-3 py-2 text-left hover:bg-muted/60"
                     >
@@ -449,6 +457,9 @@ export function ChatLayout() {
       </div>
 
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+      {profileOpen && currentUserId && (
+        <UserProfileDialog userId={currentUserId} onClose={() => setProfileOpen(false)} />
+      )}
       <MentionToastContainer />
     </div>
   )

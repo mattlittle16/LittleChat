@@ -14,6 +14,16 @@ namespace Identity.API;
 
 public static class IdentityEndpoints
 {
+    // ProfileImagePath is stored as "{guid}/{filename}" — the GUID subdirectory
+    // acts as a natural version token that changes on every upload, so browsers
+    // cache the URL safely and re-fetch automatically when the avatar is replaced.
+    static string? AvatarUrl(Guid userId, string? profileImagePath)
+    {
+        if (profileImagePath is null) return null;
+        var version = profileImagePath.Split('/')[0];
+        return $"/api/users/{userId}/avatar?v={version}";
+    }
+
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder app)
     {
         // Public — initiates browser OIDC redirect to Authentik
@@ -47,9 +57,7 @@ public static class IdentityEndpoints
                 return Results.NotFound();
 
             var email = ctx.User.FindFirstValue("email");
-            var profileImageUrl = user.ProfileImagePath != null
-                ? $"/api/users/{user.Id}/avatar"
-                : null;
+            var profileImageUrl = AvatarUrl(user.Id, user.ProfileImagePath);
 
             return Results.Ok(new
             {
@@ -83,7 +91,7 @@ public static class IdentityEndpoints
             await users.UpdateDisplayNameAsync(userId.Value, displayName, ctx.RequestAborted);
 
             var user = await users.GetByIdAsync(userId.Value, ctx.RequestAborted);
-            var profileImageUrl = user?.ProfileImagePath != null ? $"/api/users/{userId.Value}/avatar" : null;
+            var profileImageUrl = AvatarUrl(userId.Value, user?.ProfileImagePath);
 
             await eventBus.PublishAsync(new UserProfileUpdatedIntegrationEvent
             {
@@ -145,7 +153,7 @@ public static class IdentityEndpoints
 
             await users.UpdateAvatarAsync(userId.Value, saved.RelativePath, cropX, cropY, cropZoom, ctx.RequestAborted);
 
-            var profileImageUrl = $"/api/users/{userId.Value}/avatar";
+            var profileImageUrl = AvatarUrl(userId.Value, saved.RelativePath);
 
             await eventBus.PublishAsync(new UserProfileUpdatedIntegrationEvent
             {
@@ -236,7 +244,7 @@ public static class IdentityEndpoints
                 if (user.Id == currentUserId.Value) continue;
 
                 var isOnline = await presence.IsOnlineAsync(user.Id, ctx.RequestAborted);
-                var profileImageUrl = user.ProfileImagePath != null ? $"/api/users/{user.Id}/avatar" : null;
+                var profileImageUrl = AvatarUrl(user.Id, user.ProfileImagePath);
                 result.Add(new
                 {
                     id             = user.Id,
