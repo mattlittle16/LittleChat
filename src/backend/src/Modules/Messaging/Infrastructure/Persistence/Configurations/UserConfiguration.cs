@@ -17,5 +17,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<UserEntity>
         builder.Property(u => u.AvatarUrl).HasColumnName("avatar_url");
         builder.Property(u => u.CreatedAt).HasColumnName("created_at")
             .HasDefaultValueSql("NOW()");
+        builder.Property(u => u.ProfileImagePath).HasColumnName("profile_image_path");
+        builder.Property(u => u.CropX).HasColumnName("crop_x");
+        builder.Property(u => u.CropY).HasColumnName("crop_y");
+        builder.Property(u => u.CropZoom).HasColumnName("crop_zoom");
     }
 }

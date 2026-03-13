@@ -1,6 +1,7 @@
 import * as signalR from '@microsoft/signalr'
 import { getAccessToken } from './apiClient'
 import { useOutboxStore } from '../stores/outboxStore'
+import { useUserProfileStore } from '../stores/userProfileStore'
 
 let _connection: signalR.HubConnection | null = null
 
@@ -42,6 +43,12 @@ export async function startConnection(
 
   _connection.onclose(() => {
     onClose()
+  })
+
+  _connection.on('UserProfileUpdated', ({ userId, displayName, profileImageUrl }: { userId: string; displayName: string; profileImageUrl: string | null }) => {
+    // Append a timestamp so AuthedImg sees a new src and re-fetches the updated image
+    const bustedUrl = profileImageUrl ? `${profileImageUrl}?t=${Date.now()}` : null
+    useUserProfileStore.getState().updateUser(userId, { displayName, profileImageUrl: bustedUrl })
   })
 
   await _connection.start()

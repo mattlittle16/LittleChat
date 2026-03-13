@@ -4,6 +4,19 @@ export interface User {
   id: string
   displayName: string
   avatarUrl: string | null
+  profileImageUrl: string | null
+}
+
+export interface UserProfile {
+  id: string
+  displayName: string
+  email: string | null
+  avatarUrl: string | null
+  profileImageUrl: string | null
+  cropX: number | null
+  cropY: number | null
+  cropZoom: number | null
+  createdAt: string
 }
 
 export interface Room {

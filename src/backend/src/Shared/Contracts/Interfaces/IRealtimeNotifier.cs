@@ -4,4 +4,5 @@ public interface IRealtimeNotifier
 {
     Task BroadcastToRoomAsync(string roomId, string eventName, object payload, CancellationToken cancellationToken = default);
     Task SendToUserAsync(string userId, string eventName, object payload, CancellationToken cancellationToken = default);
+    Task BroadcastToAllAsync(string eventName, object payload, CancellationToken ct = default);
 }

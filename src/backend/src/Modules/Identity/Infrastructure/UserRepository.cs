@@ -16,13 +16,13 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
     public async Task<(bool IsNew, Guid UserId)> UpsertAsync(string externalId, string displayName, string? avatarUrl, CancellationToken cancellationToken = default)
     {
         // On first login: inserts with a freshly generated UUID.
-        // On subsequent logins: conflicts on external_id, updates display name/avatar, returns existing id.
+        // On subsequent logins: conflicts on external_id but does NOT overwrite display_name/avatar
+        // (user may have customised them via profile settings).
         const string sql = """
             INSERT INTO users (id, external_id, display_name, avatar_url, created_at)
             VALUES ($1, $2, $3, $4, NOW())
             ON CONFLICT (external_id) DO UPDATE
-                SET display_name = EXCLUDED.display_name,
-                    avatar_url   = EXCLUDED.avatar_url
+                SET id = users.id
             RETURNING id, (xmax = 0) AS is_new
             """;
 
@@ -41,8 +41,8 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
     {
         // Both SQL strings are compile-time constants; user input is always bound as a parameter ($1),
         // never interpolated into SQL — no injection risk.
-        const string allSql      = "SELECT id, display_name, avatar_url, created_at FROM users ORDER BY display_name";
-        const string filteredSql = "SELECT id, display_name, avatar_url, created_at FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
+        const string allSql      = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at FROM users ORDER BY display_name";
+        const string filteredSql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
 
         var hasFilter = !string.IsNullOrWhiteSpace(nameFilter);
         await using var cmd = _dataSource.CreateCommand(hasFilter ? filteredSql : allSql);
@@ -57,12 +57,7 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         var users = new List<User>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            users.Add(new User(
-                reader.GetGuid(0),
-                reader.GetString(1),
-                reader.IsDBNull(2) ? null : reader.GetString(2),
-                reader.GetDateTime(3)
-            ));
+            users.Add(MapUser(reader));
         }
 
         return users;
@@ -79,7 +74,7 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        const string sql = "SELECT id, display_name, avatar_url, created_at FROM users WHERE id = $1";
+        const string sql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at FROM users WHERE id = $1";
 
         await using var cmd = _dataSource.CreateCommand(sql);
         cmd.Parameters.AddWithValue(id);
@@ -88,11 +83,46 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         if (!await reader.ReadAsync(cancellationToken))
             return null;
 
-        return new User(
-            reader.GetGuid(0),
-            reader.GetString(1),
-            reader.IsDBNull(2) ? null : reader.GetString(2),
-            reader.GetDateTime(3)
-        );
+        return MapUser(reader);
     }
+
+    public async Task UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default)
+    {
+        const string sql = "UPDATE users SET display_name = $1 WHERE id = $2";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(displayName);
+        cmd.Parameters.AddWithValue(id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task UpdateAvatarAsync(Guid id, string profileImagePath, float cropX, float cropY, float cropZoom, CancellationToken ct = default)
+    {
+        const string sql = "UPDATE users SET profile_image_path = $1, crop_x = $2, crop_y = $3, crop_zoom = $4 WHERE id = $5";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(profileImagePath);
+        cmd.Parameters.AddWithValue(cropX);
+        cmd.Parameters.AddWithValue(cropY);
+        cmd.Parameters.AddWithValue(cropZoom);
+        cmd.Parameters.AddWithValue(id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task DeleteAvatarAsync(Guid id, CancellationToken ct = default)
+    {
+        const string sql = "UPDATE users SET profile_image_path = NULL, crop_x = NULL, crop_y = NULL, crop_zoom = NULL WHERE id = $1";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private static User MapUser(NpgsqlDataReader reader) => new(
+        reader.GetGuid(0),
+        reader.GetString(1),
+        reader.IsDBNull(2) ? null : reader.GetString(2),
+        reader.IsDBNull(3) ? null : reader.GetString(3),
+        reader.IsDBNull(4) ? null : reader.GetFloat(4),
+        reader.IsDBNull(5) ? null : reader.GetFloat(5),
+        reader.IsDBNull(6) ? null : reader.GetFloat(6),
+        reader.GetDateTime(7)
+    );
 }

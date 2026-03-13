@@ -7,6 +7,10 @@ public sealed class UserEntity
     public string DisplayName { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? ProfileImagePath { get; set; }
+    public float? CropX { get; set; }
+    public float? CropY { get; set; }
+    public float? CropZoom { get; set; }
 
     public ICollection<RoomMembershipEntity> Memberships { get; set; } = [];
     public ICollection<MessageEntity> Messages { get; set; } = [];
