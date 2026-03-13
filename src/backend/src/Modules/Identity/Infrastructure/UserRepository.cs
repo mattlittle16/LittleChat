@@ -41,8 +41,8 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
     {
         // Both SQL strings are compile-time constants; user input is always bound as a parameter ($1),
         // never interpolated into SQL — no injection risk.
-        const string allSql      = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at FROM users ORDER BY display_name";
-        const string filteredSql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
+        const string allSql      = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status FROM users ORDER BY display_name";
+        const string filteredSql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
 
         var hasFilter = !string.IsNullOrWhiteSpace(nameFilter);
         await using var cmd = _dataSource.CreateCommand(hasFilter ? filteredSql : allSql);
@@ -74,7 +74,7 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        const string sql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at FROM users WHERE id = $1";
+        const string sql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status FROM users WHERE id = $1";
 
         await using var cmd = _dataSource.CreateCommand(sql);
         cmd.Parameters.AddWithValue(id);
@@ -115,6 +115,38 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task<OnboardingStatus> GetOnboardingStatusAsync(Guid id, CancellationToken ct = default)
+    {
+        const string sql = "SELECT onboarding_status FROM users WHERE id = $1";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(id);
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return ParseOnboardingStatus(result as string);
+    }
+
+    public async Task SetOnboardingStatusAsync(Guid id, OnboardingStatus status, CancellationToken ct = default)
+    {
+        const string sql = "UPDATE users SET onboarding_status = $1 WHERE id = $2";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(ToDbString(status));
+        cmd.Parameters.AddWithValue(id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private static OnboardingStatus ParseOnboardingStatus(string? value) => value switch
+    {
+        "remind_later" => OnboardingStatus.RemindLater,
+        "dismissed"    => OnboardingStatus.Dismissed,
+        _              => OnboardingStatus.NotStarted,
+    };
+
+    private static string ToDbString(OnboardingStatus status) => status switch
+    {
+        OnboardingStatus.RemindLater => "remind_later",
+        OnboardingStatus.Dismissed   => "dismissed",
+        _                            => "not_started",
+    };
+
     private static User MapUser(NpgsqlDataReader reader) => new(
         reader.GetGuid(0),
         reader.GetString(1),
@@ -123,6 +155,7 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         reader.IsDBNull(4) ? null : reader.GetFloat(4),
         reader.IsDBNull(5) ? null : reader.GetFloat(5),
         reader.IsDBNull(6) ? null : reader.GetFloat(6),
-        reader.GetDateTime(7)
+        reader.GetDateTime(7),
+        ParseOnboardingStatus(reader.GetString(8))
     );
 }

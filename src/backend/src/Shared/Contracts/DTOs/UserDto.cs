@@ -4,5 +4,6 @@ public record UserDto(
     Guid Id,
     string DisplayName,
     string? AvatarUrl,
-    string? ProfileImageUrl
+    string? ProfileImageUrl,
+    string OnboardingStatus
 );

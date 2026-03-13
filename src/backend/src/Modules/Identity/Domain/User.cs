@@ -8,5 +8,6 @@ public sealed record User(
     float? CropX,
     float? CropY,
     float? CropZoom,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    OnboardingStatus OnboardingStatus
 );

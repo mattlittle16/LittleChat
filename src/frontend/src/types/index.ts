@@ -7,6 +7,8 @@ export interface User {
   profileImageUrl: string | null
 }
 
+export type OnboardingStatus = 'not_started' | 'remind_later' | 'dismissed'
+
 export interface UserProfile {
   id: string
   displayName: string
@@ -17,6 +19,7 @@ export interface UserProfile {
   cropY: number | null
   cropZoom: number | null
   createdAt: string
+  onboardingStatus: OnboardingStatus
 }
 
 export interface Room {

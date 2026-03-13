@@ -19,6 +19,7 @@ import { api } from '../../services/apiClient'
 import { getMyProfile } from '../../services/profileService'
 import { useUserProfileStore } from '../../stores/userProfileStore'
 import { UserProfileDialog } from '../profile/UserProfileDialog'
+import { OnboardingWizardModal } from '../onboarding/OnboardingWizardModal'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
@@ -40,9 +41,14 @@ export function ChatLayout() {
 
   const setCurrentUserId = useCurrentUserStore(s => s.setId)
   const currentUserId = useCurrentUserStore(s => s.id)
+  const onboardingStatus = useCurrentUserStore(s => s.onboardingStatus)
+  const setOnboardingStatus = useCurrentUserStore(s => s.setOnboardingStatus)
   const loadPreferences = useNotificationPreferencesStore(s => s.loadPreferences)
   const loadOverrides = useNotificationPreferencesStore(s => s.loadOverrides)
   const setProfile = useUserProfileStore(s => s.setProfile)
+
+  // Onboarding wizard — initial profile snapshot for pre-population
+  const [wizardProfile, setWizardProfile] = useState<{ displayName: string; profileImageUrl: string | null; avatarUrl: string | null } | null>(null)
 
   // US4: keyboard-selection state
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
@@ -63,6 +69,10 @@ export function ChatLayout() {
       .then(u => {
         setCurrentUserId(u.id)
         setProfile(u.id, { displayName: u.displayName, profileImageUrl: u.profileImageUrl })
+        setOnboardingStatus(u.onboardingStatus)
+        if (u.onboardingStatus === 'not_started' || u.onboardingStatus === 'remind_later') {
+          setWizardProfile({ displayName: u.displayName, profileImageUrl: u.profileImageUrl, avatarUrl: u.avatarUrl ?? null })
+        }
       })
       .catch(() => {
         // Fallback to legacy call that only returns id
@@ -76,7 +86,7 @@ export function ChatLayout() {
       .catch(() => {})
     loadPreferences().catch(() => {})
     loadOverrides().catch(() => {})
-  }, [setCurrentUserId, setProfile, loadPreferences, loadOverrides])
+  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides])
 
   // Update document title with total unread count
   useEffect(() => {
@@ -463,6 +473,20 @@ export function ChatLayout() {
         <UserProfileDialog userId={currentUserId} onClose={() => setProfileOpen(false)} />
       )}
       <MentionToastContainer />
+
+      {/* Onboarding wizard — shown when status is not_started or remind_later */}
+      {wizardProfile && currentUserId && (onboardingStatus === 'not_started' || onboardingStatus === 'remind_later') && (
+        <OnboardingWizardModal
+          userId={currentUserId}
+          initialDisplayName={wizardProfile.displayName}
+          initialProfileImageUrl={wizardProfile.profileImageUrl}
+          initialAvatarUrl={wizardProfile.avatarUrl}
+          onDone={() => {
+            setOnboardingStatus('dismissed')
+            setWizardProfile(null)
+          }}
+        />
+      )}
     </div>
   )
 }

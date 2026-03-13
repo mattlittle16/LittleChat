@@ -1,5 +1,5 @@
 import { api, getAccessToken } from './apiClient'
-import type { UserProfile } from '../types'
+import type { OnboardingStatus, UserProfile } from '../types'
 
 export function getMyProfile(): Promise<UserProfile> {
   return api.get<UserProfile>('/api/users/me')
@@ -38,4 +38,8 @@ export async function uploadAvatar(
 
 export async function deleteAvatar(): Promise<void> {
   await api.delete('/api/users/me/avatar')
+}
+
+export async function setOnboardingStatus(status: Exclude<OnboardingStatus, 'not_started'>): Promise<void> {
+  await api.put('/api/users/me/onboarding', { status })
 }
