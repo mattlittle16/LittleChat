@@ -164,7 +164,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
 
   return (
     <div
-      className={cn('group relative px-4 hover:bg-muted/90 dark:hover:bg-white/[0.06] hover:z-10', isGrouped ? 'pt-0 pb-0' : 'py-1', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
+      className={cn('group relative px-4 hover:bg-muted/90 dark:hover:bg-white/[0.06] hover:z-10', isGrouped ? 'pt-0.5 pb-3' : 'pt-2 pb-3', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -274,43 +274,45 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         <AttachmentGrid attachments={message.attachments} />
 
         <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions ?? []} onOpenEmojiPicker={openPickerAt} />
+      </div>
 
-        {/* Unified hover action pill — emoji + edit/delete (own only) */}
-        {showPill && (
-        <div
-          className="absolute right-0 top-0 -translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600"
+      {/* Unified hover action pill — floats at the bottom-right of the message, in the gap before the next */}
+      <div
+        className={cn(
+          'absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600',
+          'transition-opacity duration-150',
+          showPill ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        )}
+      >
+        {/* Emoji reaction button — always shown */}
+        <button
+          ref={emojiButtonRef}
+          onClick={handleOpenEmojiPicker}
+          className="rounded-full w-6 h-6 flex items-center justify-center text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          title="Add reaction"
         >
-          {/* Emoji reaction button — always shown */}
-          <button
-            ref={emojiButtonRef}
-            onClick={handleOpenEmojiPicker}
-            className="rounded-full w-6 h-6 flex items-center justify-center text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            title="Add reaction"
-          >
-            🙂
-          </button>
+          🙂
+        </button>
 
-          {/* Edit / delete — own messages only */}
-          {isOwn && !confirmDelete && (
-            <>
-              <div className="w-px h-3 bg-border mx-0.5" />
-              <button onClick={startEdit} className="rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground">
-                Edit
-              </button>
-              <button onClick={() => setConfirmDelete(true)} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">
-                Delete
-              </button>
-            </>
-          )}
-          {isOwn && confirmDelete && (
-            <>
-              <div className="w-px h-3 bg-border mx-0.5" />
-              <span className="text-xs text-muted-foreground px-1">Delete?</span>
-              <button onClick={handleDelete} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">Yes</button>
-              <button onClick={() => setConfirmDelete(false)} className="rounded-full px-2 py-0.5 text-xs hover:bg-muted/60">No</button>
-            </>
-          )}
-        </div>
+        {/* Edit / delete — own messages only */}
+        {isOwn && !confirmDelete && (
+          <>
+            <div className="w-px h-3 bg-border mx-0.5" />
+            <button onClick={startEdit} className="rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground">
+              Edit
+            </button>
+            <button onClick={() => setConfirmDelete(true)} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">
+              Delete
+            </button>
+          </>
+        )}
+        {isOwn && confirmDelete && (
+          <>
+            <div className="w-px h-3 bg-border mx-0.5" />
+            <span className="text-xs text-muted-foreground px-1">Delete?</span>
+            <button onClick={handleDelete} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">Yes</button>
+            <button onClick={() => setConfirmDelete(false)} className="rounded-full px-2 py-0.5 text-xs hover:bg-muted/60">No</button>
+          </>
         )}
       </div>
 

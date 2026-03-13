@@ -22,6 +22,12 @@
 
 @layer base {
   :root {
+    --blob-1: hsl(255 85% 65% / 0.11);
+    --blob-2: hsl(200 90% 55% / 0.09);
+    --blob-3: hsl(330 85% 65% / 0.09);
+    --blob-4: hsl(220 90% 60% / 0.10);
+    --blob-5: hsl(170 75% 55% / 0.08);
+    --blob-6: hsl(285 75% 65% / 0.08);
     --background: 248 33% 97%;
     --foreground: 240 15% 12%;
     --muted: 240 20% 93%;
@@ -45,6 +51,12 @@
   }
 
   .dark {
+    --blob-1: hsl(255 75% 65% / 0.28);
+    --blob-2: hsl(200 80% 55% / 0.25);
+    --blob-3: hsl(330 75% 65% / 0.26);
+    --blob-4: hsl(220 80% 60% / 0.24);
+    --blob-5: hsl(170 65% 55% / 0.22);
+    --blob-6: hsl(285 65% 65% / 0.24);
     --background: 240 15% 20%;
     --foreground: 240 12% 90%;
     --muted: 240 12% 18%;
@@ -66,6 +78,27 @@
     --sidebar-active-bg: 238 52% 28%;
   }
 }
+
+/* Background blob animations */
+@keyframes blob-drift-1 {
+  0%, 100% { transform: rotate(10deg)  translateY(0px);   }
+  50%       { transform: rotate(14deg)  translateY(-16px); }
+}
+@keyframes blob-drift-2 {
+  0%, 100% { transform: rotate(-8deg)  translateY(0px);  }
+  50%       { transform: rotate(-13deg) translateY(14px); }
+}
+@keyframes blob-drift-3 {
+  0%, 100% { transform: rotate(5deg) translateY(0px);   }
+  50%       { transform: rotate(9deg) translateY(-12px); }
+}
+
+.blob-1 { animation: blob-drift-1 18s ease-in-out infinite; }
+.blob-2 { animation: blob-drift-2 24s ease-in-out infinite; }
+.blob-3 { animation: blob-drift-3 20s ease-in-out infinite; animation-delay: -7s; }
+.blob-4 { animation: blob-drift-2 21s ease-in-out infinite; animation-delay: -4s; }
+.blob-5 { animation: blob-drift-1 26s ease-in-out infinite; animation-delay: -11s; }
+.blob-6 { animation: blob-drift-3 23s ease-in-out infinite; animation-delay: -15s; }
 
 /* Grouped messages: collapse prose paragraph margins so consecutive messages stack tightly */
 .grouped-prose p,
