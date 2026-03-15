@@ -151,6 +151,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
               key={vItem.key}
               ref={virtualizer.measureElement}
               data-index={vItem.index}
+              className="hover:z-10"
               style={{
                 position: 'absolute',
                 top: 0,
