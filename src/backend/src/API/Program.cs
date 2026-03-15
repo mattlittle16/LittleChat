@@ -350,6 +350,10 @@ app.MapGifEndpoints();
 app.MapVideoTokenEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 
+// Presence state is NOT cleared on startup. Clean deploys (graceful shutdown) drain all
+// SignalR connections via OnDisconnectedAsync before the process exits, so refcounts reach 0
+// naturally. After a crash, clients auto-reconnect and call ReassertPresence() via the hub,
+// which resets their refcount to 1 without wiping other users' state.
 app.Run();
 
 // Authentik includes id_token alongside the authorization code in its redirect (non-standard

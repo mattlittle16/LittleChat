@@ -25,20 +25,18 @@ public sealed class MessageSearchRepository : IMessageSearchRepository
 
         if (scope == "room" && roomId.HasValue)
         {
-            // Scoped to a single room — verify membership inline
+            // Scoped to a single room — validate membership with a JOIN rather than a
+            // correlated EXISTS so the membership check runs once, not per result row.
             sql = """
                 SELECT m.id, m.room_id, r.name AS room_name,
                        u.display_name, m.content, m.created_at
                 FROM messages m
                 JOIN rooms r ON r.id = m.room_id
                 JOIN users u ON u.id = m.user_id
+                JOIN room_memberships auth ON auth.room_id = $1 AND auth.user_id = $3
                 WHERE m.room_id = $1
                   AND m.search_vector @@ plainto_tsquery('english', $2)
                   AND m.expires_at > NOW()
-                  AND EXISTS (
-                    SELECT 1 FROM room_memberships rm
-                    WHERE rm.room_id = $1 AND rm.user_id = $3
-                  )
                 ORDER BY m.created_at DESC
                 LIMIT 50
                 """;
@@ -49,20 +47,21 @@ public sealed class MessageSearchRepository : IMessageSearchRepository
         }
         else
         {
-            // Global search — all non-DM rooms the user is a member of
+            // Global search — pre-materialize the user's room memberships as a CTE and
+            // JOIN instead of a correlated EXISTS evaluated per result row.
             sql = """
+                WITH user_rooms AS (
+                    SELECT room_id FROM room_memberships WHERE user_id = $2
+                )
                 SELECT m.id, m.room_id, r.name AS room_name,
                        u.display_name, m.content, m.created_at
                 FROM messages m
                 JOIN rooms r ON r.id = m.room_id
+                JOIN user_rooms ur ON ur.room_id = m.room_id
                 JOIN users u ON u.id = m.user_id
                 WHERE r.is_dm = FALSE
                   AND m.search_vector @@ plainto_tsquery('english', $1)
                   AND m.expires_at > NOW()
-                  AND EXISTS (
-                    SELECT 1 FROM room_memberships rm
-                    WHERE rm.room_id = m.room_id AND rm.user_id = $2
-                  )
                 ORDER BY m.created_at DESC
                 LIMIT 50
                 """;

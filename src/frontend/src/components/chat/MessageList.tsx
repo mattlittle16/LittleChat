@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { useMessageStore, getRoomMessages } from '../../stores/messageStore'
 import { useOutboxStore } from '../../stores/outboxStore'
 import { useRoomStore } from '../../stores/roomStore'
@@ -15,47 +16,71 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const { messages, hasMoreByRoom, loadPage } = useMessageStore()
   const { messages: outbox } = useOutboxStore()
   const listRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const sentinelRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
+  const isPaginatingRef = useRef(false)
+  const prevCountRef = useRef(0)
 
   const roomMessages = useMemo(
     () => getRoomMessages(messages, roomId),
     [messages, roomId]
   )
-  const roomOutbox = outbox.filter(m => m.roomId === roomId)
+  const roomOutbox = useMemo(
+    () => outbox.filter(m => m.roomId === roomId),
+    [outbox, roomId]
+  )
   const hasMore = hasMoreByRoom.get(roomId) ?? false
 
-  // Initial load — reset near-bottom flag so new room always scrolls to bottom
+  const virtualizer = useVirtualizer({
+    count: roomMessages.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 60,
+    measureElement: (el) => el?.getBoundingClientRect().height ?? 60,
+    overscan: 5,
+  })
+
+  // Room switch: reset state and scroll immediately to bottom
   useEffect(() => {
     isNearBottomRef.current = true
+    isPaginatingRef.current = false
+    const el = listRef.current
+    if (el) el.scrollTop = el.scrollHeight
     loadPage(roomId)
   }, [roomId, loadPage])
 
-  // Auto-scroll to bottom when new messages arrive (only when near bottom).
-  // Also clears the unread badge — but only when the tab is visible, so the tab
-  // title count accumulates correctly when the user is in another browser tab.
+  // Pagination: restore scroll position after older messages are prepended (T021)
+  // Uses scrollToIndex so the virtualizer's own coordinate system handles the jump,
+  // rather than a height-delta that's unreliable before items are measured.
   useEffect(() => {
-    if (isNearBottomRef.current && listRef.current) {
-      const list = listRef.current
-      // Double-RAF: first frame lets React flush the DOM, second lets the browser
-      // complete layout (font metrics, images, etc.) before we measure scrollHeight.
-      // Explicitly mark near-bottom after scrolling so the ResizeObserver correctly
-      // catches any media (videos, images) that finish loading after this scroll.
+    if (!isPaginatingRef.current) return
+    isPaginatingRef.current = false
+    const numNew = roomMessages.length - prevCountRef.current
+    if (numNew > 0) {
+      requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(numNew, { align: 'start', behavior: 'auto' })
+      })
+    }
+  }, [roomMessages.length, virtualizer])
+
+  // Auto-scroll to bottom when new messages arrive — only when near bottom and not paginating (T020)
+  useEffect(() => {
+    if (isPaginatingRef.current) return
+    if (!isNearBottomRef.current) return
+
+    if (roomMessages.length > 0) {
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        list.scrollTop = list.scrollHeight
+        virtualizer.scrollToIndex(roomMessages.length - 1, { align: 'end' })
         isNearBottomRef.current = true
       }))
-      if (!document.hidden) {
-        const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
-        if (room && room.unreadCount > 0) {
-          useRoomStore.getState().markRead(roomId)
-        }
+    }
+    if (!document.hidden) {
+      const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
+      if (room && room.unreadCount > 0) {
+        useRoomStore.getState().markRead(roomId)
       }
     }
-  }, [roomMessages.length, roomOutbox.length, roomId])
+  }, [roomMessages.length, roomOutbox.length, roomId, virtualizer])
 
-  // When the tab becomes visible again, clear unread if the user is at the bottom
+  // When the tab becomes visible again, clear unread if at bottom
   useEffect(() => {
     function onVisibilityChange() {
       if (!document.hidden && isNearBottomRef.current) {
@@ -69,7 +94,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   }, [roomId])
 
-  // Track whether user is near the bottom; clear unread badge when they scroll down
+  // Track near-bottom on scroll; clear unread badge on scroll to bottom; trigger pagination near top
   useEffect(() => {
     const el = listRef.current
     if (!el) return
@@ -77,101 +102,80 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     function onScroll() {
       if (!el) return
       const wasNearBottom = isNearBottomRef.current
-      isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100
+      isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
 
-      // Transition to near-bottom: clear unread badge if there are any
       if (!wasNearBottom && isNearBottomRef.current) {
         const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
         if (room && room.unreadCount > 0) {
           useRoomStore.getState().markRead(roomId)
         }
       }
+
+      // Trigger pagination when near top (T021)
+      if (el.scrollTop < 100 && hasMore && !isPaginatingRef.current) {
+        const oldest = roomMessages[0]
+        if (oldest) {
+          isPaginatingRef.current = true
+          prevCountRef.current = roomMessages.length
+          loadPage(roomId, { createdAt: oldest.createdAt, id: oldest.id })
+        }
+      }
     }
 
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [roomId])
-
-  // IntersectionObserver for infinite scroll — load older messages when sentinel visible
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    const list = listRef.current
-    if (!sentinel || !list) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting || !hasMore) return
-        const oldest = roomMessages[0]
-        if (!oldest) return
-
-        // Preserve scroll position after prepend
-        const heightBefore = list.scrollHeight
-
-        loadPage(roomId, { createdAt: oldest.createdAt, id: oldest.id }).then(() => {
-          queueMicrotask(() => {
-            list.scrollTop += list.scrollHeight - heightBefore
-          })
-        })
-      },
-      { root: list, rootMargin: '100px' }
-    )
-
-    observer.observe(sentinel)
-    return () => observer.disconnect()
   }, [roomId, hasMore, roomMessages, loadPage])
 
-  // Re-scroll when content grows (e.g. images/videos finish loading), if still near bottom.
-  // We check BOTH isNearBottomRef AND the live distance from bottom. The live check
-  // catches the race where a scroll event fires after our programmatic scroll but sees
-  // a larger scrollHeight (content grew in the gap), incorrectly clearing isNearBottomRef.
-  useEffect(() => {
-    const content = contentRef.current
-    const list = listRef.current
-    if (!content || !list) return
-    const observer = new ResizeObserver(() => {
-      const distFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight
-      if (isNearBottomRef.current || distFromBottom < list.clientHeight) {
-        list.scrollTop = list.scrollHeight
-        isNearBottomRef.current = true
-      }
-    })
-    observer.observe(content)
-    return () => observer.disconnect()
-  }, [])
+  const virtualItems = virtualizer.getVirtualItems()
 
   return (
-    <div ref={listRef} className="flex-1 overflow-y-auto py-2">
-      {/* Sentinel for infinite scroll (prepend older messages) */}
-      <div ref={sentinelRef} className="h-px" />
+    <div ref={listRef} className="flex-1 overflow-y-auto">
+      {hasMore && (
+        <p className="text-center text-xs text-muted-foreground py-2">Loading older messages…</p>
+      )}
 
-      <div ref={contentRef} className="max-w-5xl ml-8">
-        {hasMore && (
-          <p className="text-center text-xs text-muted-foreground py-2">Loading older messages…</p>
-        )}
-
-        {roomMessages.map((msg, i) => {
-          const prev = i > 0 ? roomMessages[i - 1] : null
+      {/* Virtualized message rows — only visible rows exist in DOM (T019) */}
+      <div
+        style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+        className="max-w-5xl ml-8"
+      >
+        {virtualItems.map(vItem => {
+          const msg = roomMessages[vItem.index]
+          const prev = vItem.index > 0 ? roomMessages[vItem.index - 1] : null
           const isGrouped = prev != null
             && msg.author.id === prev.author.id
             && new Date(msg.createdAt).toDateString() === new Date(prev.createdAt).toDateString()
             && new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < 30_000
           return (
-            <MessageItem
-              key={msg.id}
-              message={msg}
-              isGrouped={isGrouped}
-              isKeyboardSelected={msg.id === selectedMessageId}
-              deleteConfirmPending={deleteConfirmPending}
-              shouldStartEditing={msg.id === editingMessageId}
-            />
+            <div
+              key={vItem.key}
+              ref={virtualizer.measureElement}
+              data-index={vItem.index}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${vItem.start}px)`,
+              }}
+            >
+              <MessageItem
+                message={msg}
+                isGrouped={isGrouped}
+                isKeyboardSelected={msg.id === selectedMessageId}
+                deleteConfirmPending={deleteConfirmPending}
+                shouldStartEditing={msg.id === editingMessageId}
+              />
+            </div>
           )
         })}
+      </div>
 
-        {/* Outbox (pending/sending/failed messages from this room) */}
+      {/* Outbox messages — always at bottom, not virtualized (typically 1–3 pending items) */}
+      <div className="max-w-5xl ml-8 pb-2">
         {roomOutbox.map(msg => (
           <MessageItem key={msg.clientId} message={msg} />
         ))}
-
       </div>
     </div>
   )

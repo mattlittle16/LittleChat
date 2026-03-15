@@ -29,23 +29,37 @@ export function useSignalR(roomId: string | null) {
     if (!roomId) return
 
     let cancelled = false
-    // Defer status update to avoid synchronous setState inside an effect body
-    queueMicrotask(() => { if (!cancelled) setStatus('connecting') })
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
 
-    startConnection(
-      roomId,
-      () => setStatus('reconnecting'),
-      () => setStatus('connected'),
-      () => {
-        setStatus('disconnected')
-        if (heartbeatRef.current) {
-          clearInterval(heartbeatRef.current)
-          heartbeatRef.current = null
-        }
-      },
-    ).then(connection => {
+    function clearHeartbeat() {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current)
+        heartbeatRef.current = null
+      }
+    }
+
+    // Named so it can be rescheduled from onclose (retries exhausted) and the catch
+    // (initial connection failed — e.g. Brave reload while backend was down).
+    function connect() {
       if (cancelled) return
-      setStatus('connected')
+      queueMicrotask(() => { if (!cancelled) setStatus('connecting') })
+
+      startConnection(
+        roomId,
+        () => { if (!cancelled) setStatus('reconnecting') },
+        () => { if (!cancelled) setStatus('connected') },
+        () => {
+          // onclose fires when SignalR's own automatic retries are exhausted.
+          // Schedule our own reconnect so the app recovers without a page reload.
+          clearHeartbeat()
+          if (!cancelled) {
+            setStatus('disconnected')
+            retryTimer = setTimeout(connect, 5_000)
+          }
+        },
+      ).then(connection => {
+        if (cancelled) return
+        setStatus('connected')
 
       connection.on('ReceiveMessage', (msg: Message) => {
         addMessage(msg)
@@ -180,16 +194,25 @@ export function useSignalR(roomId: string | null) {
           })
         }
       }, HEARTBEAT_INTERVAL_MS)
-    }).catch(() => {
-      if (!cancelled) setStatus('disconnected')
-    })
+      }).catch(() => {
+        // Initial connection failed (e.g. backend down when page loaded).
+        // Retry after a short delay — covers the Brave/reload-while-down scenario.
+        if (!cancelled) {
+          setStatus('disconnected')
+          retryTimer = setTimeout(connect, 5_000)
+        }
+      })
+    }
+
+    connect()
 
     return () => {
       cancelled = true
-      if (heartbeatRef.current) {
-        clearInterval(heartbeatRef.current)
-        heartbeatRef.current = null
+      if (retryTimer) {
+        clearTimeout(retryTimer)
+        retryTimer = null
       }
+      clearHeartbeat()
     }
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
