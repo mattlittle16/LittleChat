@@ -3,6 +3,9 @@
 ##MOST IMPORTANT 
 Don't ever assume, guess, or make up stats or theories without investigating the code base first. If you do need to propose a theory, you MUST tell me it's a theory rather than propose it as fact.
 
+##Important
+Before you consider any tasks done where we are changing code I want you run the front build / lint process and make sure the backend compiles. 
+
 Auto-generated from all feature plans. Last updated: 2026-03-01
 
 ## Active Technologies
