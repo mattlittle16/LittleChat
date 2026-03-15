@@ -46,6 +46,7 @@ export function ChatLayout() {
   const loadPreferences = useNotificationPreferencesStore(s => s.loadPreferences)
   const loadOverrides = useNotificationPreferencesStore(s => s.loadOverrides)
   const setProfile = useUserProfileStore(s => s.setProfile)
+  const fetchAllUsers = useUserProfileStore(s => s.fetchAllUsers)
 
   // Onboarding wizard — initial profile snapshot for pre-population
   const [wizardProfile, setWizardProfile] = useState<{ displayName: string; profileImageUrl: string | null; avatarUrl: string | null } | null>(null)
@@ -78,15 +79,11 @@ export function ChatLayout() {
         // Fallback to legacy call that only returns id
         api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(() => {})
       })
-    // Seed profile store for all users so avatars render on first render
-    api.get<Array<{ id: string; displayName: string; profileImageUrl: string | null }>>('/api/users')
-      .then(users => {
-        users.forEach(u => setProfile(u.id, { displayName: u.displayName, profileImageUrl: u.profileImageUrl }))
-      })
-      .catch(() => {})
+    // Seed profile store for all users so avatars render on first render (TTL-guarded — 60s)
+    fetchAllUsers()
     loadPreferences().catch(() => {})
     loadOverrides().catch(() => {})
-  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides])
+  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides, fetchAllUsers])
 
   // Update document title with total unread count
   useEffect(() => {

@@ -302,12 +302,14 @@ public static class IdentityEndpoints
 
             var allUsers = await users.GetAllAsync(q, ctx.RequestAborted);
 
+            // Single SMEMBERS call instead of one IsOnlineAsync per user.
+            var onlineIds = (await presence.GetAllOnlineAsync(ctx.RequestAborted)).ToHashSet();
+
             var result = new List<object>(allUsers.Count);
             foreach (var user in allUsers)
             {
                 if (user.Id == currentUserId.Value) continue;
 
-                var isOnline = await presence.IsOnlineAsync(user.Id, ctx.RequestAborted);
                 var profileImageUrl = AvatarUrl(user.Id, user.ProfileImagePath);
                 result.Add(new
                 {
@@ -315,7 +317,7 @@ public static class IdentityEndpoints
                     displayName    = user.DisplayName,
                     avatarUrl      = user.AvatarUrl,
                     profileImageUrl,
-                    isOnline,
+                    isOnline       = onlineIds.Contains(user.Id),
                 });
             }
 

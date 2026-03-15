@@ -16,23 +16,32 @@ public sealed class SidebarGroupRepository : ISidebarGroupRepository
 
     public async Task<IReadOnlyList<SidebarGroupInfo>> GetGroupsAsync(Guid userId, CancellationToken ct = default)
     {
+        // Two separate server-side queries joined in C#.
+        // Previously, .ToList() inside Select() forced EF Core to load all memberships
+        // into memory before filtering client-side. Now both queries are fully server-side.
         var groups = await _db.SidebarGroups
             .Where(g => g.UserId == userId)
             .OrderBy(g => g.DisplayOrder)
-            .Select(g => new SidebarGroupInfo(
-                g.Id,
-                g.Name,
-                g.DisplayOrder,
-                g.IsCollapsed,
-                g.Memberships
-                    .Where(m => m.UserId == userId)
-                    .OrderBy(m => m.Position)
-                    .ThenBy(m => m.Room.Name)
-                    .Select(m => m.RoomId)
-                    .ToList()))
+            .Select(g => new { g.Id, g.Name, g.DisplayOrder, g.IsCollapsed })
             .ToListAsync(ct);
 
-        return groups;
+        var memberships = await _db.RoomMemberships
+            .Where(m => m.UserId == userId && m.SidebarGroupId != null)
+            .OrderBy(m => m.Position)
+            .ThenBy(m => m.Room.Name)
+            .Select(m => new { m.SidebarGroupId, m.RoomId })
+            .ToListAsync(ct);
+
+        var membershipsByGroup = memberships
+            .GroupBy(m => m.SidebarGroupId)
+            .ToDictionary(g => g.Key, g => g.Select(m => m.RoomId).ToList());
+
+        return groups.Select(g => new SidebarGroupInfo(
+            g.Id,
+            g.Name,
+            g.DisplayOrder,
+            g.IsCollapsed,
+            membershipsByGroup.GetValueOrDefault(g.Id) ?? [])).ToList();
     }
 
     public async Task<SidebarGroupInfo> CreateAsync(Guid userId, string name, CancellationToken ct = default)

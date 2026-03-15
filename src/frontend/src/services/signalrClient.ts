@@ -10,7 +10,17 @@ function buildConnection(roomId: string): signalR.HubConnection {
     .withUrl(`/hubs/chat?roomId=${encodeURIComponent(roomId)}`, {
       accessTokenFactory: () => getAccessToken() ?? '',
     })
-    .withAutomaticReconnect([0, 2000, 10000, 30000])
+    .withAutomaticReconnect({
+      // Retry indefinitely: 0s, 2s, 10s, then 30s forever.
+      // An array would give up after the last entry — an object never returns null so
+      // SignalR keeps trying until the connection is explicitly stopped.
+      nextRetryDelayInMilliseconds: (ctx) => {
+        if (ctx.previousRetryCount === 0) return 0
+        if (ctx.previousRetryCount === 1) return 2_000
+        if (ctx.previousRetryCount === 2) return 10_000
+        return 30_000
+      },
+    })
     .configureLogging(signalR.LogLevel.Warning)
     .build()
 }
@@ -39,6 +49,9 @@ export async function startConnection(
     onReconnected()
     // Drain any messages that queued up while disconnected (Constitution Principle V)
     useOutboxStore.getState().drainOutbox()
+    // Fix stale presence refcounts after a server crash — forces refcount back to 1
+    // so the next disconnect correctly broadcasts offline. Safe no-op on a healthy reconnect.
+    _connection?.invoke('ReassertPresence').catch(() => {})
   })
 
   _connection.onclose(() => {

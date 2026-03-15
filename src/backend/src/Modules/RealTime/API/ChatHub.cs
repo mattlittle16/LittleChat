@@ -34,7 +34,18 @@ public sealed class ChatHub : Hub<IChatHubClient>
             ?? throw new HubException("Unauthorized");
 
         await _presence.SetOnlineAsync(userId, Context.ConnectionId);
-        await Clients.All.PresenceUpdate(userId, isOnline: true);
+
+        // Join ALL room groups for this user so real-time events arrive from every room,
+        // not only the currently active one (fixes DM notification bug).
+        var allRoomIds = await _sender.Send(new GetUserRoomIdsQuery(userId));
+        foreach (var id in allRoomIds)
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{id}");
+
+        // Scope presence broadcast to users who share at least one room — not Clients.All.
+        // Recipients may receive this more than once if they share multiple rooms; the
+        // frontend PresenceUpdate handler is idempotent so duplicate deliveries are safe.
+        foreach (var id in allRoomIds)
+            await Clients.Group($"room:{id}").PresenceUpdate(userId, isOnline: true);
 
         // Send the newly connected client a snapshot of all currently online users
         // so their presence store is populated correctly on (re)connect.
@@ -44,12 +55,6 @@ public sealed class ChatHub : Hub<IChatHubClient>
         var roomId = Context.GetHttpContext()?.Request.Query["roomId"].ToString();
         if (!string.IsNullOrWhiteSpace(roomId))
             await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{roomId}");
-
-        // Join ALL room groups for this user so real-time events arrive from every room,
-        // not only the currently active one (fixes DM notification bug).
-        var allRoomIds = await _sender.Send(new GetUserRoomIdsQuery(userId));
-        foreach (var id in allRoomIds)
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"room:{id}");
 
         await base.OnConnectedAsync();
     }
@@ -61,18 +66,29 @@ public sealed class ChatHub : Hub<IChatHubClient>
         {
             var nowFullyOffline = await _presence.SetOfflineAsync(userId.Value, Context.ConnectionId);
             if (nowFullyOffline)
-                await Clients.All.PresenceUpdate(userId.Value, isOnline: false);
+            {
+                // Scope disconnect broadcast to shared rooms, same as connect.
+                var allRoomIds = await _sender.Send(new GetUserRoomIdsQuery(userId.Value));
+                foreach (var id in allRoomIds)
+                    await Clients.Group($"room:{id}").PresenceUpdate(userId.Value, isOnline: false);
+            }
         }
 
         await base.OnDisconnectedAsync(exception);
     }
 
-    // Clients call this every 15 seconds to keep the presence key alive (30s TTL)
-    public async Task Heartbeat()
+    // Heartbeat is kept for backwards compatibility with existing clients.
+    // The new refcount model does not require TTL refresh — this is now a no-op.
+    public Task Heartbeat() => Task.CompletedTask;
+
+    // Called by clients on SignalR reconnect to fix stale presence refcounts left by a server crash.
+    // Forces this user's refcount to 1 so a single subsequent disconnect correctly broadcasts offline.
+    // Safe to call multiple times — idempotent on an already-healthy connection.
+    public async Task ReassertPresence()
     {
         var userId = Context.User?.GetInternalUserId();
-        if (userId is not null)
-            await _presence.SetOnlineAsync(userId.Value, Context.ConnectionId);
+        if (userId is null) return;
+        await _presence.ReassertAsync(userId.Value);
     }
 
     public Task JoinRoom(string roomId)

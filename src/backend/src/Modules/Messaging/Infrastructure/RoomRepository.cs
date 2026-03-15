@@ -2,16 +2,19 @@ using Messaging.Domain;
 using Messaging.Infrastructure.Persistence;
 using Messaging.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Messaging.Infrastructure;
 
 public sealed class RoomRepository : IRoomRepository
 {
     private readonly LittleChatDbContext _db;
+    private readonly NpgsqlDataSource _dataSource;
 
-    public RoomRepository(LittleChatDbContext db)
+    public RoomRepository(LittleChatDbContext db, NpgsqlDataSource dataSource)
     {
         _db = db;
+        _dataSource = dataSource;
     }
 
     public async Task<Room> CreateAsync(string name, Guid createdBy, bool isPrivate = false, CancellationToken ct = default)
@@ -45,63 +48,115 @@ public sealed class RoomRepository : IRoomRepository
 
     public async Task<IReadOnlyList<RoomSummary>> GetForUserAsync(Guid userId, CancellationToken ct = default)
     {
-        var results = await _db.RoomMemberships
-            .Where(rm => rm.UserId == userId)
-            .Select(rm => new
-            {
-                rm.Room.Id,
-                rm.Room.Name,
-                rm.Room.IsDm,
-                rm.Room.CreatedBy,
-                rm.Room.CreatedAt,
-                rm.Room.OwnerId,
-                IsPrivate   = rm.Room.Visibility == "private",
-                rm.Room.IsProtected,
-                MemberCount = rm.Room.Memberships.Count(),
-                UnreadCount = rm.Room.Messages.Count(m => m.CreatedAt > rm.LastReadAt),
-                HasMention  = rm.Room.Messages.Any(m =>
-                    m.CreatedAt > rm.LastReadAt &&
-                    m.Content.Contains("@" + rm.User.DisplayName)),
-                LastPreview = rm.Room.Messages
-                    .OrderByDescending(m => m.CreatedAt)
-                    .Select(m => m.Content)
-                    .FirstOrDefault(),
-                // For DMs: find the other member
-                OtherUserId = rm.Room.IsDm
-                    ? rm.Room.Memberships
-                        .Where(other => other.UserId != userId)
-                        .Select(other => (Guid?)other.UserId)
-                        .FirstOrDefault()
-                    : null,
-                OtherUserDisplayName = rm.Room.IsDm
-                    ? rm.Room.Memberships
-                        .Where(other => other.UserId != userId)
-                        .Select(other => other.User.DisplayName)
-                        .FirstOrDefault()
-                    : null,
-                OtherUserAvatarUrl = rm.Room.IsDm
-                    ? rm.Room.Memberships
-                        .Where(other => other.UserId != userId)
-                        .Select(other => other.User.AvatarUrl)
-                        .FirstOrDefault()
-                    : null,
-            })
-            .OrderBy(r => r.IsDm
-                ? (r.OtherUserDisplayName ?? string.Empty)
-                : r.Name)
-            .ToListAsync(ct);
+        // Single CTE query replacing the previous multi-subquery LINQ projection.
+        // Perf: ~30-50 SQL statements per call → 1.
+        // Mention detection uses LIKE '%@DisplayName%' (not full-text search) to avoid
+        // false positives when the user's name appears without the @ prefix.
+        const string sql = """
+            WITH user_rooms AS (
+                SELECT rm.room_id, rm.last_read_at
+                FROM room_memberships rm
+                WHERE rm.user_id = $1
+            ),
+            unread_counts AS (
+                SELECT m.room_id,
+                       COUNT(*) FILTER (WHERE m.created_at > ur.last_read_at) AS unread_count,
+                       BOOL_OR(
+                           m.created_at > ur.last_read_at
+                           AND m.content LIKE '%@' || $2 || '%'
+                       ) AS has_mention
+                FROM messages m
+                JOIN user_rooms ur ON ur.room_id = m.room_id
+                WHERE m.expires_at > NOW()
+                GROUP BY m.room_id, ur.last_read_at
+            ),
+            last_preview AS (
+                SELECT DISTINCT ON (m.room_id) m.room_id, m.content
+                FROM messages m
+                JOIN user_rooms ur ON ur.room_id = m.room_id
+                ORDER BY m.room_id, m.created_at DESC
+            ),
+            member_counts AS (
+                SELECT room_id, COUNT(*) AS member_count
+                FROM room_memberships
+                WHERE room_id IN (SELECT room_id FROM user_rooms)
+                GROUP BY room_id
+            ),
+            dm_partners AS (
+                SELECT rm.room_id, rm.user_id AS partner_id,
+                       u.display_name AS partner_name,
+                       u.avatar_url   AS partner_avatar
+                FROM room_memberships rm
+                JOIN users u ON u.id = rm.user_id
+                JOIN user_rooms ur ON ur.room_id = rm.room_id
+                JOIN rooms r ON r.id = rm.room_id AND r.is_dm = TRUE
+                WHERE rm.user_id != $1
+            )
+            SELECT
+                r.id, r.name, r.is_dm, r.created_by, r.created_at,
+                r.owner_id, r.visibility, r.is_protected,
+                COALESCE(uc.unread_count, 0) AS unread_count,
+                COALESCE(uc.has_mention, FALSE) AS has_mention,
+                COALESCE(mc.member_count, 0) AS member_count,
+                lp.content AS last_preview,
+                dp.partner_id, dp.partner_name, dp.partner_avatar
+            FROM user_rooms ur
+            JOIN rooms r ON r.id = ur.room_id
+            LEFT JOIN unread_counts uc ON uc.room_id = ur.room_id
+            LEFT JOIN last_preview lp ON lp.room_id = ur.room_id
+            LEFT JOIN member_counts mc ON mc.room_id = ur.room_id
+            LEFT JOIN dm_partners dp ON dp.room_id = ur.room_id
+            ORDER BY CASE WHEN r.is_dm THEN COALESCE(dp.partner_name, '') ELSE r.name END
+            """;
 
-        return results.Select(r => new RoomSummary(
-            Room: new Room(r.Id, r.Name, r.IsDm, r.CreatedBy, r.CreatedAt,
-                OwnerId: r.OwnerId, IsPrivate: r.IsPrivate, IsProtected: r.IsProtected),
-            UnreadCount:          r.UnreadCount,
-            HasMention:           r.HasMention,
-            LastMessagePreview:   r.LastPreview,
-            MemberCount:          r.MemberCount,
-            OtherUserId:          r.OtherUserId,
-            OtherUserDisplayName: r.OtherUserDisplayName,
-            OtherUserAvatarUrl:   r.OtherUserAvatarUrl
-        )).ToList();
+        // Resolve the current user's display name for the mention LIKE pattern.
+        // We need it as a plain string parameter; the LIKE wildcard is in the SQL itself.
+        var displayName = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.DisplayName)
+            .FirstOrDefaultAsync(ct) ?? string.Empty;
+
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(userId);
+        cmd.Parameters.AddWithValue(displayName);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+        var results = new List<RoomSummary>();
+        while (await reader.ReadAsync(ct))
+        {
+            var roomId     = reader.GetGuid(0);
+            var name       = reader.GetString(1);
+            var isDm       = reader.GetBoolean(2);
+            var createdBy  = reader.IsDBNull(3) ? (Guid?)null : reader.GetGuid(3);
+            var createdAt  = reader.GetDateTime(4);
+            var ownerId    = reader.IsDBNull(5) ? (Guid?)null : reader.GetGuid(5);
+            var visibility = reader.GetString(6);
+            var isProtected = reader.GetBoolean(7);
+            var unreadCount = reader.GetInt64(8);
+            var hasMention  = reader.GetBoolean(9);
+            var memberCount = reader.GetInt64(10);
+            var lastPreview = reader.IsDBNull(11) ? null : reader.GetString(11);
+            var partnerId   = reader.IsDBNull(12) ? (Guid?)null : reader.GetGuid(12);
+            var partnerName = reader.IsDBNull(13) ? null : reader.GetString(13);
+            var partnerAvatar = reader.IsDBNull(14) ? null : reader.GetString(14);
+
+            results.Add(new RoomSummary(
+                Room: new Room(roomId, name, isDm, createdBy, createdAt,
+                    OwnerId: ownerId,
+                    IsPrivate: visibility == "private",
+                    IsProtected: isProtected),
+                UnreadCount:          (int)unreadCount,
+                HasMention:           hasMention,
+                LastMessagePreview:   lastPreview,
+                MemberCount:          (int)memberCount,
+                OtherUserId:          partnerId,
+                OtherUserDisplayName: partnerName,
+                OtherUserAvatarUrl:   partnerAvatar
+            ));
+        }
+
+        return results;
     }
 
     public async Task AddMemberToGeneralRoomAsync(Guid userId, CancellationToken ct = default)

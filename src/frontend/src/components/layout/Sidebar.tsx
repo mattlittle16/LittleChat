@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -82,9 +82,9 @@ export function Sidebar() {
   const topicRooms = rooms.filter(r => !r.isDm)
   const dmRooms = rooms.filter(r => r.isDm)
 
-  const assignedRoomIds = new Set(groups.flatMap(g => g.roomIds))
-  const ungroupedRooms = topicRooms.filter(r => !assignedRoomIds.has(r.id))
-  const ungroupedIds = ungroupedRooms.map(r => r.id)
+  const assignedRoomIds = useMemo(() => new Set(groups.flatMap(g => g.roomIds)), [groups])
+  const ungroupedRooms = useMemo(() => topicRooms.filter(r => !assignedRoomIds.has(r.id)), [topicRooms, assignedRoomIds])
+  const ungroupedIds = useMemo(() => ungroupedRooms.map(r => r.id), [ungroupedRooms])
 
   function findBucketForRoom(roomId: string): { type: 'group'; groupId: string } | { type: 'ungrouped' } | null {
     for (const g of groups) {
