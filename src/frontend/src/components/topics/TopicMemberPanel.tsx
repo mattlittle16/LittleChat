@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { X, Crown, UserMinus, UserPlus } from 'lucide-react'
 import { api } from '../../services/apiClient'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
+import { useUserProfileStore } from '../../stores/userProfileStore'
+import { UserAvatar } from '../common/UserAvatar'
 import type { RoomMember, UserSearchResult } from '../../types'
 
 interface Props {
@@ -22,6 +24,7 @@ export function TopicMemberPanel({ roomId, onClose }: Props) {
   const [kickConfirmId, setKickConfirmId] = useState<string | null>(null)
 
   const currentUserId = useCurrentUserStore(s => s.id)
+  const profiles = useUserProfileStore(s => s.profiles)
 
   async function fetchMembers() {
     try {
@@ -170,13 +173,13 @@ export function TopicMemberPanel({ roomId, onClose }: Props) {
             key={member.userId}
             className="group flex items-center gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors"
           >
-            {/* Avatar placeholder */}
-            <div
-              className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-semibold"
-              style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }}
-            >
-              {member.displayName.charAt(0).toUpperCase()}
-            </div>
+            <UserAvatar
+              userId={member.userId}
+              displayName={member.displayName}
+              profileImageUrl={profiles[member.userId]?.profileImageUrl ?? null}
+              avatarUrl={member.avatarUrl}
+              size={24}
+            />
 
             <span className="flex-1 text-xs truncate">{member.displayName}</span>
 
