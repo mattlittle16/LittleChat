@@ -27,6 +27,7 @@ export function useSignalR(roomId: string | null) {
 
   useEffect(() => {
     if (!roomId) return
+    const currentRoomId = roomId
 
     let cancelled = false
     let retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -45,7 +46,7 @@ export function useSignalR(roomId: string | null) {
       queueMicrotask(() => { if (!cancelled) setStatus('connecting') })
 
       startConnection(
-        roomId,
+        currentRoomId,
         () => { if (!cancelled) setStatus('reconnecting') },
         () => { if (!cancelled) setStatus('connected') },
         () => {
