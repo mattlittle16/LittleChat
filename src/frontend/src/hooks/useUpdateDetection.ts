@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 
-const POLL_INTERVAL_MS = 60_000
+const POLL_INTERVAL_MS = 10_000
 const BACKOFF_INTERVAL_MS = 5 * 60_000
 const MAX_FAILURES_BEFORE_BACKOFF = 3
 const COUNTDOWN_SECONDS = 10
 const TYPING_DEBOUNCE_MS = 3_000
-
 const IS_DEV = __APP_VERSION__ === 'dev'
 
 export function useUpdateDetection() {
