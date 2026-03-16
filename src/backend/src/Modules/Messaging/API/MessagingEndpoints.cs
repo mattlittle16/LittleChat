@@ -61,10 +61,12 @@ public static class MessagingEndpoints
             });
 
         // GET /api/rooms/{roomId}/messages — paginated message history
+        // Modes: default (before/beforeId), aroundId, after/afterId
         app.MapGet("/api/rooms/{roomId:guid}/messages",
             [Authorize] async (Guid roomId, HttpContext ctx, ISender sender,
                 IOptions<MessagingOptions> opts,
-                DateTime? before, Guid? beforeId, int? limit) =>
+                DateTime? before, Guid? beforeId, Guid? aroundId,
+                DateTime? after, Guid? afterId, int? limit) =>
             {
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null)
@@ -75,7 +77,8 @@ public static class MessagingEndpoints
                 try
                 {
                     var page = await sender.Send(
-                        new GetMessagesQuery(roomId, userId.Value, before, beforeId, pageSize),
+                        new GetMessagesQuery(roomId, userId.Value, before, beforeId, pageSize,
+                            AroundId: aroundId, After: after, AfterId: afterId),
                         ctx.RequestAborted);
 
                     var dtos = page.Messages.Select(m => new MessageDto(
@@ -97,7 +100,7 @@ public static class MessagingEndpoints
                         IsSystem: m.IsSystem
                     )).ToList();
 
-                    return Results.Ok(new { messages = dtos, hasMore = page.HasMore });
+                    return Results.Ok(new { messages = dtos, hasMore = page.HasMore, hasNewer = page.HasNewer });
                 }
                 catch (UnauthorizedAccessException)
                 {

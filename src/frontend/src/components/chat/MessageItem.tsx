@@ -227,6 +227,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
 
   return (
     <div
+      data-message-id={isOutbox(message) ? undefined : message.id}
       className={cn('group relative px-4 hover:bg-muted/90 dark:hover:bg-white/[0.06] hover:z-10', isGrouped ? 'pt-0.5 pb-3' : 'pt-2 pb-3', isPending && 'opacity-60', isKeyboardSelected && 'ring-2 ring-primary/40 bg-primary/5 rounded')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

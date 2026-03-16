@@ -11,4 +11,12 @@ public interface IReactionRepository
         Guid userId,
         string emoji,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Resolves the author user ID, message content, and room name for a message.
+    /// Returns (AuthorUserId: Guid.Empty, MessageContent: "", RoomName: "") when the message does not exist.
+    /// </summary>
+    Task<(Guid AuthorUserId, string MessageContent, string RoomName)> GetMessageInfoAsync(
+        Guid messageId,
+        CancellationToken ct = default);
 }
