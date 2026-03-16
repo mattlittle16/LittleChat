@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Users } from 'lucide-react'
+import { Bell, ChevronDown, Menu, Users } from 'lucide-react'
 import { Sidebar } from './Sidebar'
+import { MobileSidebarDrawer } from './MobileSidebarDrawer'
 import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
 import { TypingIndicator } from '../chat/TypingIndicator'
@@ -13,6 +14,7 @@ import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { useMessageStore, getRoomMessages } from '../../stores/messageStore'
 import { getConnection } from '../../services/signalrClient'
 import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
+import { useNotificationStore } from '../../stores/notificationStore'
 import { useSignalR } from '../../hooks/useSignalR'
 import { getCurrentUserDisplayName, logout } from '../../services/authService'
 import { api } from '../../services/apiClient'
@@ -20,12 +22,14 @@ import { getMyProfile } from '../../services/profileService'
 import { useUserProfileStore } from '../../stores/userProfileStore'
 import { UserProfileDialog } from '../profile/UserProfileDialog'
 import { OnboardingWizardModal } from '../onboarding/OnboardingWizardModal'
+import { NotificationCenter } from '../notifications/NotificationCenter'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
   const { status } = useSignalR(activeRoomId)
   const [view, setView] = useState<'chat' | 'notifications'>('chat')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [dmMenuOpen, setDmMenuOpen] = useState(false)
   const [dmConfirming, setDmConfirming] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -45,6 +49,11 @@ export function ChatLayout() {
   const setOnboardingStatus = useCurrentUserStore(s => s.setOnboardingStatus)
   const loadPreferences = useNotificationPreferencesStore(s => s.loadPreferences)
   const loadOverrides = useNotificationPreferencesStore(s => s.loadOverrides)
+  const unreadNotifCount = useNotificationStore(s => s.unreadCount)
+  const setNotifOpen = useNotificationStore(s => s.setOpen)
+  const isNotifOpen = useNotificationStore(s => s.isOpen)
+  const loadNotifications = useNotificationStore(s => s.loadNotifications)
+  const markRoomNotifRead = useNotificationStore(s => s.markRoomRead)
   const setProfile = useUserProfileStore(s => s.setProfile)
   const fetchAllUsers = useUserProfileStore(s => s.fetchAllUsers)
 
@@ -83,7 +92,15 @@ export function ChatLayout() {
     fetchAllUsers()
     loadPreferences().catch(() => {})
     loadOverrides().catch(() => {})
-  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides, fetchAllUsers])
+    loadNotifications().catch(() => {})
+  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides, fetchAllUsers, loadNotifications])
+
+  // Mark notifications as read when navigating to a room
+  useEffect(() => {
+    if (activeRoomId) {
+      markRoomNotifRead(activeRoomId)
+    }
+  }, [activeRoomId, markRoomNotifRead])
 
   // Update document title with total unread count
   useEffect(() => {
@@ -235,7 +252,16 @@ export function ChatLayout() {
         </div>
       </div>
 
-      <Sidebar />
+      {/* Sidebar — hidden on mobile, visible on md+ */}
+      <div className="hidden md:flex">
+        <Sidebar />
+      </div>
+
+      {/* Mobile slide-out drawer */}
+      <MobileSidebarDrawer
+        open={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+      />
 
       <div className="flex flex-1 flex-col min-w-0 relative">
         {view === 'notifications' ? (
@@ -243,9 +269,19 @@ export function ChatLayout() {
         ) : (<>
         {/* Toolbar */}
         <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
-          <span className="font-semibold text-sm truncate">
-            {roomName ?? 'LittleChat'}
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="md:hidden rounded p-1.5 text-foreground/70 hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0"
+              aria-label="Open sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="font-semibold text-sm truncate">
+              {roomName ?? 'LittleChat'}
+            </span>
+          </div>
 
           <div className="flex items-center gap-2">
             {isDisconnected && (
@@ -354,6 +390,23 @@ export function ChatLayout() {
                 )}
               </div>
             )}
+
+            {/* Notification bell + center */}
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen(!isNotifOpen)}
+                title="Notifications"
+                className="relative rounded p-1.5 text-foreground/70 hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground leading-none">
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                )}
+              </button>
+              {isNotifOpen && <NotificationCenter onClose={() => setNotifOpen(false)} />}
+            </div>
 
             <button
               onClick={() => setSearchOpen(true)}

@@ -12,6 +12,7 @@ public interface IChatHubClient
     Task PresenceUpdate(Guid userId, bool isOnline);
     Task PresenceSnapshot(IReadOnlyList<Guid> onlineUserIds);
     Task MentionNotification(Guid messageId, Guid roomId, string roomName, Guid fromUserId, string fromDisplayName, string contentPreview);
+    Task NotificationReceived(NotificationDto notification);
     Task DmCreated(Guid roomId);
     Task DmDeleted(Guid roomId);
     Task RoomDeleted(Guid roomId);

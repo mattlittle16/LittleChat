@@ -9,6 +9,7 @@ public sealed class NotificationsDbContext : DbContext
 
     public DbSet<NotificationPreferencesEntity> NotificationPreferences => Set<NotificationPreferencesEntity>();
     public DbSet<ConversationOverrideEntity> ConversationOverrides => Set<ConversationOverrideEntity>();
+    public DbSet<UserNotificationEntity> UserNotifications => Set<UserNotificationEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

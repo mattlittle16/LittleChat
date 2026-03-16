@@ -1,5 +1,7 @@
 import { useNotificationPreferencesStore } from '../stores/notificationPreferencesStore'
 import { useRoomStore } from '../stores/roomStore'
+import { api } from './apiClient'
+import type { Notification } from '../types'
 
 let lastChimeAt = 0
 let audioEl: HTMLAudioElement | null = null
@@ -48,3 +50,20 @@ export function showBrowserNotification(
 }
 
 export { lastChimeAt }
+
+// Notification center API helpers
+export async function fetchNotifications(): Promise<Notification[]> {
+  return api.get<Notification[]>('/api/notifications')
+}
+
+export async function markNotificationsRead(ids: string[]): Promise<void> {
+  await api.post('/api/notifications/mark-read', { ids })
+}
+
+export async function markRoomNotificationsRead(roomId: string): Promise<void> {
+  await api.post(`/api/notifications/mark-read/room/${roomId}`, {})
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api.post('/api/notifications/mark-all-read', {})
+}

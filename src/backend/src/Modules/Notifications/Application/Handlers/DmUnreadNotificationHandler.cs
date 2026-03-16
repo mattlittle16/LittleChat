@@ -5,29 +5,29 @@ using Shared.Contracts.Interfaces;
 
 namespace Notifications.Application.Handlers;
 
-public sealed class UserMentionedHandler : IIntegrationEventHandler<MentionDetectedIntegrationEvent>
+public sealed class DmUnreadNotificationHandler : IIntegrationEventHandler<DmMessageSentIntegrationEvent>
 {
     private readonly IRealtimeNotifier _notifier;
     private readonly IUserNotificationRepository _repo;
 
-    public UserMentionedHandler(IRealtimeNotifier notifier, IUserNotificationRepository repo)
+    public DmUnreadNotificationHandler(IRealtimeNotifier notifier, IUserNotificationRepository repo)
     {
         _notifier = notifier;
         _repo = repo;
     }
 
-    public async Task HandleAsync(MentionDetectedIntegrationEvent evt, CancellationToken cancellationToken = default)
+    public async Task HandleAsync(DmMessageSentIntegrationEvent evt, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         var notification = new UserNotification(
             Id: Guid.NewGuid(),
-            RecipientUserId: evt.MentionedUserId,
-            Type: NotificationType.Mention,
+            RecipientUserId: evt.RecipientUserId,
+            Type: NotificationType.UnreadDm,
             MessageId: evt.MessageId,
             RoomId: evt.RoomId,
             RoomName: evt.RoomName,
-            FromUserId: evt.FromUserId,
-            FromDisplayName: evt.FromDisplayName,
+            FromUserId: evt.SenderUserId,
+            FromDisplayName: evt.SenderDisplayName,
             ContentPreview: evt.ContentPreview,
             IsRead: false,
             CreatedAt: now,
@@ -50,7 +50,7 @@ public sealed class UserMentionedHandler : IIntegrationEventHandler<MentionDetec
             notification.ExpiresAt);
 
         await _notifier.SendToUserAsync(
-            evt.MentionedUserId.ToString(),
+            evt.RecipientUserId.ToString(),
             "NotificationReceived",
             dto,
             cancellationToken);
