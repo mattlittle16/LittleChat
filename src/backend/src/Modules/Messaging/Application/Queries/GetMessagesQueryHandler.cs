@@ -18,10 +18,24 @@ public sealed class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, 
         if (!isMember)
             throw new UnauthorizedAccessException("User is not a member of this room.");
 
-        var page = await _messages.GetPageAsync(
-            request.RoomId, request.Before, request.BeforeId, request.Limit, cancellationToken);
+        MessagePage page;
 
-        // Mark room as read up to now
+        if (request.AroundId.HasValue)
+        {
+            page = await _messages.GetPageAroundAsync(
+                request.RoomId, request.AroundId.Value, request.Limit, cancellationToken);
+        }
+        else if (request.After.HasValue && request.AfterId.HasValue)
+        {
+            page = await _messages.GetPageAfterAsync(
+                request.RoomId, request.After.Value, request.AfterId.Value, request.Limit, cancellationToken);
+        }
+        else
+        {
+            page = await _messages.GetPageAsync(
+                request.RoomId, request.Before, request.BeforeId, request.Limit, cancellationToken);
+        }
+
         await _messages.UpdateLastReadAtAsync(request.RoomId, request.UserId, cancellationToken);
 
         return page;

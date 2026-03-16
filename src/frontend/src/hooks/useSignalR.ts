@@ -194,6 +194,23 @@ export function useSignalR(roomId: string | null) {
       })
 
       connection.on('NotificationReceived', (notification: Notification) => {
+        // Reaction notifications use per-message viewport visibility — handled separately
+        if (notification.type === 'reaction' && notification.messageId) {
+          const el = document.querySelector(`[data-message-id="${notification.messageId}"]`)
+          if (el) {
+            const rect = el.getBoundingClientRect()
+            const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight
+            if (isVisible) {
+              // Message is in view — mark read silently, no badge increment, no sound
+              useNotificationStore.getState().markRead([notification.id])
+              return
+            }
+          }
+          // Message not visible — add to store without sound (FR-006)
+          useNotificationStore.getState().addNotification(notification)
+          return
+        }
+
         const activeRoomId = useRoomStore.getState().activeRoomId
         const isRoomOpen = activeRoomId === notification.roomId
 
@@ -205,7 +222,8 @@ export function useSignalR(roomId: string | null) {
         }
 
         // Still play sound/browser notification if the window isn't in focus
-        if (!document.hasFocus()) {
+        // Reaction notifications never play a sound regardless of focus state
+        if (!document.hasFocus() && notification.type !== 'reaction') {
           const room = useRoomStore.getState().rooms.find(r => r.id === notification.roomId)
           const isDm = room?.isDm ?? false
           const level = useNotificationPreferencesStore.getState().effectiveLevelForRoom(notification.roomId, isDm)

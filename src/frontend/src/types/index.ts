@@ -135,7 +135,7 @@ export interface ConversationOverride {
   level: ConversationOverrideLevel
 }
 
-export type NotificationType = 'mention' | 'topic_alert' | 'unread_dm'
+export type NotificationType = 'mention' | 'topic_alert' | 'unread_dm' | 'reaction'
 
 export interface Notification {
   id: string

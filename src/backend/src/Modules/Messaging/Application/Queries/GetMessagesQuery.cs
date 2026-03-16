@@ -8,5 +8,8 @@ public sealed record GetMessagesQuery(
     Guid UserId,
     DateTime? Before,
     Guid? BeforeId,
-    int Limit = 50
+    int Limit = 50,
+    Guid? AroundId = null,
+    DateTime? After = null,
+    Guid? AfterId = null
 ) : IRequest<MessagePage>;

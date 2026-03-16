@@ -25,14 +25,26 @@ public sealed class AddReactionCommandHandler : IRequestHandler<AddReactionComma
             request.Emoji,
             cancellationToken);
 
+        var (authorUserId, messageContent, roomName) = await _repo.GetMessageInfoAsync(
+            request.MessageId, cancellationToken);
+
+        var contentPreview = authorUserId != Guid.Empty
+            ? $"{request.Emoji} \u2014 {messageContent[..Math.Min(messageContent.Length, 80)]}"
+            : string.Empty;
+
         await _eventBus.PublishAsync(new ReactionUpdatedIntegrationEvent
         {
-            MessageId = request.MessageId,
-            RoomId = request.RoomId,
-            Emoji = request.Emoji,
-            Count = count,
-            Added = added,
-            Users = users,
+            MessageId          = request.MessageId,
+            RoomId             = request.RoomId,
+            Emoji              = request.Emoji,
+            Count              = count,
+            Added              = added,
+            Users              = users,
+            ReactorUserId      = request.UserId,
+            ReactorDisplayName = request.DisplayName,
+            AuthorUserId       = authorUserId,
+            RoomName           = roomName,
+            ContentPreview     = contentPreview,
         }, cancellationToken);
 
         return (added, count);

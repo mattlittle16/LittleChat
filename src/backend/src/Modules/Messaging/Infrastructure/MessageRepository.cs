@@ -103,6 +103,84 @@ public sealed class MessageRepository : IMessageRepository
         return new MessagePage(page, hasMore);
     }
 
+    public async Task<MessagePage> GetPageAroundAsync(
+        Guid roomId, Guid aroundId, int limit, CancellationToken ct = default)
+    {
+        var half = limit / 2;
+
+        // Resolve the anchor's timestamp so we can do keyset queries
+        var anchorTs = await _db.Messages
+            .Where(m => m.Id == aroundId && m.RoomId == roomId)
+            .Select(m => (DateTime?)m.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (anchorTs is null)
+            return new MessagePage([], false, false);
+
+        var ts  = anchorTs.Value;
+        var aid = aroundId;
+
+        // Older half (messages strictly before the anchor in sort order)
+        var olderRaw = await _db.Messages
+            .Include(m => m.User)
+            .Include(m => m.Attachments)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
+            .Where(m => m.RoomId == roomId)
+            .Where(m => m.CreatedAt < ts || (m.CreatedAt == ts && m.Id.CompareTo(aid) < 0))
+            .OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.Id)
+            .Take(half + 1)
+            .ToListAsync(ct);
+
+        var hasMore  = olderRaw.Count > half;
+        var older    = olderRaw.Take(half).ToList();
+        older.Reverse();
+
+        // Anchor itself (with full includes)
+        var anchor = await _db.Messages
+            .Include(m => m.User)
+            .Include(m => m.Attachments)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
+            .FirstOrDefaultAsync(m => m.Id == aroundId, ct);
+
+        if (anchor is null)
+            return new MessagePage([], false, false);
+
+        // Newer half (messages strictly after the anchor in sort order)
+        var newerRaw = await _db.Messages
+            .Include(m => m.User)
+            .Include(m => m.Attachments)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
+            .Where(m => m.RoomId == roomId)
+            .Where(m => m.CreatedAt > ts || (m.CreatedAt == ts && m.Id.CompareTo(aid) > 0))
+            .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)
+            .Take(half + 1)
+            .ToListAsync(ct);
+
+        var hasNewer = newerRaw.Count > half;
+        var newer    = newerRaw.Take(half).ToList();
+
+        var combined = older.Concat([anchor]).Concat(newer).Select(ToMessage).ToList();
+        return new MessagePage(combined, hasMore, hasNewer);
+    }
+
+    public async Task<MessagePage> GetPageAfterAsync(
+        Guid roomId, DateTime after, Guid afterId, int limit, CancellationToken ct = default)
+    {
+        var messages = await _db.Messages
+            .Include(m => m.User)
+            .Include(m => m.Attachments)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
+            .Where(m => m.RoomId == roomId)
+            .Where(m => m.CreatedAt > after || (m.CreatedAt == after && m.Id.CompareTo(afterId) > 0))
+            .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)
+            .Take(limit + 1)
+            .ToListAsync(ct);
+
+        var hasNewer = messages.Count > limit;
+        var page     = messages.Take(limit).Select(ToMessage).ToList();
+        return new MessagePage(page, HasMore: false, HasNewer: hasNewer);
+    }
+
     public async Task<bool> IsMemberAsync(Guid roomId, Guid userId, CancellationToken ct = default)
     {
         return await _db.RoomMemberships

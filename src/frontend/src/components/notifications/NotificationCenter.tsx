@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { useNotificationStore } from '../../stores/notificationStore'
 import { useRoomStore } from '../../stores/roomStore'
+import { useMessageStore } from '../../stores/messageStore'
 import type { Notification } from '../../types'
 
 function notifLabel(type: string) {
   if (type === 'mention') return '@mention'
   if (type === 'topic_alert') return '@topic'
   if (type === 'unread_dm') return 'DM'
+  if (type === 'reaction') return 'reaction'
   return type
 }
 
@@ -26,6 +28,10 @@ export function NotificationCenter({ onClose }: Props) {
   const { notifications, unreadCount, loadNotifications, markRead, markAllRead, markRoomRead } =
     useNotificationStore()
   const setActiveRoom = useRoomStore((s) => s.setActiveRoom)
+  const activeRoomId = useRoomStore((s) => s.activeRoomId)
+  const setScrollToMessageId = useMessageStore((s) => s.setScrollToMessageId)
+  const setPendingAround = useMessageStore((s) => s.setPendingAround)
+  const loadAroundMessage = useMessageStore((s) => s.loadAroundMessage)
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Load on mount
@@ -45,6 +51,23 @@ export function NotificationCenter({ onClose }: Props) {
   }, [onClose])
 
   function handleNotifClick(n: Notification) {
+    if (n.type === 'reaction' && n.messageId) {
+      const messageId = n.messageId
+      markRead([n.id])
+      if (activeRoomId === n.roomId) {
+        // Same room: no room switch effect fires, load directly
+        loadAroundMessage(n.roomId, messageId).then(() => {
+          setScrollToMessageId(messageId)
+        })
+      } else {
+        // Different room: store pending before switching so the room switch
+        // effect uses loadAroundMessage instead of loadPage (avoids race)
+        setPendingAround(n.roomId, messageId)
+        setActiveRoom(n.roomId)
+      }
+      onClose()
+      return
+    }
     setActiveRoom(n.roomId)
     markRoomRead(n.roomId)
     onClose()
@@ -122,7 +145,11 @@ export function NotificationCenter({ onClose }: Props) {
                     </span>
                   </div>
                   <p className="text-xs font-medium truncate">{n.fromDisplayName}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{n.contentPreview}</p>
+                  {n.type === 'reaction' ? (
+                    <p className="text-xs text-muted-foreground line-clamp-2">reacted: {n.contentPreview}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{n.contentPreview}</p>
+                  )}
                 </div>
               </div>
             </button>

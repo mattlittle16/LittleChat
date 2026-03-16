@@ -69,4 +69,26 @@ public sealed class ReactionRepository : IReactionRepository
         await tx.CommitAsync(ct);
         return (added, users.Count, users);
     }
+
+    public async Task<(Guid AuthorUserId, string MessageContent, string RoomName)> GetMessageInfoAsync(
+        Guid messageId,
+        CancellationToken ct = default)
+    {
+        await using var conn = await _db.OpenConnectionAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            """
+            SELECT m.user_id, m.content, r.name
+            FROM messages m
+            JOIN rooms r ON r.id = m.room_id
+            WHERE m.id = $1
+            """,
+            conn);
+        cmd.Parameters.AddWithValue(messageId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return (Guid.Empty, string.Empty, string.Empty);
+
+        return (reader.GetGuid(0), reader.GetString(1), reader.GetString(2));
+    }
 }
