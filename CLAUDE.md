@@ -38,6 +38,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-01
 - PostgreSQL — one new column on `users` table; no new tables (015-onboarding-wizard)
 - C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, `@tanstack/react-virtual` (new frontend dep), StackExchange.Redis (016-performance-optimizations)
 - PostgreSQL (EF Core + raw Npgsql); Redis (StackExchange.Redis) for presence (016-performance-optimizations)
+- C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui (Sheet component already installed), lucide-react (`Bell` icon already available), react-markdown + remark-gfm (already in use) (017-mentions-notifs-mobile)
+- PostgreSQL — one new table (`user_notifications`) added to the Notifications module via EF Core migration (017-mentions-notifs-mobile)
 
 - C# (.NET 8 or 9) — backend; TypeScript — frontend + ASP.NET Core SignalR + `Microsoft.AspNetCore.SignalR.StackExchangeRedis`; Entity Framework Core; MediatR; `Microsoft.AspNetCore.Authentication.JwtBearer`; React; `@microsoft/signalr`; `idb`; Zustand; Tailwind CSS; shadcn/ui (001-chat-mvp)
 
@@ -57,9 +59,9 @@ npm test && npm run lint
 C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventions
 
 ## Recent Changes
+- 017-mentions-notifs-mobile: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui (Sheet component already installed), lucide-react (`Bell` icon already available), react-markdown + remark-gfm (already in use)
 - 016-performance-optimizations: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, `@tanstack/react-virtual` (new frontend dep), StackExchange.Redis
 - 015-onboarding-wizard: Added C# .NET 8 (backend), TypeScript 5.9 / React 19 (frontend) + ASP.NET Core minimal API, MediatR, Npgsql (raw SQL in Identity module), EF Core + Npgsql (migrations in Messaging module), Zustand v5, Tailwind CSS v4, shadcn/ui, `react-easy-crop` (already installed from 014)
-- 014-user-profile: Added C# (.NET 8) backend; TypeScript 5.9 / React 19 frontend + ASP.NET Core minimal API, SignalR, MediatR, Npgsql (raw SQL), EF Core (migrations only), Zustand v5, Tailwind CSS v4, shadcn/ui; **new frontend**: `react-easy-crop` (circular crop editor)
 
 
 <!-- MANUAL ADDITIONS START -->

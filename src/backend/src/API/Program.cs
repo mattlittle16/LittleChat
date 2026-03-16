@@ -225,6 +225,8 @@ builder.Services.AddScoped<IIntegrationEventHandler<ReactionUpdatedIntegrationEv
 builder.Services.AddScoped<IIntegrationEventHandler<MessageEditedIntegrationEvent>, MessageEditedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageDeletedIntegrationEvent>, MessageDeletedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MentionDetectedIntegrationEvent>, UserMentionedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<TopicAlertIntegrationEvent>, TopicAlertHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<DmMessageSentIntegrationEvent>, DmUnreadNotificationHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<DmCreatedIntegrationEvent>, DmCreatedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<DmDeletedIntegrationEvent>, DmDeletedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<RoomDeletedIntegrationEvent>, RoomDeletedHandler>();

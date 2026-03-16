@@ -4,6 +4,7 @@ import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
 import { InlineMarkdownEditor } from './InlineMarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMentions from '../../lib/remarkMentions'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api } from '../../services/apiClient'
@@ -226,8 +227,22 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         ) : (
           <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words', isGrouped ? 'grouped-prose' : 'mt-0.5')}>
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkMentions]}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              remarkRehypeOptions={{ handlers: { mention(_state: any, node: any) {
+                return { type: 'element', tagName: 'mention', properties: { value: node.value }, children: [{ type: 'text', value: node.value }] }
+              } } } as any}
               components={{
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                mention({ children, ...props }: any) {
+                  const value: string = (props.value as string) ?? String(children)
+                  const isTopic = value.toLowerCase() === '@topic'
+                  return (
+                    <span className={isTopic ? 'mention-topic' : 'mention'}>
+                      {value}
+                    </span>
+                  )
+                },
                 a({ href, children, ...props }) {
                   const safeHref = href ?? ''
                   const isSafe = safeHref.startsWith('https://') || safeHref.startsWith('http://')

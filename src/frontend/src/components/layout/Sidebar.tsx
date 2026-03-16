@@ -48,7 +48,11 @@ function extractGroupId(headingId: string) {
   return headingId.slice(GROUP_HEADING_PREFIX.length)
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const { rooms, activeRoomId, loadRooms, setActiveRoom } = useRoomStore()
   const [creating, setCreating] = useState(false)
   const [composing, setComposing] = useState(false)
@@ -234,7 +238,7 @@ export function Sidebar() {
                           key={room.id}
                           room={room}
                           isActive={room.id === activeRoomId}
-                          onClick={() => setActiveRoom(room.id)}
+                          onClick={() => { setActiveRoom(room.id); onNavigate?.() }}
                         />
                       ))}
                       {groupRooms.length === 0 && activeDragId && (
@@ -255,7 +259,7 @@ export function Sidebar() {
                   key={room.id}
                   room={room}
                   isActive={room.id === activeRoomId}
-                  onClick={() => setActiveRoom(room.id)}
+                  onClick={() => { setActiveRoom(room.id); onNavigate?.() }}
                 />
               ))}
             </SortableContext>
@@ -291,7 +295,7 @@ export function Sidebar() {
                 key={room.id}
                 room={room}
                 isActive={room.id === activeRoomId}
-                onClick={() => setActiveRoom(room.id)}
+                onClick={() => { setActiveRoom(room.id); onNavigate?.() }}
               />
             ))}
             {dmRooms.length === 0 && (
@@ -528,7 +532,7 @@ function RoomItem({
       </button>
 
       {/* Hover-reveal notification override button */}
-      <div className="absolute right-7 top-1/2 -translate-y-1/2 hidden group-hover:flex" ref={notifMenuRef}>
+      <div className="absolute right-7 top-1/2 -translate-y-1/2 hidden group-hover:flex z-30" ref={notifMenuRef}>
         <button
           onClick={(e) => { e.stopPropagation(); setNotifMenuOpen(o => !o) }}
           className="flex items-center justify-center w-5 h-5 rounded transition-colors"
@@ -698,7 +702,7 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
       </button>
 
       {/* Hover-reveal notification override button */}
-      <div className="absolute right-7 top-1/2 -translate-y-1/2 hidden group-hover:flex" ref={notifMenuRef}>
+      <div className="absolute right-7 top-1/2 -translate-y-1/2 hidden group-hover:flex z-30" ref={notifMenuRef}>
         <button
           onClick={(e) => { e.stopPropagation(); setNotifMenuOpen(o => !o) }}
           className="flex items-center justify-center w-5 h-5 rounded transition-colors"

@@ -5,9 +5,10 @@ import { useRoomStore } from '../stores/roomStore'
 import { usePresenceStore } from '../stores/presenceStore'
 import { useTypingStore } from '../stores/typingStore'
 import { useNotificationPreferencesStore } from '../stores/notificationPreferencesStore'
+import { useNotificationStore } from '../stores/notificationStore'
 import { showMentionToast } from '../components/chat/MentionToast'
 import { playChime, showBrowserNotification } from '../services/notificationService'
-import type { Message } from '../types'
+import type { Message, Notification } from '../types'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
@@ -48,7 +49,12 @@ export function useSignalR(roomId: string | null) {
       startConnection(
         currentRoomId,
         () => { if (!cancelled) setStatus('reconnecting') },
-        () => { if (!cancelled) setStatus('connected') },
+        () => {
+          if (!cancelled) {
+            setStatus('connected')
+            useNotificationStore.getState().loadNotifications()
+          }
+        },
         () => {
           // onclose fires when SignalR's own automatic retries are exhausted.
           // Schedule our own reconnect so the app recovers without a page reload.
@@ -184,6 +190,29 @@ export function useSignalR(roomId: string | null) {
         if (level !== 'muted') {
           playChime()
           showBrowserNotification(fromDisplayName, contentPreview, roomId.toString())
+        }
+      })
+
+      connection.on('NotificationReceived', (notification: Notification) => {
+        const activeRoomId = useRoomStore.getState().activeRoomId
+        const isRoomOpen = activeRoomId === notification.roomId
+
+        if (isRoomOpen) {
+          // Room is open — mark read immediately so badge never increments
+          useNotificationStore.getState().markRoomRead(notification.roomId)
+        } else {
+          useNotificationStore.getState().addNotification(notification)
+        }
+
+        // Still play sound/browser notification if the window isn't in focus
+        if (!document.hasFocus()) {
+          const room = useRoomStore.getState().rooms.find(r => r.id === notification.roomId)
+          const isDm = room?.isDm ?? false
+          const level = useNotificationPreferencesStore.getState().effectiveLevelForRoom(notification.roomId, isDm)
+          if (level !== 'muted') {
+            playChime()
+            showBrowserNotification(notification.fromDisplayName, notification.contentPreview, notification.roomId)
+          }
         }
       })
 

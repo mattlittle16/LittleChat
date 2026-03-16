@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Domain;
+using Notifications.Infrastructure.Repositories;
 
 namespace Notifications.Infrastructure;
 
@@ -18,6 +19,7 @@ public static class NotificationsModuleExtensions
 
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IConversationOverrideRepository, ConversationOverrideRepository>();
+        services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
 
         return services;
     }

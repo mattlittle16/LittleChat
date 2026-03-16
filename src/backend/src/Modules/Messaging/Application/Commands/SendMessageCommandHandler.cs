@@ -11,8 +11,10 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
 {
     private const int MaxContentLength = 4_000;
     private static readonly Regex MentionRegex = new(@"@(\w+)", RegexOptions.Compiled);
+    private static readonly Regex TopicRegex   = new(@"@topic\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly IMessageRepository _messages;
+    private readonly IRoomRepository _rooms;
     private readonly IEventBus _eventBus;
     private readonly IFileStorageService? _fileStorage;
     private readonly IUserLookupService? _userLookup;
@@ -20,12 +22,14 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
 
     public SendMessageCommandHandler(
         IMessageRepository messages,
+        IRoomRepository rooms,
         IEventBus eventBus,
         ILogger<SendMessageCommandHandler> logger,
         IFileStorageService? fileStorage = null,
         IUserLookupService? userLookup = null)
     {
         _messages = messages;
+        _rooms = rooms;
         _eventBus = eventBus;
         _logger = logger;
         _fileStorage = fileStorage;
@@ -127,11 +131,16 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
             CreatedAt   = message.CreatedAt,
         }, cancellationToken);
 
+        var contentPreview = hasContent && message.Content.Length > 100
+            ? message.Content[..100] + "…"
+            : message.Content;
+
         // Detect @mentions and publish one event per unique mentioned user
         if (_userLookup is not null && hasContent)
         {
             var mentions = MentionRegex.Matches(message.Content)
                 .Select(m => m.Groups[1].Value)
+                .Where(n => !n.Equals("topic", StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 
             string? roomName = null;
@@ -150,10 +159,57 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
                     MentionedUserId = mentionedId.Value,
                     FromUserId      = message.UserId!.Value,
                     FromDisplayName = message.AuthorDisplayName,
-                    ContentPreview  = message.Content.Length > 100
-                        ? message.Content[..100] + "…"
-                        : message.Content,
+                    ContentPreview  = contentPreview,
                 }, cancellationToken);
+            }
+        }
+
+        // Detect @topic / DM notifications — fetch room once for both checks
+        if (hasContent)
+        {
+            var hasTopicMention = TopicRegex.IsMatch(message.Content);
+            var room = await _rooms.GetByIdAsync(message.RoomId, cancellationToken);
+            if (room is not null)
+            {
+                var roomName  = await _messages.GetRoomNameAsync(message.RoomId, cancellationToken) ?? string.Empty;
+                var memberIds = await _rooms.GetRoomMemberIdsAsync(message.RoomId, cancellationToken);
+
+                if (!room.IsDm && hasTopicMention)
+                {
+                    // @topic in a topic room — alert all members except sender
+                    var recipients = memberIds.Where(id => id != message.UserId).ToList();
+                    if (recipients.Count > 0)
+                    {
+                        await _eventBus.PublishAsync(new TopicAlertIntegrationEvent
+                        {
+                            MessageId         = message.Id,
+                            RoomId            = message.RoomId,
+                            RoomName          = roomName,
+                            SenderUserId      = message.UserId!.Value,
+                            SenderDisplayName = message.AuthorDisplayName,
+                            ContentPreview    = contentPreview,
+                            RecipientUserIds  = recipients,
+                        }, cancellationToken);
+                    }
+                }
+                else if (room.IsDm)
+                {
+                    // DM message — notify the non-sending participant
+                    var recipientId = memberIds.FirstOrDefault(id => id != message.UserId);
+                    if (recipientId != default)
+                    {
+                        await _eventBus.PublishAsync(new DmMessageSentIntegrationEvent
+                        {
+                            MessageId         = message.Id,
+                            RoomId            = message.RoomId,
+                            RoomName          = roomName,
+                            SenderUserId      = message.UserId!.Value,
+                            SenderDisplayName = message.AuthorDisplayName,
+                            ContentPreview    = contentPreview,
+                            RecipientUserId   = recipientId,
+                        }, cancellationToken);
+                    }
+                }
             }
         }
 

@@ -134,3 +134,20 @@ export interface ConversationOverride {
   roomId: string
   level: ConversationOverrideLevel
 }
+
+export type NotificationType = 'mention' | 'topic_alert' | 'unread_dm'
+
+export interface Notification {
+  id: string
+  recipientUserId: string
+  type: NotificationType
+  messageId: string | null
+  roomId: string
+  roomName: string
+  fromUserId: string | null
+  fromDisplayName: string
+  contentPreview: string
+  isRead: boolean
+  createdAt: string
+  expiresAt: string
+}
