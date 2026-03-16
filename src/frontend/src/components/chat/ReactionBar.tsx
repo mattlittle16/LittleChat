@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus } from 'lucide-react'
 import { getConnection } from '../../services/signalrClient'
@@ -13,9 +13,10 @@ interface ReactionBarProps {
   roomId: string
   reactions: Reaction[]
   onOpenEmojiPicker?: (anchorRect: DOMRect) => void
+  inlinePill?: ReactNode
 }
 
-export function ReactionBar({ messageId, roomId, reactions, onOpenEmojiPicker }: ReactionBarProps) {
+export function ReactionBar({ messageId, roomId, reactions, onOpenEmojiPicker, inlinePill }: ReactionBarProps) {
   const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -77,11 +78,17 @@ export function ReactionBar({ messageId, roomId, reactions, onOpenEmojiPicker }:
         ref={plusButtonRef}
         onClick={() => onOpenEmojiPicker?.(plusButtonRef.current!.getBoundingClientRect())}
         title="Add reaction"
-        className="flex items-center justify-center rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2 py-0.5
-                   text-xs text-muted-foreground hover:bg-zinc-300 dark:hover:bg-zinc-500 hover:text-foreground transition-colors"
+        className="flex items-center justify-center rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2.5 py-1
+                   text-sm text-muted-foreground hover:bg-zinc-300 dark:hover:bg-zinc-500 hover:text-foreground transition-colors"
       >
-        <Plus className="w-4 h-4" />
+        <Plus className="w-[1.1rem] h-[1.1rem]" />
       </button>
+
+      {inlinePill && (
+        <div className="flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 bg-zinc-200 dark:bg-zinc-600">
+          {inlinePill}
+        </div>
+      )}
 
       {hoveredEmoji && popoverPosition && hoveredReaction && createPortal(
         <div
@@ -112,8 +119,8 @@ function ReactionChip({ reaction, onClick }: { reaction: Reaction; onClick: () =
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2 py-0.5
-                 text-xs hover:bg-zinc-300 dark:hover:bg-zinc-500 transition-colors"
+      className="flex items-center gap-1 rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2.5 py-1
+                 text-sm hover:bg-zinc-300 dark:hover:bg-zinc-500 transition-colors"
     >
       <span>{reaction.emoji}</span>
       <span className="font-medium">{reaction.count}</span>
