@@ -103,11 +103,10 @@ export function ReactionBar({ messageId, roomId, reactions, onOpenEmojiPicker, i
           }}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-          className="rounded-lg border shadow-md px-3 py-2 text-xs"
+          className="rounded-lg border shadow-md px-3 py-2 text-xs text-center"
         >
-          {hoveredReaction.users.map(name => (
-            <div key={name}>{name}</div>
-          ))}
+          <div className="text-2xl mb-1">{hoveredReaction.emoji}</div>
+          <div className="text-muted-foreground">{hoveredReaction.users.join(', ')}</div>
         </div>,
         document.body
       )}
