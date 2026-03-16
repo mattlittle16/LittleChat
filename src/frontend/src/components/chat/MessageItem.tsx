@@ -21,6 +21,24 @@ import { cn } from '../../lib/utils'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
+interface MentionNode {
+  value: string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const remarkRehypeOptions: any = {
+  handlers: {
+    mention(_state: object, node: MentionNode) {
+      return {
+        type: 'element',
+        tagName: 'mention',
+        properties: { value: node.value },
+        children: [{ type: 'text', value: node.value }],
+      }
+    },
+  },
+}
+
 const PICKER_HEIGHT = 350
 const PICKER_WIDTH = 300
 const PICKER_MARGIN = 8
@@ -228,13 +246,9 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
           <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words', isGrouped ? 'grouped-prose' : 'mt-0.5')}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMentions]}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              remarkRehypeOptions={{ handlers: { mention(_state: any, node: any) {
-                return { type: 'element', tagName: 'mention', properties: { value: node.value }, children: [{ type: 'text', value: node.value }] }
-              } } } as any}
+              remarkRehypeOptions={remarkRehypeOptions}
               components={{
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                mention({ children, ...props }: any) {
+                mention({ children, ...props }: { children?: unknown; [key: string]: unknown }) {
                   const value: string = (props.value as string) ?? String(children)
                   const isTopic = value.toLowerCase() === '@topic'
                   return (
