@@ -180,6 +180,50 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
   }
 
   const showPill = !editing && (hovered || confirmDelete || pickerOpen)
+  const hasReactions = !isOutbox(message) && (message.reactions?.length ?? 0) > 0
+
+  // Edit/delete buttons shared between both pill variants
+  const editDeleteButtons = !confirmDelete ? (
+    <>
+      <button onClick={startEdit} className="rounded-full px-2.5 py-1 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground">
+        Edit
+      </button>
+      <button onClick={() => setConfirmDelete(true)} className="rounded-full px-2.5 py-1 text-sm text-destructive hover:bg-muted/60">
+        Delete
+      </button>
+    </>
+  ) : (
+    <>
+      <span className="text-xs text-muted-foreground px-1">Delete?</span>
+      <button onClick={handleDelete} className="rounded-full px-2.5 py-1 text-sm text-destructive hover:bg-muted/60">Yes</button>
+      <button onClick={() => setConfirmDelete(false)} className="rounded-full px-2.5 py-1 text-sm hover:bg-muted/60">No</button>
+    </>
+  )
+
+  // Full pill for no-reaction messages: emoji button + edit/delete (own only)
+  const pillButtons = (
+    <>
+      <button
+        ref={emojiButtonRef}
+        onClick={handleOpenEmojiPicker}
+        className="rounded-full px-1.5 py-1 flex items-center justify-center text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        title="Add reaction"
+      >
+        🙂
+      </button>
+      {isOwn && (
+        <>
+          <div className="w-px h-4 bg-border mx-0.5" />
+          {editDeleteButtons}
+        </>
+      )}
+    </>
+  )
+
+  // Inline pill for messages that already have reactions:
+  // - not own: no pill (+ handles adding emojis)
+  // - own: edit/delete only (+ handles adding emojis)
+  const inlinePill = hasReactions && showPill && isOwn ? editDeleteButtons : undefined
 
   return (
     <div
@@ -302,48 +346,27 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
 
         <AttachmentGrid attachments={message.attachments} />
 
-        <ReactionBar messageId={message.id} roomId={message.roomId} reactions={message.reactions ?? []} onOpenEmojiPicker={openPickerAt} />
+        <ReactionBar
+          messageId={message.id}
+          roomId={message.roomId}
+          reactions={message.reactions ?? []}
+          onOpenEmojiPicker={openPickerAt}
+          inlinePill={inlinePill}
+        />
       </div>
 
-      {/* Unified hover action pill — floats at the bottom-right of the message, in the gap before the next */}
-      <div
-        className={cn(
-          'absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600',
-          'transition-opacity duration-150',
-          showPill ? 'opacity-100' : 'opacity-0 pointer-events-none',
-        )}
-      >
-        {/* Emoji reaction button — always shown */}
-        <button
-          ref={emojiButtonRef}
-          onClick={handleOpenEmojiPicker}
-          className="rounded-full w-6 h-6 flex items-center justify-center text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          title="Add reaction"
+      {/* Hover action pill — only shown when message has no reactions; otherwise rendered inline in ReactionBar */}
+      {!hasReactions && (
+        <div
+          className={cn(
+            'absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600',
+            'transition-opacity duration-150',
+            showPill ? 'opacity-100' : 'opacity-0 pointer-events-none',
+          )}
         >
-          🙂
-        </button>
-
-        {/* Edit / delete — own messages only */}
-        {isOwn && !confirmDelete && (
-          <>
-            <div className="w-px h-3 bg-border mx-0.5" />
-            <button onClick={startEdit} className="rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground">
-              Edit
-            </button>
-            <button onClick={() => setConfirmDelete(true)} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">
-              Delete
-            </button>
-          </>
-        )}
-        {isOwn && confirmDelete && (
-          <>
-            <div className="w-px h-3 bg-border mx-0.5" />
-            <span className="text-xs text-muted-foreground px-1">Delete?</span>
-            <button onClick={handleDelete} className="rounded-full px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10">Yes</button>
-            <button onClick={() => setConfirmDelete(false)} className="rounded-full px-2 py-0.5 text-xs hover:bg-muted/60">No</button>
-          </>
-        )}
-      </div>
+          {pillButtons}
+        </div>
+      )}
 
       {lightbox && (
         <AvatarLightbox
