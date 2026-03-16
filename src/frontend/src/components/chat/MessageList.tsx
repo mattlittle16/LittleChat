@@ -68,7 +68,8 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
 
     if (roomMessages.length > 0) {
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        virtualizer.scrollToIndex(roomMessages.length - 1, { align: 'end' })
+        const el = listRef.current
+        if (el) el.scrollTop = el.scrollHeight
         isNearBottomRef.current = true
       }))
     }
@@ -78,7 +79,15 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
         useRoomStore.getState().markRead(roomId)
       }
     }
-  }, [roomMessages.length, roomOutbox.length, roomId, virtualizer])
+  }, [roomMessages.length, roomOutbox.length, roomId])
+
+  // Re-scroll when virtualizer total size changes (items measured, media loaded) — mirrors old ResizeObserver
+  const totalSize = virtualizer.getTotalSize()
+  useEffect(() => {
+    if (!isNearBottomRef.current) return
+    const el = listRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [totalSize])
 
   // When the tab becomes visible again, clear unread if at bottom
   useEffect(() => {
