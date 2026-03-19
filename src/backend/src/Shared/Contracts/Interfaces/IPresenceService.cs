@@ -9,7 +9,8 @@ public interface IPresenceService
     Task<IReadOnlyList<Guid>> GetAllOnlineAsync(CancellationToken ct = default);
     /// <summary>Clears all presence state. Call on startup to remove stale entries from a previous run or crash.</summary>
     Task ClearAllAsync(CancellationToken ct = default);
-    /// <summary>Forces a user's refcount to exactly 1 and ensures they are in the online set.
-    /// Called by clients on reconnect to recover from stale refcounts left by a server crash.</summary>
-    Task ReassertAsync(Guid userId, CancellationToken ct = default);
+    /// <summary>Resets a user's active connection set to contain only this connection and ensures
+    /// they are in the online set. Called by clients on reconnect to recover from stale state
+    /// left by a server crash.</summary>
+    Task ReassertAsync(Guid userId, string connectionId, CancellationToken ct = default);
 }
