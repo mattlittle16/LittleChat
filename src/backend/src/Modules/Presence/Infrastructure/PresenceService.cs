@@ -6,49 +6,52 @@ namespace Presence.Infrastructure;
 
 public sealed class PresenceService : IPresenceService
 {
-    // Design: refcount Hash + online Set.
+    // Design: per-user connection Set + online Set.
     //
-    // presence:refcount  — Hash  field={userId}  value={open connection count}
-    // presence:online    — Set   members={userId strings}
+    // presence:connections:{userId} — Set   members={connectionId strings}
+    // presence:online               — Set   members={userId strings}
     //
-    // Multi-tab support: refcount tracks how many connections a user has open.
-    // The Set is the fast lookup structure: O(1) SISMEMBER, O(n-online) SMEMBERS.
-    // Both structures are cleared on hub startup to recover from server crashes.
+    // Each SignalR connection adds its connectionId to the user's connection Set on connect
+    // and removes it on disconnect. The user enters the online Set when their first connection
+    // is added (SCARD 0→1) and leaves when their last connection is removed (SCARD N→0).
     //
-    // Heartbeat calls SetOnlineAsync again — this is now a no-op for already-connected
-    // users (refcount is only incremented on the first connection, not refreshed).
-    // The SignalR infrastructure detects broken WebSocket connections and fires
-    // OnDisconnectedAsync, so TTL-based expiry is no longer needed.
+    // Because SREM is a no-op for members that are not in the Set, a stale OnDisconnectedAsync
+    // for a connection that was never registered (e.g. arriving after a Redis clear + reconnect)
+    // cannot decrement a fresh connection's count. This eliminates the race condition where a
+    // page reload would leave a user stuck offline while still actively connected.
 
-    private const string RefCountKey = "presence:refcount";
     private const string OnlineSetKey = "presence:online";
 
-    // Lua scripts execute atomically on the Redis server — no other command can interleave
-    // between the HINCRBY and the SADD/SREM, eliminating the inconsistency window that exists
-    // when those are sent as two separate commands.
+    // Lua scripts execute atomically on the Redis server.
+
+    // Adds connectionId to the user's connection Set.
+    // If this is the first connection (SCARD was 0), also adds userId to the online Set.
     private static readonly LuaScript SetOnlineScript = LuaScript.Prepare("""
-        local count = redis.call('HINCRBY', @refKey, @userId, 1)
+        redis.call('SADD', @connKey, @connectionId)
+        local count = redis.call('SCARD', @connKey)
         if count == 1 then
             redis.call('SADD', @onlineKey, @userId)
         end
         return count
         """);
 
-    // Forces refcount to 1 and adds user to the online set.
-    // Used by clients on reconnect to recover from stale refcounts after a server crash.
-    // Note: if a user has multiple tabs open and all reconnect simultaneously, the last
-    // ReassertAsync wins and refcount is 1 — subsequent disconnects may leave stale online state
-    // until the final tab closes. Acceptable for a single-instance deployment.
+    // Clears the user's connection Set and re-adds only this connectionId.
+    // Used by clients on reconnect to recover from stale state after a server crash.
     private static readonly LuaScript ReassertScript = LuaScript.Prepare("""
-        redis.call('HSET', @refKey, @userId, 1)
+        redis.call('DEL', @connKey)
+        redis.call('SADD', @connKey, @connectionId)
         redis.call('SADD', @onlineKey, @userId)
         """);
 
-    // Returns 1 if the user is now fully offline (all connections closed), 0 otherwise.
+    // Removes connectionId from the user's connection Set.
+    // If the Set is now empty, removes userId from the online Set and returns 1 (fully offline).
+    // If connectionId was not in the Set (stale disconnect), SREM is a no-op — SCARD is still
+    // ≥1, so 0 is returned and no offline broadcast is triggered.
     private static readonly LuaScript SetOfflineScript = LuaScript.Prepare("""
-        local count = redis.call('HINCRBY', @refKey, @userId, -1)
-        if count <= 0 then
-            redis.call('HDEL', @refKey, @userId)
+        redis.call('SREM', @connKey, @connectionId)
+        local count = redis.call('SCARD', @connKey)
+        if count == 0 then
+            redis.call('DEL', @connKey)
             redis.call('SREM', @onlineKey, @userId)
             return 1
         end
@@ -71,9 +74,10 @@ public sealed class PresenceService : IPresenceService
             var db = _redis.GetDatabase();
             await db.ScriptEvaluateAsync(SetOnlineScript, new
             {
-                refKey    = (RedisKey)RefCountKey,
-                onlineKey = (RedisKey)OnlineSetKey,
-                userId    = (RedisValue)userId.ToString(),
+                connKey      = (RedisKey)ConnSetKey(userId),
+                onlineKey    = (RedisKey)OnlineSetKey,
+                userId       = (RedisValue)userId.ToString(),
+                connectionId = (RedisValue)connectionId,
             });
         }, nameof(SetOnlineAsync), userId);
     }
@@ -86,9 +90,10 @@ public sealed class PresenceService : IPresenceService
             var db = _redis.GetDatabase();
             var result = await db.ScriptEvaluateAsync(SetOfflineScript, new
             {
-                refKey    = (RedisKey)RefCountKey,
-                onlineKey = (RedisKey)OnlineSetKey,
-                userId    = (RedisValue)userId.ToString(),
+                connKey      = (RedisKey)ConnSetKey(userId),
+                onlineKey    = (RedisKey)OnlineSetKey,
+                userId       = (RedisValue)userId.ToString(),
+                connectionId = (RedisValue)connectionId,
             });
             fullyOffline = (int)result == 1;
         }, nameof(SetOfflineAsync), userId);
@@ -115,29 +120,47 @@ public sealed class PresenceService : IPresenceService
         return result;
     }
 
-    public async Task ReassertAsync(Guid userId, CancellationToken ct = default)
+    public async Task ReassertAsync(Guid userId, string connectionId, CancellationToken ct = default)
     {
         await WithRetryAsync(async () =>
         {
             var db = _redis.GetDatabase();
             await db.ScriptEvaluateAsync(ReassertScript, new
             {
-                refKey    = (RedisKey)RefCountKey,
-                onlineKey = (RedisKey)OnlineSetKey,
-                userId    = (RedisValue)userId.ToString(),
+                connKey      = (RedisKey)ConnSetKey(userId),
+                onlineKey    = (RedisKey)OnlineSetKey,
+                userId       = (RedisValue)userId.ToString(),
+                connectionId = (RedisValue)connectionId,
             });
         }, nameof(ReassertAsync), userId);
     }
 
     /// <summary>
-    /// Clears all presence state. Call once on hub startup to discard stale entries
-    /// from a previous server run or crash.
+    /// Clears all presence state. Called on startup to discard stale entries from a previous
+    /// server run or crash. Clients will re-establish their presence as they reconnect.
     /// </summary>
     public async Task ClearAllAsync(CancellationToken ct = default)
     {
         var db = _redis.GetDatabase();
-        await db.KeyDeleteAsync([RefCountKey, OnlineSetKey]);
+
+        // Collect all users currently marked online so we can delete their connection Sets.
+        var onlineMembers = await db.SetMembersAsync(OnlineSetKey);
+
+        var keysToDelete = new List<RedisKey>(onlineMembers.Length + 2)
+        {
+            OnlineSetKey,
+            // Also remove any legacy refcount key from the old integer-based implementation.
+            "presence:refcount",
+        };
+
+        foreach (var member in onlineMembers)
+            keysToDelete.Add(ConnSetKey(member.ToString()));
+
+        await db.KeyDeleteAsync(keysToDelete.ToArray());
     }
+
+    private static string ConnSetKey(Guid userId)   => $"presence:connections:{userId}";
+    private static string ConnSetKey(string userId) => $"presence:connections:{userId}";
 
     // Retries the Redis operation up to 3 times with exponential backoff (200ms, 400ms, 800ms).
     // On final failure, logs a warning and continues — a Redis blip must not crash connections.

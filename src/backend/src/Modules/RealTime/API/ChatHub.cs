@@ -88,7 +88,7 @@ public sealed class ChatHub : Hub<IChatHubClient>
     {
         var userId = Context.User?.GetInternalUserId();
         if (userId is null) return;
-        await _presence.ReassertAsync(userId.Value);
+        await _presence.ReassertAsync(userId.Value, Context.ConnectionId);
     }
 
     public Task JoinRoom(string roomId)
