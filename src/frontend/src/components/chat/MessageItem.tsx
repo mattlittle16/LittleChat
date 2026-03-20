@@ -70,7 +70,9 @@ async function openDmWithUser(userId: string) {
 
 export function MessageItem({ message, isGrouped = false, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
   const authorId = isOutbox(message) ? null : message.author.id
-  const isAuthorOnline = usePresenceStore(s => authorId ? s.isOnline(authorId) : false)
+  const isSystemAuthor = !authorId || authorId === '00000000-0000-0000-0000-000000000000'
+  const isAuthorOnline = usePresenceStore(s => (!isSystemAuthor && authorId) ? s.isOnline(authorId) : false)
+  const showAuthorOnline = isSystemAuthor || isAuthorOnline
   const currentUserId = useCurrentUserStore(s => s.id)
   const isOwn = !isOutbox(message) && message.author.id === currentUserId
   const authorProfile = useUserProfileStore(s => authorId ? s.profiles[authorId] : undefined)
@@ -258,7 +260,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
                 onClick={() => openDmWithUser(message.author.id)}
                 title={`DM ${message.author.displayName}`}
               >
-                <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${showAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
                 {authorProfile?.displayName ?? message.author.displayName}
               </button>
               <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>

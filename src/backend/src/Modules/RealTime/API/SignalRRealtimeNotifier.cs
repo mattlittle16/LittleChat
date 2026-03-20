@@ -57,6 +57,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 user.RoomMembershipChanged(a.RoomId, a.AddedUserId, "added"),
             "RemovedFromRoom" when payload is MemberRemovedIntegrationEvent r =>
                 user.RemovedFromRoom(r.RoomId),
+            "ForceLogout" =>
+                user.ForceLogout(),
             _ => Task.CompletedTask,
         };
     }

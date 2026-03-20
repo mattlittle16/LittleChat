@@ -21,6 +21,8 @@ services:
       - MESSAGE_PAGE_SIZE=${MESSAGE_PAGE_SIZE:-100}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - KLIPY_API_KEY=${KLIPY_API_KEY}
+      - ADMIN_CLAIM_FIELD=${ADMIN_CLAIM_FIELD:-groups}
+      - ADMIN_CLAIM_VALUES=${ADMIN_CLAIM_VALUES:-app-admin}
     depends_on:
       chat-db:
         condition: service_healthy

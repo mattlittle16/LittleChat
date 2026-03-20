@@ -70,6 +70,10 @@ export function useSignalR(roomId: string | null) {
 
       connection.on('ReceiveMessage', (msg: Message) => {
         addMessage(msg)
+
+        const isSystemMessage = !msg.author?.id || msg.author.id === '00000000-0000-0000-0000-000000000000'
+        if (isSystemMessage) return
+
         // Update unread badge if this isn't the currently visible room,
         // or if it is but the tab is hidden (user is in another tab)
         if (msg.roomId !== activeRoomId || document.hidden) {

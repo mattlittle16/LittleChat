@@ -299,6 +299,14 @@ public sealed class RoomRepository : IRoomRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Guid>> GetTopicIdsForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await _db.Rooms
+            .Where(r => !r.IsDm && r.Memberships.Any(m => m.UserId == userId))
+            .Select(r => r.Id)
+            .ToListAsync(ct);
+    }
+
     public async Task<Room?> GetByIdAsync(Guid roomId, CancellationToken ct = default)
     {
         var entity = await _db.Rooms

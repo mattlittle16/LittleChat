@@ -23,9 +23,11 @@ import { useUserProfileStore } from '../../stores/userProfileStore'
 import { UserProfileDialog } from '../profile/UserProfileDialog'
 import { OnboardingWizardModal } from '../onboarding/OnboardingWizardModal'
 import { NotificationCenter } from '../notifications/NotificationCenter'
+import { useAdminAuth } from '../../hooks/useAdminAuth'
 
 export function ChatLayout() {
   const { activeRoomId, rooms } = useRoomStore()
+  const { isAdmin } = useAdminAuth()
   const { status } = useSignalR(activeRoomId)
   const [view, setView] = useState<'chat' | 'notifications'>('chat')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -446,6 +448,14 @@ export function ChatLayout() {
                     >
                       Notification Settings
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => { window.location.href = '/admin' }}
+                        className="w-full px-3 py-2 text-left hover:bg-muted/60"
+                      >
+                        Admin Panel
+                      </button>
+                    )}
                     <div className="border-t" />
                     <button
                       onClick={logout}

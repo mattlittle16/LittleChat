@@ -1,4 +1,7 @@
+import { Bot } from 'lucide-react'
 import { AuthedImg } from '../chat/AuthedImg'
+
+const ZERO_GUID = '00000000-0000-0000-0000-000000000000'
 
 interface UserAvatarProps {
   userId: string
@@ -8,8 +11,8 @@ interface UserAvatarProps {
   size?: number
 }
 
-function colorFromUserId(userId: string): string {
-  // Simple deterministic color from userId characters
+function colorFromUserId(userId: string | null | undefined): string {
+  if (!userId) return 'hsl(0, 0%, 60%)'
   let hash = 0
   for (let i = 0; i < userId.length; i++) {
     hash = userId.charCodeAt(i) + ((hash << 5) - hash)
@@ -19,12 +22,22 @@ function colorFromUserId(userId: string): string {
 }
 
 export function UserAvatar({ userId, displayName, profileImageUrl, avatarUrl, size = 32 }: UserAvatarProps) {
-  const style: React.CSSProperties = {
+  const circleStyle: React.CSSProperties = {
     width: size,
     height: size,
     borderRadius: '50%',
     flexShrink: 0,
-    objectFit: 'cover',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
+
+  if (!userId || userId === ZERO_GUID) {
+    return (
+      <div style={{ ...circleStyle, background: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }}>
+        <Bot style={{ width: size * 0.55, height: size * 0.55 }} strokeWidth={1.75} />
+      </div>
+    )
   }
 
   if (profileImageUrl) {
@@ -43,7 +56,7 @@ export function UserAvatar({ userId, displayName, profileImageUrl, avatarUrl, si
       <img
         src={avatarUrl}
         alt={displayName}
-        style={style}
+        style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
       />
     )
   }
@@ -51,10 +64,7 @@ export function UserAvatar({ userId, displayName, profileImageUrl, avatarUrl, si
   return (
     <div
       style={{
-        ...style,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        ...circleStyle,
         background: colorFromUserId(userId),
         color: '#fff',
         fontSize: size * 0.4,
