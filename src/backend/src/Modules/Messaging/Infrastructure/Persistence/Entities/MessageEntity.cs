@@ -8,6 +8,7 @@ public sealed class MessageEntity
     public Guid RoomId { get; set; }
     public Guid? UserId { get; set; }
     public bool IsSystem { get; set; }
+    public string? AuthorDisplayName { get; set; }
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? EditedAt { get; set; }

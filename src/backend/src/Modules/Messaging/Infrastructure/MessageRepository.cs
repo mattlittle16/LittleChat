@@ -18,12 +18,13 @@ public sealed class MessageRepository : IMessageRepository
     {
         var entity = new MessageEntity
         {
-            Id        = message.Id,
-            RoomId    = message.RoomId,
-            UserId    = message.UserId,
-            Content   = message.Content,
-            CreatedAt = message.CreatedAt,
-            ExpiresAt = message.ExpiresAt,
+            Id                = message.Id,
+            RoomId            = message.RoomId,
+            UserId            = message.UserId,
+            AuthorDisplayName = message.UserId is null ? message.AuthorDisplayName : null,
+            Content           = message.Content,
+            CreatedAt         = message.CreatedAt,
+            ExpiresAt         = message.ExpiresAt,
         };
 
         // Add attachment entities
@@ -233,7 +234,7 @@ public sealed class MessageRepository : IMessageRepository
         Id:                e.Id,
         RoomId:            e.RoomId,
         UserId:            e.UserId,
-        AuthorDisplayName: e.User?.DisplayName ?? string.Empty,
+        AuthorDisplayName: e.User?.DisplayName ?? e.AuthorDisplayName ?? string.Empty,
         AuthorAvatarUrl:   e.User?.AvatarUrl,
         Content:           e.Content,
         Attachments:       e.Attachments

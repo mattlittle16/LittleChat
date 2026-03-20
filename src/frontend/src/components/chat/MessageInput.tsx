@@ -1,4 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
+import { Smile, HelpCircle } from 'lucide-react'
 import { InlineMarkdownEditor } from './InlineMarkdownEditor'
 import type { InlineMarkdownEditorRef } from './InlineMarkdownEditor'
 import { useOutboxStore } from '../../stores/outboxStore'
@@ -6,6 +9,7 @@ import { getConnection } from '../../services/signalrClient'
 import { getAccessToken, api } from '../../services/apiClient'
 import { FileUploadProgress } from '../files/FileUploadProgress'
 import { GifPicker } from './GifPicker'
+import { emojiMap } from './emojiMap'
 import type { UserSearchResult } from '../../types'
 
 const TYPING_DEBOUNCE_MS = 500
@@ -41,6 +45,16 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const [gifSearchTerm, setGifSearchTerm] = useState<string | null>(null)
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
+  const [shortcodeHelpOpen, setShortcodeHelpOpen] = useState(false)
+  const [shortcodeHelpPos, setShortcodeHelpPos] = useState<{ top: number; left: number } | null>(null)
+  const [shortcodeQuery, setShortcodeQuery] = useState<string | null>(null)
+  const [shortcodeMatches, setShortcodeMatches] = useState<[string, string][]>([])
+  const [shortcodeIndex, setShortcodeIndex] = useState(0)
+  const [shortcodeDropdownPos, setShortcodeDropdownPos] = useState<{ top: number; left: number } | null>(null)
+  const emojiButtonRef = useRef<HTMLButtonElement>(null)
+  const helpButtonRef = useRef<HTMLButtonElement>(null)
   const editorRef = useRef<InlineMarkdownEditorRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -83,6 +97,36 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
     }
   }
 
+  function detectShortcode(text: string, cursorPos: number) {
+    const before = text.slice(0, cursorPos)
+    const match = before.match(/:([+\w-]*)$/)
+    if (match && match[1].length >= 1) {
+      const query = match[1]
+      const matches = Object.entries(emojiMap)
+        .filter(([code]) => code.startsWith(query))
+        .slice(0, 8) as [string, string][]
+      if (matches.length > 0) {
+        setShortcodeQuery(query)
+        setShortcodeMatches(matches)
+        setShortcodeIndex(0)
+        const coords = editorRef.current?.getCursorScreenCoords()
+        if (coords) setShortcodeDropdownPos({ top: coords.top, left: coords.left })
+        return
+      }
+    }
+    setShortcodeQuery(null)
+    setShortcodeMatches([])
+    setShortcodeDropdownPos(null)
+  }
+
+  function completeShortcodeSelection(emoji: string) {
+    if (shortcodeQuery === null) return
+    editorRef.current?.completeShortcode(1 + shortcodeQuery.length, emoji)
+    setShortcodeQuery(null)
+    setShortcodeMatches([])
+    setShortcodeDropdownPos(null)
+  }
+
   function completeMention(displayName: string) {
     const cursorPos = cursorPosRef.current
     const text = latestContentRef.current
@@ -121,6 +165,31 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   }
 
   function handleMentionKeyDown(e: React.KeyboardEvent) {
+    // Shortcode autocomplete takes priority
+    if (shortcodeQuery !== null && shortcodeMatches.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setShortcodeIndex(i => (i + 1) % shortcodeMatches.length)
+        return true
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setShortcodeIndex(i => (i - 1 + shortcodeMatches.length) % shortcodeMatches.length)
+        return true
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        completeShortcodeSelection(shortcodeMatches[shortcodeIndex][1])
+        return true
+      }
+      if (e.key === 'Escape') {
+        setShortcodeQuery(null)
+        setShortcodeMatches([])
+        setShortcodeDropdownPos(null)
+        return true
+      }
+    }
+
     if (mentionQuery === null || mentionUsers.length === 0) return false
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -277,13 +346,33 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
       await submitWithFiles()
       return
     }
-    const trimmed = content.trim()
+    const trimmed = latestContentRef.current.trim()
     if (!trimmed || trimmed.length > MAX_LENGTH) return
     // Don't send the raw /klipy command — it's a GIF picker trigger, not a message
     if (trimmed.startsWith('/klipy')) return
     setContent('')
     await enqueue(roomId, trimmed)
     editorRef.current?.focus()
+  }
+
+  function openEmojiPicker() {
+    if (!emojiButtonRef.current) return
+    const rect = emojiButtonRef.current.getBoundingClientRect()
+    setEmojiPickerPos({ top: rect.top - 370, left: rect.left - 260 })
+    setEmojiPickerOpen(true)
+  }
+
+  function handleEmojiSelect(data: EmojiClickData) {
+    editorRef.current?.insertText(data.emoji)
+    setEmojiPickerOpen(false)
+    setEmojiPickerPos(null)
+  }
+
+  function openShortcodeHelp() {
+    if (!helpButtonRef.current) return
+    const rect = helpButtonRef.current.getBoundingClientRect()
+    setShortcodeHelpPos({ top: rect.top - 370, left: rect.left - 220 })
+    setShortcodeHelpOpen(v => !v)
   }
 
   const remaining = MAX_LENGTH - content.length
@@ -403,7 +492,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
             </div>
           )}
 
-          <div onKeyDown={e => { handleMentionKeyDown(e) }}>
+          <div onKeyDown={e => { handleMentionKeyDown(e) }} onClick={() => editorRef.current?.focus()}>
             <InlineMarkdownEditor
               ref={editorRef}
               value={content}
@@ -412,6 +501,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
                 setContent(md)
                 if (md.length > 0) notifyTyping()
                 detectMention(md, cursorPosRef.current)
+                detectShortcode(md, cursorPosRef.current)
                 const trimmed = md.trimStart()
                 if (trimmed.startsWith('/klipy ')) {
                   const term = trimmed.slice('/klipy '.length).trim()
@@ -423,6 +513,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
               onCursorChange={(pos) => {
                 cursorPosRef.current = pos
                 detectMention(latestContentRef.current, pos)
+                detectShortcode(latestContentRef.current, pos)
               }}
               onSubmit={submit}
               onArrowUpOnEmpty={onArrowUpOnEmpty}
@@ -431,7 +522,77 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
               disabled={isDisabled || isUploading}
             />
           </div>
+          {/* Help button — shortcode reference, sits left of emoji button */}
+          <button
+            ref={helpButtonRef}
+            type="button"
+            onClick={openShortcodeHelp}
+            title="Emoji shortcodes"
+            className="absolute bottom-1.5 right-8 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <HelpCircle size={14} />
+          </button>
+          {/* Emoji button — overlaid bottom-right of the text area */}
+          <button
+            ref={emojiButtonRef}
+            type="button"
+            onClick={openEmojiPicker}
+            disabled={isDisabled || isUploading}
+            title="Insert emoji"
+            className="absolute bottom-1.5 right-1.5 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-40 transition-colors"
+          >
+            <Smile size={16} />
+          </button>
         </div>
+        {shortcodeHelpOpen && shortcodeHelpPos && createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => { setShortcodeHelpOpen(false); setShortcodeHelpPos(null) }} />
+            <div
+              className="fixed z-[9999] w-56 rounded-lg border bg-background shadow-lg overflow-hidden"
+              style={{ top: shortcodeHelpPos.top, left: shortcodeHelpPos.left }}
+            >
+              <div className="px-3 py-2 border-b text-xs font-semibold text-muted-foreground">
+                Emoji shortcodes — type <span className="font-mono">:name:</span> then space
+              </div>
+              <div className="overflow-y-auto max-h-80">
+                {Object.entries(emojiMap).map(([code, emoji]) => (
+                  <div key={code} className="flex items-center gap-2 px-3 py-1 hover:bg-muted/50 text-sm">
+                    <span className="text-base leading-none">{emoji}</span>
+                    <span className="font-mono text-xs text-muted-foreground">:{code}:</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>,
+          document.body,
+        )}
+        {shortcodeQuery !== null && shortcodeMatches.length > 0 && shortcodeDropdownPos && createPortal(
+          <div
+            className="fixed z-[9999] w-52 rounded-md border bg-background shadow-lg overflow-hidden"
+            style={{ top: shortcodeDropdownPos.top, left: shortcodeDropdownPos.left, transform: 'translateY(calc(-100% - 4px))' }}
+          >
+            {shortcodeMatches.map(([code, emoji], i) => (
+              <button
+                key={code}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left ${i === shortcodeIndex ? 'bg-muted' : 'hover:bg-muted/60'}`}
+                onMouseDown={e => { e.preventDefault(); completeShortcodeSelection(emoji) }}
+              >
+                <span className="text-base leading-none">{emoji}</span>
+                <span className="font-mono text-xs text-muted-foreground">:{code}:</span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+        {emojiPickerOpen && emojiPickerPos && createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => { setEmojiPickerOpen(false); setEmojiPickerPos(null) }} />
+            <div className="fixed z-[9999]" style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}>
+              <EmojiPicker onEmojiClick={handleEmojiSelect} lazyLoadEmojis height={350} width={300} />
+            </div>
+          </>,
+          document.body,
+        )}
 
         {/* Clip button — between text area and Send */}
         <button

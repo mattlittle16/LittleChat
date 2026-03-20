@@ -7,6 +7,7 @@ import { markInputRule } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { DelimiterRevealExtension } from './DelimiterRevealExtension'
+import { EmojiShortcodeExtension } from './EmojiShortcodeExtension'
 
 // Italic: only _text_ (not *text*, which is reserved for bold like Slack)
 const SlackItalic = Italic.extend({
@@ -29,6 +30,9 @@ const SlackBold = Bold.extend({
 
 export interface InlineMarkdownEditorRef {
   focus: () => void
+  insertText: (text: string) => void
+  getCursorScreenCoords: () => { top: number; bottom: number; left: number } | null
+  completeShortcode: (colonPlusQueryLength: number, emoji: string) => void
 }
 
 interface Props {
@@ -132,6 +136,7 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
         SlackBold,
         SlackItalic,
         DelimiterRevealExtension,
+        EmojiShortcodeExtension,
       ],
       content: markdownToHtml(value),
       autofocus: autoFocus ? 'end' : false,
@@ -210,9 +215,24 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
       editor.setEditable(!disabled)
     }, [editor, disabled])
 
-    // Expose a focus() method to parent components via ref
+    // Expose methods to parent components via ref
     useImperativeHandle(ref, () => ({
       focus: () => { editor?.commands.focus('end') },
+      insertText: (text: string) => { editor?.chain().focus().insertContent(text).run() },
+      getCursorScreenCoords: () => {
+        if (!editor) return null
+        const { from } = editor.state.selection
+        return editor.view.coordsAtPos(from)
+      },
+      completeShortcode: (colonPlusQueryLength: number, emoji: string) => {
+        if (!editor) return
+        const { from } = editor.state.selection
+        editor.chain()
+          .focus()
+          .deleteRange({ from: from - colonPlusQueryLength, to: from })
+          .insertContent(emoji)
+          .run()
+      },
     }), [editor])
 
     const isEmpty = editor?.isEmpty ?? true

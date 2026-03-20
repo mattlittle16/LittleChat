@@ -60,9 +60,10 @@ public sealed class RoomRepository : IRoomRepository
             ),
             unread_counts AS (
                 SELECT m.room_id,
-                       COUNT(*) FILTER (WHERE m.created_at > ur.last_read_at) AS unread_count,
+                       COUNT(*) FILTER (WHERE m.created_at > ur.last_read_at AND m.user_id IS NOT NULL) AS unread_count,
                        BOOL_OR(
                            m.created_at > ur.last_read_at
+                           AND m.user_id IS NOT NULL
                            AND m.content LIKE '%@' || $2 || '%'
                        ) AS has_mention
                 FROM messages m
