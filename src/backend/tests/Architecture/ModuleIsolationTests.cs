@@ -13,7 +13,7 @@ public class ModuleIsolationTests
     private static readonly string[] Modules =
     [
         "Identity", "Messaging", "Presence", "Reactions",
-        "Search", "Files", "Notifications", "RealTime",
+        "Search", "Files", "Notifications", "RealTime", "Admin",
     ];
 
     /// <summary>
@@ -33,6 +33,8 @@ public class ModuleIsolationTests
         _ = typeof(Search.Application.Queries.SearchQuery);
         _ = typeof(Notifications.Application.Handlers.UserMentionedHandler);
         _ = typeof(Notifications.API.NotificationsEndpoints);
+        _ = typeof(LittleChat.Modules.Admin.Domain.AuditLogEntry);
+        _ = typeof(LittleChat.Modules.Admin.Application.Queries.GetUsersQueryHandler);
 
         return AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => Modules.Any(m => a.GetName().Name?.StartsWith(m + ".") == true))

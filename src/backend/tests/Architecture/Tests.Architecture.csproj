@@ -45,6 +45,8 @@
     <ProjectReference Include="..\..\src\Modules\Notifications\API\Notifications.API.csproj" />
     <ProjectReference Include="..\..\src\Modules\RealTime\Domain\RealTime.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\RealTime\Application\RealTime.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Admin\Domain\Admin.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Admin\Application\Admin.Application.csproj" />
   </ItemGroup>
 
 </Project>

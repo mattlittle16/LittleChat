@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr'
 import { getAccessToken } from './apiClient'
+import { clearSession } from './authService'
 import { useOutboxStore } from '../stores/outboxStore'
 import { useUserProfileStore } from '../stores/userProfileStore'
 
@@ -60,6 +61,11 @@ export async function startConnection(
 
   _connection.on('UserProfileUpdated', ({ userId, displayName, profileImageUrl }: { userId: string; displayName: string; profileImageUrl: string | null }) => {
     useUserProfileStore.getState().updateUser(userId, { displayName, profileImageUrl })
+  })
+
+  _connection.on('ForceLogout', () => {
+    clearSession()
+    window.location.href = '/'
   })
 
   await _connection.start()

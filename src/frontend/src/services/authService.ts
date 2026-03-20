@@ -70,6 +70,13 @@ export function getCurrentUserId(): string | null {
   }
 }
 
+/** Clears the stored auth session (used on force-logout). */
+export function clearSession(): void {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(TOKEN_EXPIRY_KEY)
+  setAccessToken(null)
+}
+
 /** Called on app startup — restores token from localStorage into in-memory store. */
 export function restoreSession(): boolean {
   const token = getToken()

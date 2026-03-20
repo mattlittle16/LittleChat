@@ -11,7 +11,8 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BellOff, Search, Settings, ChevronDown, ChevronRight, Lock, GripVertical } from 'lucide-react'
+import { BellOff, Search, Settings, ChevronDown, ChevronRight, Lock, GripVertical, ShieldCheck } from 'lucide-react'
+import { useAdminAuth } from '../../hooks/useAdminAuth'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
@@ -62,6 +63,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const { groups, fetchGroups, setCollapsed, assignRoom, unassignRoom, reorderRooms } = useSidebarGroupStore()
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const currentUserId = useCurrentUserStore(s => s.id)
+  const { isAdmin } = useAdminAuth()
   const currentProfile = useUserProfileStore(s => currentUserId ? s.profiles[currentUserId] : undefined)
 
   const sensors = useSensors(
@@ -346,6 +348,15 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               <span className="text-xs truncate" style={{ color: 'hsl(var(--sidebar-fg))' }}>
                 {currentProfile?.displayName ?? ''}
               </span>
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => { window.location.href = '/admin' }}
+              className="p-1 rounded transition-colors hover:bg-sidebar-active-bg/50"
+              title="Admin Panel"
+            >
+              <ShieldCheck className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
             </button>
           )}
           <ThemeToggle />

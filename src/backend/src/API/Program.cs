@@ -2,6 +2,10 @@ using System.Security.Claims;
 using API;
 using API.Services;
 using Files.API;
+using LittleChat.Modules.Admin.API;
+using LittleChat.Modules.Admin.Application.Commands;
+using LittleChat.Modules.Admin.Infrastructure;
+using LittleChat.Modules.Admin.Infrastructure.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Identity.API;
@@ -235,6 +239,14 @@ builder.Services.AddScoped<IIntegrationEventHandler<MemberAddedIntegrationEvent>
 builder.Services.AddScoped<IIntegrationEventHandler<MemberRemovedIntegrationEvent>, MemberRemovedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<UserProfileUpdatedIntegrationEvent>, UserProfileUpdatedHandler>();
 
+// Admin module
+builder.Services.AddAdminModule(builder.Configuration);
+builder.Services.AddScoped<IIntegrationEventHandler<UserForceLoggedOutIntegrationEvent>, UserForceLoggedOutHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<UserBannedIntegrationEvent>, UserBannedMessageHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<UserUnbannedIntegrationEvent>, UserUnbannedMessageHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<AdminAddedTopicMemberIntegrationEvent>, AdminAddedTopicMemberMessageHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<AdminRemovedTopicMemberIntegrationEvent>, AdminRemovedTopicMemberMessageHandler>();
+
 // Other modules
 builder.Services.AddPresenceModule();
 builder.Services.AddPresenceInfrastructure();
@@ -258,6 +270,8 @@ var app = builder.Build();
     await messagingDb.Database.MigrateAsync();
     var notificationsDb = scope.ServiceProvider.GetRequiredService<Notifications.Infrastructure.NotificationsDbContext>();
     await notificationsDb.Database.MigrateAsync();
+    var adminDb = scope.ServiceProvider.GetRequiredService<LittleChat.Modules.Admin.Infrastructure.AdminDbContext>();
+    await adminDb.Database.MigrateAsync();
 
     // Seed the General room if it doesn't exist yet (idempotent — checks is_protected flag)
     var generalRoom = messagingDb.Rooms
@@ -340,6 +354,7 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseAuthentication();
+app.UseTokenBlocklist();
 app.UseAuthorization();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -352,6 +367,7 @@ app.MapNotificationsEndpoints();
 app.MapGifEndpoints();
 app.MapVideoTokenEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
+app.MapAdminEndpoints();
 
 // Clear all presence state on startup so stale connection Sets from a previous run or crash
 // don't cause users to appear stuck online. Clients re-establish their presence as they
