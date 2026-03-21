@@ -1,30 +1,39 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change:       template (unfilled) → 1.0.0
-Bump type:            MINOR — initial ratification; all principles new
-Modified principles:  N/A (no prior principles; all are new)
-Added sections:       Core Principles (I–V), Additional Constraints, Development Workflow, Governance
-Removed sections:     All placeholder tokens replaced
+Version change:       1.0.0 → 1.1.1
+Bump type:            MINOR (1.1.0) — module list updated (Admin added); Principle IV exclusion
+                      list corrected; Last Amended date updated.
+                      PATCH (1.1.1) — MediatR version lock (≤12.5.0) added to Additional
+                      Constraints. Apache 2.0 ceiling enforced due to v13+ commercial licensing.
+
+Modified principles:
+  II. Module Isolation — "Admin" module added to the canonical module list
+  IV. Simplicity (YAGNI) — Removed "admin panel" and "multi-file uploads" from the
+      hard-exclusion list because both have been deliberately implemented.
+      Updated exclusion list to features genuinely out of scope at this time.
+
+Added sections:       None
+Removed sections:     None
 
 Templates checked:
   ✅ .specify/templates/plan-template.md
-       Constitution Check section is generic ([Gates determined based on constitution file]).
-       Functional for future features — each plan.md will now check against Principles I–V.
-       No structural change required; the gate content is filled at plan-time.
+       Constitution Check section is generic — no change needed. Plans evaluate
+       Principles I–V at authoring time; the template wording is still correct.
   ✅ .specify/templates/spec-template.md
-       No mandatory section additions required. Existing structure (user stories,
-       functional requirements, success criteria) is sufficient for constitution compliance.
+       No mandatory section additions required. Existing structure remains compatible.
   ✅ .specify/templates/tasks-template.md
-       "Security hardening" already present in Polish phase. Module isolation task type
-       (NetArchTest) established as a pattern in 001-chat-mvp. Template is compatible.
-  ✅ No .specify/templates/commands/ directory exists — no command files to update.
-  ✅ No docs/ directory exists — no runtime guidance docs to update.
-  ✅ CLAUDE.md updated by agent context script; no constitution-specific changes required.
+       "Security hardening" in Polish phase still present. Module list in Principle II
+       is checked at plan-time, not in the task template. No structural change needed.
+  ✅ No .specify/templates/commands/ directory — no command files to update.
+  ✅ No docs/ directory — no runtime guidance docs to update.
+  ✅ CLAUDE.md — Constitution version reference is indirect; no inline version citation
+       in CLAUDE.md to update. Covered by MEMORY.md pointer.
 
-Deferred TODOs:        None — all sections fully resolved.
-Follow-up:             Retroactively apply Constitution Check gates to specs/001-chat-mvp/plan.md
-                       on next plan revision (currently reads "N/A — constitution not yet defined").
+Deferred TODOs:       None — all sections fully resolved.
+Follow-up:            Re-evaluate Principle V (outbox resilience) when full outbox
+                      implementation is audited; the principle may need an amendment
+                      if IndexedDB outbox was never completed for the MVP.
 -->
 
 # LittleChat Constitution
@@ -50,9 +59,9 @@ every visible message is recoverable, auditable, and consistent across all clien
 
 ### II. Module Isolation — Compile-Time Boundaries
 
-Each module (Identity, Messaging, Presence, Reactions, Search, Files, Notifications, RealTime)
-MUST NOT directly reference classes, types, or namespaces from another module's projects.
-Cross-module communication MUST occur exclusively through:
+Each module (Identity, Messaging, Presence, Reactions, Search, Files, Notifications,
+RealTime, Admin) MUST NOT directly reference classes, types, or namespaces from another
+module's projects. Cross-module communication MUST occur exclusively through:
 
 - `LittleChat.Shared.Contracts` (integration events, shared interfaces, shared DTOs)
 - `IEventBus` (integration events dispatched asynchronously between modules)
@@ -88,6 +97,8 @@ Additionally:
   claim is the sole stable user identifier — display names MUST NOT be used as identity keys.
 - Access tokens MUST be stored in `localStorage` to support session persistence across
   browser close, accepting the XSS tradeoff as appropriate for this small trusted group.
+- Admin-only endpoints MUST use a dedicated authorization policy that verifies the
+  `admin` role claim; they MUST NOT be accessible to non-admin authenticated users.
 
 **Rationale**: This application stores private communications. Unauthenticated access
 to any data endpoint is a confidentiality failure. The user population is small and trusted,
@@ -97,6 +108,7 @@ making the localStorage tradeoff acceptable in lieu of a full refresh-token rota
 - Every new endpoint MUST be listed with its auth requirement in the REST or SignalR contract.
 - Any endpoint serving user-generated content (files, messages) MUST include a membership
   or ownership validation step in its implementation design.
+- Admin endpoints MUST explicitly name the authorization policy applied.
 
 ---
 
@@ -110,9 +122,9 @@ that satisfies the stated requirement.
   the deployment genuinely requires it.
 - List virtualisation, caching layers, and CDN offloading MUST NOT be introduced until
   profiling confirms they are needed.
-- Features explicitly excluded in the spec (threaded replies, admin panel, push/email
-  notifications, private rooms, multi-file uploads) MUST NOT be partially implemented
-  as "hooks" or "future-proofing" without explicit approval.
+- Features explicitly out of scope at this time (threaded replies, push/email notifications,
+  per-user private rooms, mobile apps) MUST NOT be partially implemented as "hooks" or
+  "future-proofing" without explicit approval.
 - Hard deletes are used everywhere; soft deletes MUST NOT be introduced.
 
 **Rationale**: Premature complexity increases maintenance cost, introduces bugs, and
@@ -167,6 +179,13 @@ dropped. Resilience is a correctness property, not a nice-to-have.
   configurable at deployment time without code changes.
 - **Idempotency**: Message creation uses client-generated UUIDs as primary keys.
   Duplicate inserts with the same `clientId` MUST be silently ignored by the server.
+- **MediatR version lock**: MediatR MUST NOT be upgraded beyond **12.5.0**. v13+ moved to
+  a commercial license (RPL-1.5 / paid). 12.5.0 is the last Apache 2.0 release and is the
+  permanent ceiling for this project. Any PR bumping MediatR above 12.5.0 MUST be rejected.
+- **System messages**: Messages sent by the system (ban notices, join/leave events) MUST
+  use `user_id = NULL` as the discriminator. The `author_display_name` column MUST be
+  persisted for system messages so the sender name survives page reload. System messages
+  MUST NOT increment unread counts or trigger mention notifications.
 
 ---
 
@@ -201,11 +220,10 @@ This constitution supersedes all other implicit practices. Amendments require:
    - **MINOR**: New principle or section added, or material guidance expanded.
    - **PATCH**: Clarifications, wording improvements, typo fixes, non-semantic changes.
 
-
-For any work that does database changes, you MUST use Entity Framework tools to generate migrations. Do not attempt to create manually. 
-
+For any work that does database changes, you MUST use Entity Framework tools to generate
+migrations. Do not attempt to create them manually.
 
 All pull requests MUST verify compliance with each applicable principle before merge.
 Complexity MUST be justified; default answer to "should we add this?" is no.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-01 | **Last Amended**: 2026-03-01
+**Version**: 1.1.1 | **Ratified**: 2026-03-01 | **Last Amended**: 2026-03-21

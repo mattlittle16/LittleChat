@@ -24,13 +24,18 @@
 | 💬 **Real-time messaging** | WebSocket-powered via ASP.NET Core SignalR |
 | 🏠 **Rooms & Direct Messages** | Same underlying primitive, unified experience |
 | ✍️ **Inline markdown editor** | *italic*, **bold**, `code`, ~~strikethrough~~ as you type |
-| 👍 **Reactions** | Emoji reactions on any message |
-| 📎 **File attachments** | Up to 200 MB per message |
+| 😄 **Emoji shortcuts** | Type `:lol:` → 😂, or pick from the GUI emoji picker |
+| 👍 **Reactions** | Emoji reactions on any message, with notifications |
+| 📎 **File attachments** | Images, video, and files up to 200 MB per message |
 | @ **Mentions** | Autocomplete with browser and toast notifications |
 | 🟢 **Live presence** | Real-time online/offline indicators |
-| 🔍 **Full-text search** | Across all rooms |
+| 🔍 **Full-text search** | Across all public rooms |
 | ✏️ **Edit & delete** | Your own messages, always |
 | 🔔 **Notification settings** | Per-room: all messages, mentions only, or muted |
+| 👤 **User profiles** | Avatar upload, display name, onboarding wizard |
+| 🗂️ **Topic management** | Create, join, reorder, and discover public topics |
+| 🛡️ **Admin panel** | User management, banning, topic control, and full audit log |
+| 🔄 **Update detection** | In-app banner when a new version is deployed |
 | 🔐 **OIDC authentication** | Any OIDC-compliant identity provider — no passwords, no registration |
 | 📦 **Offline resilience** | IndexedDB outbox queues messages during connectivity gaps |
 
@@ -49,7 +54,7 @@ graph LR
     Backend -->|OIDC| Authentik[Authentik IdP]
 ```
 
-The backend is a **modular monolith** — eight vertical modules deployed as a single unit with compile-time isolation enforced by architecture tests. Cross-module communication uses two patterns:
+The backend is a **modular monolith** — nine vertical modules deployed as a single unit with compile-time isolation enforced by architecture tests. Cross-module communication uses two patterns:
 
 - **Shared interfaces** (`IPresenceService`, `IRealtimeNotifier`, `IUserLookupService` …) — for direct cross-module calls via DI, without exposing internal implementations
 - **Integration events** (`MessageSentIntegrationEvent`, `UserFirstLoginIntegrationEvent` …) — for decoupled notifications via an in-memory event bus
@@ -62,14 +67,17 @@ Neither pattern creates a hard dependency on another module's internals, keeping
 
 | Layer | Technology |
 |---|---|
-| **Backend** | C# / .NET 8, ASP.NET Core, MediatR |
+| **Backend** | C# / .NET 8, ASP.NET Core, MediatR 12.x |
 | **Real-time** | ASP.NET Core SignalR + Valkey (Redis-compatible) backplane |
 | **Database** | PostgreSQL — raw SQL via Npgsql, EF Core for migrations |
 | **Frontend** | React 19, TypeScript 5.9, Vite 7 |
 | **Styling** | Tailwind CSS v4, shadcn/ui (slate theme) |
 | **State** | Zustand v5 |
-| **Editor** | Tiptap v2 (inline markdown compose box) |
+| **Editor** | Tiptap (inline markdown compose box) |
 | **Auth** | OIDC → JWT Bearer tokens |
+| **Image processing** | SixLabors.ImageSharp (resize, HEIC/HEIF support) |
+| **Drag & drop** | @dnd-kit (topic sidebar reordering) |
+| **Virtualisation** | @tanstack/react-virtual (large message lists) |
 | **Infrastructure** | Docker Compose, nginx, Nginx Proxy Manager |
 | **CI/CD** | GitHub Actions → self-hosted runner |
 
@@ -138,14 +146,15 @@ dotnet test tests/Architecture/
 │   │   │   ├── API/                  # Composition root — Program.cs, middleware
 │   │   │   ├── Shared/               # Contracts, interfaces, shared infrastructure
 │   │   │   └── Modules/
-│   │   │       ├── Identity/         # User sync, OIDC claims
-│   │   │       ├── Messaging/        # Rooms, DMs, messages
+│   │   │       ├── Identity/         # User sync, OIDC claims, profile management
+│   │   │       ├── Messaging/        # Rooms, DMs, messages, attachments
 │   │   │       ├── Presence/         # Online/offline tracking (Valkey TTL)
 │   │   │       ├── Reactions/        # Emoji reactions
 │   │   │       ├── Search/           # Full-text message search
-│   │   │       ├── Files/            # File upload and serving
-│   │   │       ├── Notifications/    # Per-room notification preferences
-│   │   │       └── RealTime/         # SignalR hub, event handlers
+│   │   │       ├── Files/            # File upload, serving, and image processing
+│   │   │       ├── Notifications/    # Per-room preferences, mention & reaction alerts
+│   │   │       ├── RealTime/         # SignalR hub, event handlers
+│   │   │       └── Admin/            # User management, banning, topic control, audit log
 │   │   └── tests/
 │   │       ├── Unit/
 │   │       └── Architecture/         # NetArchTest module boundary enforcement
@@ -191,11 +200,12 @@ A few intentional choices worth understanding:
 - **Persist-before-broadcast** — messages are written to the database before being broadcast. No phantom messages.
 - **Modular monolith** — modules deploy together but are architecturally isolated; boundaries are enforced by automated architecture tests.
 - **Hard deletes only** — no soft deletes anywhere in the codebase.
-- **Auto-join** — all users are automatically added to all rooms. New rooms auto-add all existing users.
 - **30-day message TTL** — messages are hard-deleted after 30 days by a background cleanup service.
-- **Single file per message** — one attachment per message, 200 MB max.
 - **JWT in localStorage** — an accepted tradeoff to support the offline-first IndexedDB outbox.
 - **DMs excluded from search** — global search covers public rooms only.
+- **System messages use `user_id = NULL`** — ban notices and system events are stored as regular messages but excluded from unread counts and notifications. The sender name is persisted so it survives page reloads.
+- **Admin audit log** — all admin actions (bans, unbans, member changes, topic create/delete) are recorded with timestamp, actor, and target.
+- **Token blocklist in Valkey** — banned users have their JWT invalidated immediately via a Redis-backed blocklist; they cannot reconnect until the ban expires.
 
 ---
 
