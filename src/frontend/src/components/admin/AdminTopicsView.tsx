@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Search, ChevronDown, ChevronRight, UserMinus, UserPlus } from 'lucide-react'
+import { Search, ChevronDown, ChevronRight, UserMinus, UserPlus, Plus, Trash2 } from 'lucide-react'
 import {
   getTopics, getTopicMembers, addTopicMember, removeTopicMember, getUsers,
+  createTopic, deleteTopic,
   type AdminTopic, type AdminTopicMember, type AdminUser, type PaginatedResult,
 } from '../../services/adminApiService'
 
@@ -22,6 +23,12 @@ export function AdminTopicsView() {
   const [addSearchLoading, setAddSearchLoading] = useState(false)
   const [addingId, setAddingId] = useState<string | null>(null)
   const [memberError, setMemberError] = useState<string | null>(null)
+
+  const [createName, setCreateName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const addDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -112,6 +119,41 @@ export function AdminTopicsView() {
     }
   }
 
+  async function handleCreateTopic(e: React.FormEvent) {
+    e.preventDefault()
+    const name = createName.trim()
+    if (!name) return
+    setCreating(true)
+    setCreateError(null)
+    try {
+      await createTopic(name)
+      setCreateName('')
+      fetchTopics(search, page)
+    } catch {
+      setCreateError('Failed to create topic.')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function handleDeleteTopic(topicId: string) {
+    if (confirmDeleteId !== topicId) {
+      setConfirmDeleteId(topicId)
+      return
+    }
+    setDeletingId(topicId)
+    setConfirmDeleteId(null)
+    try {
+      await deleteTopic(topicId)
+      if (expandedTopicId === topicId) setExpandedTopicId(null)
+      fetchTopics(search, page)
+    } catch {
+      // silently ignore — topic list will refresh on next action
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   function handleAddSearchChange(topicId: string, value: string) {
     setAddSearch(value)
     if (addDebounceRef.current) clearTimeout(addDebounceRef.current)
@@ -139,17 +181,37 @@ export function AdminTopicsView() {
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search topics…"
-          value={search}
-          onChange={e => handleSearchChange(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-border bg-muted/90 dark:bg-white/[0.06] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+      {/* Search + Create */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search topics…"
+            value={search}
+            onChange={e => handleSearchChange(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-border bg-muted/90 dark:bg-white/[0.06] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <form onSubmit={handleCreateTopic} className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="New topic name…"
+            value={createName}
+            onChange={e => setCreateName(e.target.value)}
+            className="pl-3 pr-3 py-2 text-sm rounded-md border border-border bg-muted/90 dark:bg-white/[0.06] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-44"
+          />
+          <button
+            type="submit"
+            disabled={creating || !createName.trim()}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-md border border-border hover:bg-muted/50 transition-colors disabled:opacity-40"
+          >
+            <Plus className="w-4 h-4" />
+            {creating ? 'Creating…' : 'Create'}
+          </button>
+        </form>
       </div>
+      {createError && <p className="text-sm text-destructive">{createError}</p>}
 
       {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -162,17 +224,33 @@ export function AdminTopicsView() {
             <div className="rounded-md border border-border overflow-hidden">
               {result.items.map(topic => (
                 <div key={topic.id}>
-                  <button
-                    onClick={() => toggleMembers(topic.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 transition-colors border-b border-border last:border-b-0 text-left"
-                  >
-                    {expandedTopicId === topic.id
-                      ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                      : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                    }
-                    <span className="flex-1 font-medium">{topic.name}</span>
-                    <span className="text-muted-foreground text-xs">{topic.memberCount} member{topic.memberCount !== 1 ? 's' : ''}</span>
-                  </button>
+                  <div className="flex items-center border-b border-border last:border-b-0">
+                    <button
+                      onClick={() => toggleMembers(topic.id)}
+                      className="flex-1 flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 transition-colors text-left"
+                    >
+                      {expandedTopicId === topic.id
+                        ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                        : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                      }
+                      <span className="flex-1 font-medium">{topic.name}</span>
+                      <span className="text-muted-foreground text-xs">{topic.memberCount} member{topic.memberCount !== 1 ? 's' : ''}</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTopic(topic.id)}
+                      disabled={deletingId === topic.id}
+                      onBlur={() => { if (confirmDeleteId === topic.id) setConfirmDeleteId(null) }}
+                      className={`flex items-center gap-1 text-xs px-3 py-3 transition-colors disabled:opacity-40 shrink-0 ${
+                        confirmDeleteId === topic.id
+                          ? 'text-white bg-destructive hover:bg-destructive/90'
+                          : 'text-destructive hover:bg-destructive/10'
+                      }`}
+                      title="Delete topic"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      {deletingId === topic.id ? 'Deleting…' : confirmDeleteId === topic.id ? 'Confirm?' : 'Delete'}
+                    </button>
+                  </div>
 
                   {expandedTopicId === topic.id && (
                     <div
