@@ -19,4 +19,8 @@ public interface IAdminRepository
     Task<bool> IsTopicMemberAsync(Guid topicId, Guid userId, CancellationToken ct = default);
     Task AddTopicMemberAsync(Guid topicId, Guid userId, CancellationToken ct = default);
     Task RemoveTopicMemberAsync(Guid topicId, Guid userId, CancellationToken ct = default);
+
+    Task<Guid> CreateTopicAsync(string name, Guid createdBy, CancellationToken ct = default);
+    Task<(string Name, bool IsProtected, bool IsDm)?> GetTopicInfoForDeleteAsync(Guid topicId, CancellationToken ct = default);
+    Task DeleteTopicAsync(Guid topicId, CancellationToken ct = default);
 }

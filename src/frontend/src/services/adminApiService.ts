@@ -87,6 +87,14 @@ export function removeTopicMember(topicId: string, userId: string): Promise<{ us
   return api.delete(`/api/admin/topics/${topicId}/members/${userId}`)
 }
 
+export function createTopic(name: string): Promise<{ topicId: string; name: string }> {
+  return api.post('/api/admin/topics', { name })
+}
+
+export function deleteTopic(topicId: string): Promise<{ topicId: string; name: string }> {
+  return api.delete(`/api/admin/topics/${topicId}`)
+}
+
 export function getAuditLog(params: { from?: string; to?: string; page?: number; pageSize?: number } = {}): Promise<PaginatedResult<AuditLogEntry>> {
   const query = new URLSearchParams()
   if (params.from) query.set('from', params.from)

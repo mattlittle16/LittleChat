@@ -166,4 +166,35 @@ public sealed class AdminRepository : IAdminRepository
         cmd.Parameters.AddWithValue(userId);
         await cmd.ExecuteNonQueryAsync(ct);
     }
+
+    public async Task<Guid> CreateTopicAsync(string name, Guid createdBy, CancellationToken ct = default)
+    {
+        var id = Guid.NewGuid();
+        await using var cmd = _dataSource.CreateCommand(@"
+            INSERT INTO rooms (id, name, is_dm, visibility, owner_id, created_by, created_at, is_protected)
+            VALUES ($1, $2, false, 'public', $3, $3, NOW(), false)");
+        cmd.Parameters.AddWithValue(id);
+        cmd.Parameters.AddWithValue(name);
+        cmd.Parameters.AddWithValue(createdBy);
+        await cmd.ExecuteNonQueryAsync(ct);
+        return id;
+    }
+
+    public async Task<(string Name, bool IsProtected, bool IsDm)?> GetTopicInfoForDeleteAsync(Guid topicId, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(@"
+            SELECT name, is_protected, is_dm FROM rooms WHERE id = $1");
+        cmd.Parameters.AddWithValue(topicId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct)) return null;
+        return (reader.GetString(0), reader.GetBoolean(1), reader.GetBoolean(2));
+    }
+
+    public async Task DeleteTopicAsync(Guid topicId, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(@"
+            DELETE FROM rooms WHERE id = $1");
+        cmd.Parameters.AddWithValue(topicId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
 }

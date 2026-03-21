@@ -67,6 +67,41 @@ public static class AdminEndpoints
             return Results.Ok(result);
         });
 
+        group.MapPost("/topics", async (
+            HttpContext ctx,
+            IMediator mediator,
+            CreateTopicRequest body) =>
+        {
+            var adminId = ctx.User.GetInternalUserId();
+            if (!adminId.HasValue) return Results.Unauthorized();
+            var adminName = ctx.User.FindFirst("preferred_username")?.Value
+                ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                ?? "Unknown";
+
+            var result = await mediator.Send(new AdminCreateTopicCommand(body.Name, adminId.Value, adminName));
+            return result.Match(
+                success     => Results.Ok(new { topicId = success.TopicId, name = success.Name }),
+                invalidName => Results.BadRequest(new { error = "Topic name cannot be empty." }));
+        });
+
+        group.MapDelete("/topics/{topicId:guid}", async (
+            Guid topicId,
+            HttpContext ctx,
+            IMediator mediator) =>
+        {
+            var adminId = ctx.User.GetInternalUserId();
+            if (!adminId.HasValue) return Results.Unauthorized();
+            var adminName = ctx.User.FindFirst("preferred_username")?.Value
+                ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                ?? "Unknown";
+
+            var result = await mediator.Send(new AdminDeleteTopicCommand(topicId, adminId.Value, adminName));
+            return result.Match(
+                success     => Results.Ok(new { topicId = success.TopicId, name = success.Name }),
+                notFound    => Results.NotFound(new { error = "Topic not found." }),
+                isProtected => Results.BadRequest(new { error = "Cannot delete a protected topic." }));
+        });
+
         group.MapGet("/topics/{topicId:guid}/members", async (Guid topicId, IMediator mediator) =>
         {
             var result = await mediator.Send(new GetTopicMembersQuery(topicId));
@@ -124,3 +159,4 @@ public static class AdminEndpoints
 
 public sealed record BanRequest(int BanDurationHours);
 public sealed record TopicMemberRequest(Guid UserId);
+public sealed record CreateTopicRequest(string Name);
