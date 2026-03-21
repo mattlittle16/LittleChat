@@ -69,4 +69,9 @@ C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventio
 
 
 <!-- MANUAL ADDITIONS START -->
+## Dependency Version Lock
+
+**MediatR is locked at ≤ 12.5.0.** Do NOT upgrade to v13 or later. MediatR went commercial
+(paid license) starting with v13.0.0 (July 2025). Version 12.5.0 is the last Apache 2.0
+release. Any PR or task that bumps MediatR beyond 12.5.0 MUST be rejected.
 <!-- MANUAL ADDITIONS END -->
