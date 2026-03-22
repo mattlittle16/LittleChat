@@ -33,7 +33,7 @@ public sealed class SidebarGroupRepository : ISidebarGroupRepository
             .ToListAsync(ct);
 
         var membershipsByGroup = memberships
-            .GroupBy(m => m.SidebarGroupId)
+            .GroupBy(m => m.SidebarGroupId!.Value)
             .ToDictionary(g => g.Key, g => g.Select(m => m.RoomId).ToList());
 
         return groups.Select(g => new SidebarGroupInfo(
