@@ -1,88 +1,144 @@
+import logo from '../assets/logo.svg'
 import { login } from '../services/authService'
 
 export function LandingPage() {
   return (
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden"
-      style={{ background: 'hsl(var(--background))' }}
+      style={{
+        background: 'hsl(252 14% 97%)',
+        backgroundImage: 'radial-gradient(circle, hsl(252 20% 78% / 0.5) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+      }}
     >
-      {/* Decorative shapes */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        {/* Top-left: large organic blob */}
-        <div style={{
-          position: 'absolute',
-          top: '-8%',
-          left: '-12%',
-          width: '52%',
-          paddingBottom: '46%',
-          borderRadius: '62% 38% 46% 54% / 60% 44% 56% 40%',
-          background: 'radial-gradient(ellipse at 40% 40%, hsl(243 72% 60% / 0.82), transparent 68%)',
-          filter: 'blur(40px)',
-          transform: 'rotate(-12deg)',
-        }} />
-        {/* Bottom-right: wide stretched diamond-ish */}
-        <div style={{
-          position: 'absolute',
-          bottom: '-10%',
-          right: '-8%',
-          width: '48%',
-          paddingBottom: '40%',
-          borderRadius: '38% 62% 55% 45% / 48% 38% 62% 52%',
-          background: 'radial-gradient(ellipse at 60% 60%, hsl(260 72% 65% / 0.75), transparent 68%)',
-          filter: 'blur(48px)',
-          transform: 'rotate(18deg)',
-        }} />
-        {/* Mid-right: smaller accent shape */}
-        <div style={{
-          position: 'absolute',
-          top: '35%',
-          right: '8%',
-          width: '28%',
-          paddingBottom: '32%',
-          borderRadius: '44% 56% 38% 62% / 55% 42% 58% 45%',
-          background: 'radial-gradient(ellipse at 50% 50%, hsl(220 72% 65% / 0.65), transparent 65%)',
-          filter: 'blur(36px)',
-          transform: 'rotate(8deg)',
-        }} />
-        {/* Bottom-left: thin horizontal bar shape */}
-        <div style={{
-          position: 'absolute',
-          bottom: '15%',
-          left: '5%',
-          width: '30%',
-          paddingBottom: '14%',
-          borderRadius: '70% 30% 65% 35% / 40% 60% 40% 60%',
-          background: 'radial-gradient(ellipse at 40% 60%, hsl(250 65% 68% / 0.60), transparent 70%)',
-          filter: 'blur(32px)',
-          transform: 'rotate(-6deg)',
-        }} />
-      </div>
-
-      {/* Sign-in card */}
+      {/* Static purple glow behind card */}
       <div
-        className="relative z-10 flex flex-col items-center gap-5 rounded-2xl px-10 py-10 shadow-2xl"
+        aria-hidden="true"
         style={{
-          background: 'hsl(var(--background) / 0.75)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid hsl(var(--border))',
-          minWidth: '320px',
+          position: 'absolute',
+          width: '560px',
+          height: '560px',
+          borderRadius: '50%',
+          background: 'radial-gradient(ellipse at center, hsl(258 65% 52% / 0.18) 0%, hsl(258 65% 52% / 0.06) 50%, transparent 70%)',
+          filter: 'blur(48px)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Unified hero card */}
+      <div
+        className="relative z-10 flex flex-col items-center"
+        style={{
+          width: '360px',
+          background: 'hsl(0 0% 100%)',
+          border: '1px solid hsl(252 10% 90%)',
+          borderRadius: '20px',
+          boxShadow: '0 4px 6px hsl(252 12% 10% / 0.04), 0 12px 32px hsl(252 12% 10% / 0.10), 0 0 0 1px hsl(258 30% 88% / 0.3)',
+          padding: '32px 28px 28px',
         }}
       >
-        <div className="flex flex-col items-center gap-1">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'hsl(var(--foreground))' }}>
-            LittleChat
-          </h1>
-          <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>
-            A private chat for your group.
-          </p>
+        {/* Logo mark */}
+        <div
+          style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '16px',
+            background: 'hsl(258 65% 52% / 0.08)',
+            border: '1px solid hsl(258 65% 52% / 0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 10px hsl(258 65% 52% / 0.12)',
+            marginBottom: '14px',
+          }}
+        >
+          <img src={logo} alt="LittleChat" style={{ width: '34px', height: '34px' }} />
         </div>
+
+        <h1
+          className="text-2xl font-bold tracking-tight"
+          style={{ color: 'hsl(252 12% 10%)', letterSpacing: '-0.02em', marginBottom: '3px' }}
+        >
+          LittleChat
+        </h1>
+        <p className="text-sm" style={{ color: 'hsl(252 8% 52%)', marginBottom: '20px' }}>
+          Your private space to talk.
+        </p>
+
+        {/* Decorative chat preview */}
+        <div
+          style={{
+            width: '100%',
+            background: 'hsl(252 14% 97%)',
+            border: '1px solid hsl(252 10% 90%)',
+            borderRadius: '12px',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            marginBottom: '20px',
+          }}
+        >
+          {/* Received bubble */}
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <span
+              style={{
+                background: 'hsl(252 10% 92%)',
+                color: 'hsl(252 12% 20%)',
+                borderRadius: '16px 16px 16px 4px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                maxWidth: '80%',
+              }}
+            >
+              Hey, is everyone here? 👋
+            </span>
+          </div>
+
+          {/* Sent bubble */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <span
+              style={{
+                background: 'hsl(258 65% 52%)',
+                color: '#fff',
+                borderRadius: '16px 16px 4px 16px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                maxWidth: '80%',
+              }}
+            >
+              Just signed in 😊
+            </span>
+          </div>
+
+          {/* Typing indicator */}
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <span
+              style={{
+                background: 'hsl(252 10% 92%)',
+                borderRadius: '16px 16px 16px 4px',
+                padding: '8px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </span>
+          </div>
+        </div>
+
+        <div style={{ width: '100%', height: '1px', background: 'hsl(252 10% 90%)', marginBottom: '20px' }} />
 
         <button
           onClick={login}
-          className="w-full rounded-lg px-6 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+          className="w-full rounded-lg px-6 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80"
           style={{
-            background: 'hsl(var(--primary))',
-            color: 'hsl(var(--primary-foreground))',
+            background: 'hsl(258 65% 52%)',
+            color: '#fff',
+            letterSpacing: '0.01em',
           }}
         >
           Sign In

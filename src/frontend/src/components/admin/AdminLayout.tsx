@@ -4,10 +4,12 @@ import { AdminUsersView } from './AdminUsersView'
 import { AdminTopicsView } from './AdminTopicsView'
 import { AdminAuditLogView } from './AdminAuditLogView'
 import { useThemeStore } from '../../stores/themeStore'
+import { useTheme } from '../../hooks/useTheme'
 
 type AdminTab = 'users' | 'topics' | 'audit-log'
 
 export function AdminLayout() {
+  useTheme()
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
   const { theme, toggleTheme } = useThemeStore()
 

@@ -7,12 +7,10 @@ import { SessionExpiredModal } from './components/SessionExpiredModal'
 import { UpdateBanner } from './components/UpdateBanner'
 import { isAuthenticated, restoreSession } from './services/authService'
 import { useAdminAuth } from './hooks/useAdminAuth'
-import { useTheme } from './hooks/useTheme'
 import { useFaviconBadge } from './hooks/useFaviconBadge'
 import { useUpdateDetection } from './hooks/useUpdateDetection'
 
 export default function App() {
-  useTheme()
   useFaviconBadge()
   const path = window.location.pathname
 
