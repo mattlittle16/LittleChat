@@ -256,6 +256,7 @@ builder.Services.AddFilesModule(builder.Configuration);
 builder.Services.AddNotificationsModule(builder.Configuration);
 builder.Services.AddNotificationsApiModule();
 builder.Services.AddRealTimeModule();
+builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 
 // ── Build ─────────────────────────────────────────────────────────────────────
 var app = builder.Build();
