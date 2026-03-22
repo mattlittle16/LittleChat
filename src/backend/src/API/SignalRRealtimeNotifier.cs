@@ -4,7 +4,7 @@ using Shared.Contracts.DTOs;
 using Shared.Contracts.Events;
 using Shared.Contracts.Interfaces;
 
-namespace RealTime.API;
+namespace API;
 
 public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
 {

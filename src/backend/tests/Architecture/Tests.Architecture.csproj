@@ -27,26 +27,52 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Architecture test project references all Domain + Application assemblies for isolation inspection.
-         This project is intentionally allowed to reference all modules — it is the quality gate, not a module itself. -->
+    <!-- Architecture test project intentionally references all layers of all modules.
+         It is the quality gate — it is exempt from the isolation rules it enforces. -->
+
+    <!-- Domain -->
     <ProjectReference Include="..\..\src\Modules\Identity\Domain\Identity.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Identity\Application\Identity.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Messaging\Domain\Messaging.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Messaging\Application\Messaging.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Presence\Domain\Presence.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Presence\Application\Presence.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reactions\Domain\Reactions.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Reactions\Application\Reactions.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Search\Domain\Search.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Search\Application\Search.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Files\Domain\Files.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Domain\Notifications.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Notifications\Application\Notifications.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Notifications\API\Notifications.API.csproj" />
     <ProjectReference Include="..\..\src\Modules\RealTime\Domain\RealTime.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\RealTime\Application\RealTime.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Admin\Domain\Admin.Domain.csproj" />
+
+    <!-- Application -->
+    <ProjectReference Include="..\..\src\Modules\Identity\Application\Identity.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Application\Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Presence\Application\Presence.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reactions\Application\Reactions.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\Application\Search.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Files\Application\Files.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Application\Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\RealTime\Application\RealTime.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Admin\Application\Admin.Application.csproj" />
+
+    <!-- API -->
+    <ProjectReference Include="..\..\src\Modules\Identity\API\Identity.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\API\Messaging.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Presence\API\Presence.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reactions\API\Reactions.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\API\Search.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Files\API\Files.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\API\Notifications.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\RealTime\API\RealTime.API.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Admin\API\Admin.API.csproj" />
+
+    <!-- Infrastructure -->
+    <ProjectReference Include="..\..\src\Modules\Identity\Infrastructure\Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Infrastructure\Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Presence\Infrastructure\Presence.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reactions\Infrastructure\Reactions.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\Infrastructure\Search.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Files\Infrastructure\Files.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Infrastructure\Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\RealTime\Infrastructure\RealTime.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Admin\Infrastructure\Admin.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -8,7 +8,7 @@ using RealTime.Domain;
 using Shared.Contracts;
 using Shared.Contracts.Interfaces;
 
-namespace RealTime.API;
+namespace API;
 
 public sealed record SendMessageRequest(Guid MessageId, Guid RoomId, string Content);
 public sealed record AddReactionRequest(Guid MessageId, Guid RoomId, string Emoji);
