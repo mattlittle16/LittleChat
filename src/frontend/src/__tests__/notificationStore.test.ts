@@ -34,6 +34,7 @@ function makeNotification(overrides: Partial<Notification> = {}): Notification {
     contentPreview: 'Hello @alice',
     isRead: false,
     createdAt: '2024-01-01T00:00:00Z',
+    expiresAt: '2024-12-31T00:00:00Z',
     ...overrides,
   }
 }

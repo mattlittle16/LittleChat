@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTheme } from '../../hooks/useTheme'
 import { Bell, ChevronDown, Menu, Users } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { MobileSidebarDrawer } from './MobileSidebarDrawer'
@@ -26,6 +27,7 @@ import { NotificationCenter } from '../notifications/NotificationCenter'
 import { useAdminAuth } from '../../hooks/useAdminAuth'
 
 export function ChatLayout() {
+  useTheme()
   const { activeRoomId, rooms } = useRoomStore()
   const { isAdmin } = useAdminAuth()
   const { status } = useSignalR(activeRoomId)

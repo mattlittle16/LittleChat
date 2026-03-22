@@ -5,6 +5,8 @@
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-border: hsl(var(--border));
@@ -22,62 +24,82 @@
 
 @layer base {
   :root {
-    --blob-1: hsl(255 70% 60% / 0.24);
-    --blob-2: hsl(200 75% 50% / 0.22);
-    --blob-3: hsl(330 70% 60% / 0.22);
-    --blob-4: hsl(220 75% 55% / 0.23);
-    --blob-5: hsl(170 60% 50% / 0.20);
-    --blob-6: hsl(285 65% 60% / 0.21);
-    --background: 248 33% 97%;
-    --foreground: 240 15% 12%;
-    --muted: 240 20% 93%;
-    --muted-foreground: 240 10% 46%;
-    --border: 240 18% 86%;
-    --input: 240 18% 86%;
-    --primary: 243 72% 55%;
+    --blob-1: hsl(255 45% 55% / 0.16);
+    --blob-2: hsl(245 35% 50% / 0.14);
+    --blob-3: hsl(265 40% 52% / 0.13);
+    --blob-4: hsl(252 38% 54% / 0.15);
+    --blob-5: hsl(258 42% 56% / 0.12);
+    --blob-6: hsl(248 36% 50% / 0.13);
+    --background: 252 14% 97%;
+    --foreground: 252 12% 10%;
+    --card: 252 18% 99%;
+    --card-foreground: 252 12% 10%;
+    --muted: 252 10% 93%;
+    --muted-foreground: 252 8% 44%;
+    --border: 252 10% 87%;
+    --input: 252 10% 87%;
+    --primary: 258 65% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 25% 91%;
-    --secondary-foreground: 240 15% 15%;
-    --accent: 243 72% 55%;
+    --secondary: 252 12% 92%;
+    --secondary-foreground: 252 12% 15%;
+    --accent: 258 65% 52%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 243 72% 55%;
+    --ring: 258 65% 52%;
     --radius: 0.5rem;
-    --sidebar-bg: 238 52% 23%;
-    --sidebar-fg: 240 100% 97%;
-    --sidebar-muted-fg: 238 40% 72%;
-    --sidebar-active-bg: 238 52% 32%;
+    --sidebar-bg: 252 22% 16%;
+    --sidebar-fg: 252 10% 97%;
+    --sidebar-muted-fg: 252 12% 65%;
+    --sidebar-active-bg: 252 22% 24%;
   }
 
   .dark {
-    --blob-1: hsl(255 55% 58% / 0.17);
-    --blob-2: hsl(200 60% 48% / 0.15);
-    --blob-3: hsl(330 55% 58% / 0.16);
-    --blob-4: hsl(220 60% 52% / 0.15);
-    --blob-5: hsl(170 48% 48% / 0.14);
-    --blob-6: hsl(285 52% 58% / 0.15);
-    --background: 240 15% 20%;
-    --foreground: 240 12% 90%;
-    --muted: 240 12% 18%;
-    --muted-foreground: 240 10% 58%;
-    --border: 240 12% 22%;
-    --input: 240 12% 22%;
-    --primary: 243 72% 65%;
+    --blob-1: hsl(255 45% 55% / 0.10);
+    --blob-2: hsl(245 35% 50% / 0.09);
+    --blob-3: hsl(265 40% 52% / 0.08);
+    --blob-4: hsl(252 38% 54% / 0.09);
+    --blob-5: hsl(258 42% 56% / 0.08);
+    --blob-6: hsl(248 36% 50% / 0.08);
+    --background: 252 8% 11%;
+    --foreground: 252 6% 90%;
+    --card: 252 8% 15%;
+    --card-foreground: 252 6% 90%;
+    --muted: 252 7% 15%;
+    --muted-foreground: 252 6% 56%;
+    --border: 252 8% 20%;
+    --input: 252 8% 20%;
+    --primary: 258 58% 68%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 12% 18%;
-    --secondary-foreground: 240 10% 88%;
-    --accent: 243 72% 65%;
+    --secondary: 252 7% 15%;
+    --secondary-foreground: 252 6% 88%;
+    --accent: 258 58% 68%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 243 72% 65%;
-    --sidebar-bg: 238 52% 18%;
-    --sidebar-fg: 240 100% 95%;
-    --sidebar-muted-fg: 238 30% 65%;
-    --sidebar-active-bg: 238 52% 28%;
+    --ring: 258 58% 68%;
+    --sidebar-bg: 252 18% 10%;
+    --sidebar-fg: 252 8% 95%;
+    --sidebar-muted-fg: 252 8% 60%;
+    --sidebar-active-bg: 252 18% 18%;
   }
 }
+
+/* Landing page typing indicator */
+@keyframes typing-dot-bounce {
+  0%, 60%, 100% { transform: translateY(0);    opacity: 0.35; }
+  30%            { transform: translateY(-5px); opacity: 1;    }
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: hsl(258 40% 65%);
+  animation: typing-dot-bounce 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.18s; }
+.typing-dot:nth-child(3) { animation-delay: 0.36s; }
 
 /* Background blob animations */
 @keyframes blob-drift-1 {

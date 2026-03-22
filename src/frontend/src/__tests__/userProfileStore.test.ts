@@ -7,7 +7,7 @@ vi.mock('../services/apiClient', () => ({
 }))
 
 import { api } from '../services/apiClient'
-const mockApi = api as { get: ReturnType<typeof vi.fn> }
+const mockApi = api as unknown as { get: ReturnType<typeof vi.fn> }
 
 // Import store after mock is in place
 import { useUserProfileStore } from '../stores/userProfileStore'

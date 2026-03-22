@@ -9,13 +9,13 @@ vi.mock('../services/apiClient', () => ({
 }))
 
 import { api } from '../services/apiClient'
-const mockApi = api as { get: ReturnType<typeof vi.fn> }
+const mockApi = api as unknown as { get: ReturnType<typeof vi.fn> }
 
 function makeMessage(overrides: Partial<Message> = {}): Message {
   return {
     id: 'msg-1',
     roomId: 'room-1',
-    author: { id: 'user-1', displayName: 'Alice', avatarUrl: null },
+    author: { id: 'user-1', displayName: 'Alice', avatarUrl: null, profileImageUrl: null },
     content: 'Hello',
     attachments: [],
     reactions: [],
