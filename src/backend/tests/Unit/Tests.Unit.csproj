@@ -10,14 +10,36 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bogus" Version="35.6.1" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="NSubstitute" />
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Admin\Application\Admin.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Admin\Domain\Admin.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Application\Identity.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Domain\Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Application\Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Domain\Messaging.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Application\Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Domain\Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reactions\Application\Reactions.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\RealTime\Application\RealTime.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\Application\Search.Application.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Contracts\Shared.Contracts.csproj" />
   </ItemGroup>
 
 </Project>
