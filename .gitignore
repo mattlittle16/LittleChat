@@ -10,6 +10,8 @@ packages/
 *.snupkg
 TestResults/
 **/localup.sh
+**/.claude/settings.local.json
+**/docs/mcl
 
 
 # ── Node / Frontend ────────────────────────────────────────────────────────
