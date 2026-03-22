@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -29,5 +30,10 @@ export default defineConfig({
       '/auth/logout': 'http://localhost:5000',
       '/auth/oidc-callback': 'http://localhost:5000',
     },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    clearMocks: true,
   },
 })
