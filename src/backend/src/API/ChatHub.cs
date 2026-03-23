@@ -77,9 +77,15 @@ public sealed class ChatHub : Hub<IChatHubClient>
         await base.OnDisconnectedAsync(exception);
     }
 
-    // Heartbeat is kept for backwards compatibility with existing clients.
-    // The new refcount model does not require TTL refresh — this is now a no-op.
-    public Task Heartbeat() => Task.CompletedTask;
+    // Heartbeat reasserts presence every 15s (client interval) so that stale Redis state
+    // (e.g. after a Valkey eviction, silent reconnect, or missed OnConnectedAsync) self-heals
+    // without requiring a full page reload.
+    public async Task Heartbeat()
+    {
+        var userId = Context.User?.GetInternalUserId();
+        if (userId is null) return;
+        await _presence.ReassertAsync(userId.Value, Context.ConnectionId);
+    }
 
     // Called by clients on SignalR reconnect to fix stale presence refcounts left by a server crash.
     // Forces this user's refcount to 1 so a single subsequent disconnect correctly broadcasts offline.
