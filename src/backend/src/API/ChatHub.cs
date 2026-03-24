@@ -80,24 +80,27 @@ public sealed class ChatHub : Hub<IChatHubClient>
         await base.OnDisconnectedAsync(exception);
     }
 
-    // Heartbeat reasserts presence every 15s (client interval) so that stale Redis state
-    // (e.g. after a Valkey eviction, silent reconnect, or missed OnConnectedAsync) self-heals
-    // without requiring a full page reload.
+    // Heartbeat keeps presence alive every 15s so that stale Redis state (e.g. after a Valkey
+    // eviction or missed OnConnectedAsync) self-heals without a page reload. Uses SetOnlineAsync
+    // (additive SADD) rather than ReassertAsync (destructive DEL+SADD) so that a heartbeat from
+    // one connection never evicts sibling connections belonging to the same user logged in on
+    // multiple browsers simultaneously.
     public async Task Heartbeat()
     {
         var userId = Context.User?.GetInternalUserId();
         if (userId is null) return;
-        await _presence.ReassertAsync(userId.Value, Context.ConnectionId);
+        await _presence.SetOnlineAsync(userId.Value, Context.ConnectionId);
     }
 
-    // Called by clients on SignalR reconnect to fix stale presence refcounts left by a server crash.
-    // Forces this user's refcount to 1 so a single subsequent disconnect correctly broadcasts offline.
-    // Safe to call multiple times — idempotent on an already-healthy connection.
+    // Called by clients on SignalR reconnect. Uses SetOnlineAsync (additive) so that a reconnect
+    // on one browser does not evict presence entries for the same user's other open sessions.
+    // OnConnectedAsync already registers the new connectionId; this is a safety net for cases
+    // where OnConnectedAsync was missed (e.g. server crash mid-session).
     public async Task ReassertPresence()
     {
         var userId = Context.User?.GetInternalUserId();
         if (userId is null) return;
-        await _presence.ReassertAsync(userId.Value, Context.ConnectionId);
+        await _presence.SetOnlineAsync(userId.Value, Context.ConnectionId);
     }
 
     public Task JoinRoom(string roomId)

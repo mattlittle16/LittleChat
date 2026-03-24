@@ -35,14 +35,6 @@ public sealed class PresenceService : IPresenceService
         return count
         """);
 
-    // Clears the user's connection Set and re-adds only this connectionId.
-    // Used by clients on reconnect to recover from stale state after a server crash.
-    private static readonly LuaScript ReassertScript = LuaScript.Prepare("""
-        redis.call('DEL', @connKey)
-        redis.call('SADD', @connKey, @connectionId)
-        redis.call('SADD', @onlineKey, @userId)
-        """);
-
     // Removes connectionId from the user's connection Set.
     // If the Set is now empty, removes userId from the online Set and returns 1 (fully offline).
     // If connectionId was not in the Set (stale disconnect), SREM is a no-op — SCARD is still
@@ -118,21 +110,6 @@ public sealed class PresenceService : IPresenceService
                 result.Add(id);
         }
         return result;
-    }
-
-    public async Task ReassertAsync(Guid userId, string connectionId, CancellationToken ct = default)
-    {
-        await WithRetryAsync(async () =>
-        {
-            var db = _redis.GetDatabase();
-            await db.ScriptEvaluateAsync(ReassertScript, new
-            {
-                connKey      = (RedisKey)ConnSetKey(userId),
-                onlineKey    = (RedisKey)OnlineSetKey,
-                userId       = (RedisValue)userId.ToString(),
-                connectionId = (RedisValue)connectionId,
-            });
-        }, nameof(ReassertAsync), userId);
     }
 
     /// <summary>

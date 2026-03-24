@@ -58,7 +58,14 @@ function isOutbox(m: Message | OutboxMessage): m is OutboxMessage {
 
 function formatTime(isoOrTs: string | number): string {
   const date = typeof isoOrTs === 'number' ? new Date(isoOrTs) : new Date(isoOrTs)
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const isToday = date.toDateString() === new Date().toDateString()
+  if (isToday) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const sameYear = date.getFullYear() === new Date().getFullYear()
+  return date.toLocaleString([], {
+    month: 'short', day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 
 async function openDmWithUser(userId: string) {
