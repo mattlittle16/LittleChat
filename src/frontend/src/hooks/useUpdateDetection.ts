@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const POLL_INTERVAL_MS = 10_000
+const POLL_INTERVAL_MS = 30_000
 const BACKOFF_INTERVAL_MS = 5 * 60_000
 const MAX_FAILURES_BEFORE_BACKOFF = 3
 const COUNTDOWN_SECONDS = 10
@@ -16,18 +16,6 @@ export function useUpdateDetection() {
   const typingActiveUntil = useRef(0)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Debug escape hatch: run `localStorage.setItem('littlechat_debug_update', '1')` in the
-  // browser console to immediately trigger the update banner without a real deploy.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (localStorage.getItem('littlechat_debug_update')) {
-        setUpdateAvailable(true)
-        clearInterval(id)
-      }
-    }, 1_000)
-    return () => clearInterval(id)
-  }, [])
 
   // Polling — disabled in local dev
   useEffect(() => {

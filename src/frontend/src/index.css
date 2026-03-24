@@ -115,12 +115,20 @@
   50%       { transform: rotate(9deg) translateY(-12px); }
 }
 
-.blob-1 { animation: blob-drift-1 18s ease-in-out infinite; }
-.blob-2 { animation: blob-drift-2 24s ease-in-out infinite; }
-.blob-3 { animation: blob-drift-3 20s ease-in-out infinite; animation-delay: -7s; }
-.blob-4 { animation: blob-drift-2 21s ease-in-out infinite; animation-delay: -4s; }
-.blob-5 { animation: blob-drift-1 26s ease-in-out infinite; animation-delay: -11s; }
-.blob-6 { animation: blob-drift-3 23s ease-in-out infinite; animation-delay: -15s; }
+/* filter: blur is on the animated element (not its parent) so Chrome can promote each
+   blob to its own compositor layer and run the transform animation on the GPU thread. */
+.blob-1 { animation: blob-drift-1 18s ease-in-out infinite; filter: blur(52px); will-change: transform; }
+.blob-2 { animation: blob-drift-2 24s ease-in-out infinite; filter: blur(56px); will-change: transform; }
+.blob-3 { animation: blob-drift-3 20s ease-in-out infinite; animation-delay: -7s; filter: blur(58px); will-change: transform; }
+.blob-4 { animation: blob-drift-2 21s ease-in-out infinite; animation-delay: -4s; filter: blur(54px); will-change: transform; }
+.blob-5 { animation: blob-drift-1 26s ease-in-out infinite; animation-delay: -11s; filter: blur(60px); will-change: transform; }
+.blob-6 { animation: blob-drift-3 23s ease-in-out infinite; animation-delay: -15s; filter: blur(62px); will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blob-1, .blob-2, .blob-3, .blob-4, .blob-5, .blob-6 {
+    animation-play-state: paused;
+  }
+}
 
 /* Grouped messages: collapse prose paragraph margins so consecutive messages stack tightly */
 .grouped-prose p,

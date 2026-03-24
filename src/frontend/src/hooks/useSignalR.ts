@@ -91,12 +91,6 @@ export function useSignalR(roomId: string | null) {
         if (!useRoomStore.getState().rooms.find(r => r.id === msg.roomId)) {
           useRoomStore.getState().loadRooms()
         }
-        // Update browser tab title with total unread count
-        queueMicrotask(() => {
-          const rooms = useRoomStore.getState().rooms
-          const total = rooms.reduce((sum, r) => sum + r.unreadCount, 0)
-          document.title = total > 0 ? `(${total}) LittleChat` : 'LittleChat'
-        })
         // Play chime and browser notification if not actively viewing this conversation,
         // or if the user has focus elsewhere (different window/app, tab still visible)
         if (msg.roomId !== activeRoomId || document.visibilityState !== 'visible' || !document.hasFocus()) {
