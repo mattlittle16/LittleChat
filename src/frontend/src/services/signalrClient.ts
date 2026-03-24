@@ -9,6 +9,10 @@ let _connection: signalR.HubConnection | null = null
 function buildConnection(roomId: string): signalR.HubConnection {
   return new signalR.HubConnectionBuilder()
     .withUrl(`/hubs/chat?roomId=${encodeURIComponent(roomId)}`, {
+      // Force WebSockets only — prevents silent fallback to long polling, which makes
+      // continuous HTTP requests and causes significant CPU usage on some Windows networks.
+      transport: signalR.HttpTransportType.WebSockets,
+      skipNegotiation: true,
       accessTokenFactory: () => getAccessToken() ?? '',
     })
     .withAutomaticReconnect({

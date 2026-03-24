@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
 import { InlineMarkdownEditor } from './InlineMarkdownEditor'
@@ -68,7 +68,7 @@ async function openDmWithUser(userId: string) {
   setActiveRoom(room.id)
 }
 
-export function MessageItem({ message, isGrouped = false, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, isGrouped = false, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
   const authorId = isOutbox(message) ? null : message.author.id
   const isSystemAuthor = !authorId || authorId === '00000000-0000-0000-0000-000000000000'
   const isAuthorOnline = usePresenceStore(s => (!isSystemAuthor && authorId) ? s.isOnline(authorId) : false)
@@ -393,4 +393,4 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
       )}
     </div>
   )
-}
+})
