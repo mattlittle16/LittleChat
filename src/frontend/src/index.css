@@ -24,13 +24,7 @@
 
 @layer base {
   :root {
-    --blob-1: hsl(255 45% 55% / 0.16);
-    --blob-2: hsl(245 35% 50% / 0.14);
-    --blob-3: hsl(265 40% 52% / 0.13);
-    --blob-4: hsl(252 38% 54% / 0.15);
-    --blob-5: hsl(258 42% 56% / 0.12);
-    --blob-6: hsl(248 36% 50% / 0.13);
-    --background: 252 14% 97%;
+    --background: 220 14% 96%;
     --foreground: 252 12% 10%;
     --card: 252 18% 99%;
     --card-foreground: 252 12% 10%;
@@ -55,33 +49,27 @@
   }
 
   .dark {
-    --blob-1: hsl(255 45% 55% / 0.10);
-    --blob-2: hsl(245 35% 50% / 0.09);
-    --blob-3: hsl(265 40% 52% / 0.08);
-    --blob-4: hsl(252 38% 54% / 0.09);
-    --blob-5: hsl(258 42% 56% / 0.08);
-    --blob-6: hsl(248 36% 50% / 0.08);
-    --background: 252 8% 11%;
-    --foreground: 252 6% 90%;
-    --card: 252 8% 15%;
-    --card-foreground: 252 6% 90%;
-    --muted: 252 7% 15%;
-    --muted-foreground: 252 6% 56%;
-    --border: 252 8% 20%;
-    --input: 252 8% 20%;
+    --background: 231 14% 18%;
+    --foreground: 231 10% 88%;
+    --card: 231 12% 22%;
+    --card-foreground: 231 10% 88%;
+    --muted: 231 10% 21%;
+    --muted-foreground: 231 8% 56%;
+    --border: 231 10% 26%;
+    --input: 231 10% 26%;
     --primary: 258 58% 68%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 252 7% 15%;
-    --secondary-foreground: 252 6% 88%;
+    --secondary: 231 10% 21%;
+    --secondary-foreground: 231 8% 88%;
     --accent: 258 58% 68%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
     --ring: 258 58% 68%;
-    --sidebar-bg: 252 18% 10%;
-    --sidebar-fg: 252 8% 95%;
-    --sidebar-muted-fg: 252 8% 60%;
-    --sidebar-active-bg: 252 18% 18%;
+    --sidebar-bg: 231 16% 13%;
+    --sidebar-fg: 231 8% 95%;
+    --sidebar-muted-fg: 231 8% 60%;
+    --sidebar-active-bg: 231 14% 22%;
   }
 }
 
@@ -100,35 +88,6 @@
 }
 .typing-dot:nth-child(2) { animation-delay: 0.18s; }
 .typing-dot:nth-child(3) { animation-delay: 0.36s; }
-
-/* Background blob animations */
-@keyframes blob-drift-1 {
-  0%, 100% { transform: rotate(10deg)  translateY(0px);   }
-  50%       { transform: rotate(14deg)  translateY(-16px); }
-}
-@keyframes blob-drift-2 {
-  0%, 100% { transform: rotate(-8deg)  translateY(0px);  }
-  50%       { transform: rotate(-13deg) translateY(14px); }
-}
-@keyframes blob-drift-3 {
-  0%, 100% { transform: rotate(5deg) translateY(0px);   }
-  50%       { transform: rotate(9deg) translateY(-12px); }
-}
-
-/* filter: blur is on the animated element (not its parent) so Chrome can promote each
-   blob to its own compositor layer and run the transform animation on the GPU thread. */
-.blob-1 { animation: blob-drift-1 18s ease-in-out infinite; filter: blur(52px); will-change: transform; }
-.blob-2 { animation: blob-drift-2 24s ease-in-out infinite; filter: blur(56px); will-change: transform; }
-.blob-3 { animation: blob-drift-3 20s ease-in-out infinite; animation-delay: -7s; filter: blur(58px); will-change: transform; }
-.blob-4 { animation: blob-drift-2 21s ease-in-out infinite; animation-delay: -4s; filter: blur(54px); will-change: transform; }
-.blob-5 { animation: blob-drift-1 26s ease-in-out infinite; animation-delay: -11s; filter: blur(60px); will-change: transform; }
-.blob-6 { animation: blob-drift-3 23s ease-in-out infinite; animation-delay: -15s; filter: blur(62px); will-change: transform; }
-
-@media (prefers-reduced-motion: reduce) {
-  .blob-1, .blob-2, .blob-3, .blob-4, .blob-5, .blob-6 {
-    animation-play-state: paused;
-  }
-}
 
 /* Grouped messages: collapse prose paragraph margins so consecutive messages stack tightly */
 .grouped-prose p,
