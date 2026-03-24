@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using API;
 using API.Services;
+using Microsoft.AspNetCore.RateLimiting;
 using Files.API;
 using LittleChat.Modules.Admin.API;
 using LittleChat.Modules.Admin.Application.Commands;
@@ -175,6 +177,42 @@ builder.Services
     .AddCookie();
 
 builder.Services.AddAuthorization();
+builder.Services.AddMemoryCache();
+
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+var rlMessages    = builder.Configuration.GetValue("RateLimit:MessagesPerMinute",  60);
+var rlSearch      = builder.Configuration.GetValue("RateLimit:SearchPerMinute",    10);
+var rlGifSearch   = builder.Configuration.GetValue("RateLimit:GifSearchPerMinute", 15);
+var rlRooms       = builder.Configuration.GetValue("RateLimit:RoomsPerMinute",      5);
+
+builder.Services.AddSingleton(new SignalRRateLimiter(rlMessages));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    static string PartitionKey(HttpContext ctx, string policy)
+    {
+        var userId = ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? ctx.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        return $"{userId}:{policy}";
+    }
+
+    SlidingWindowRateLimiterOptions Sliding(int limit) => new()
+    {
+        PermitLimit = limit,
+        Window = TimeSpan.FromMinutes(1),
+        SegmentsPerWindow = 6,
+        QueueLimit = 0,
+        AutoReplenishment = true,
+    };
+
+    options.AddPolicy("messages",   ctx => RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(ctx, "messages"),   _ => Sliding(rlMessages)));
+    options.AddPolicy("search",     ctx => RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(ctx, "search"),     _ => Sliding(rlSearch)));
+    options.AddPolicy("gif-search", ctx => RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(ctx, "gif-search"), _ => Sliding(rlGifSearch)));
+    options.AddPolicy("rooms",      ctx => RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(ctx, "rooms"),      _ => Sliding(rlRooms)));
+});
 
 // ── Npgsql DataSource (shared, used by Identity.Infrastructure.UserRepository) ──
 var pgConnectionString = builder.Configuration["POSTGRES_CONNECTION_STRING"]
@@ -186,6 +224,11 @@ var valkeyConnectionString = builder.Configuration["VALKEY_CONNECTION_STRING"] ?
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
     ConnectionMultiplexer.Connect(valkeyConnectionString));
+
+// ── Health Checks ─────────────────────────────────────────────────────────────
+builder.Services.AddHealthChecks()
+    .AddNpgSql(pgConnectionString, name: "postgres", tags: ["ready"])
+    .AddRedis(valkeyConnectionString, name: "redis", tags: ["ready"]);
 
 // T018 — SignalR with Valkey backplane (Constitution Principle V: AbortOnConnectFail = false)
 builder.Services
@@ -357,6 +400,7 @@ app.Use(async (ctx, next) =>
 app.UseAuthentication();
 app.UseTokenBlocklist();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 app.MapIdentityEndpoints();
@@ -369,6 +413,11 @@ app.MapGifEndpoints();
 app.MapVideoTokenEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 app.MapAdminEndpoints();
+app.MapHealthChecks("/health");
+app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+});
 
 // Clear all presence state on startup so stale connection Sets from a previous run or crash
 // don't cause users to appear stuck online. Clients re-establish their presence as they

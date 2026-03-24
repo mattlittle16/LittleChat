@@ -78,6 +78,7 @@ export function ReactionBar({ messageId, roomId, reactions, onOpenEmojiPicker, i
         ref={plusButtonRef}
         onClick={() => onOpenEmojiPicker?.(plusButtonRef.current!.getBoundingClientRect())}
         title="Add reaction"
+        aria-label="Add reaction"
         className="flex items-center justify-center rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2.5 py-1
                    text-sm text-muted-foreground hover:bg-zinc-300 dark:hover:bg-zinc-500 hover:text-foreground transition-colors"
       >

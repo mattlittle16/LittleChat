@@ -5,6 +5,7 @@ interface TypingState {
   typingByRoom: Record<string, Record<string, string>>
   setTyping: (roomId: string, userId: string, displayName: string) => void
   clearTyping: (roomId: string, userId: string) => void
+  clearRoom: (roomId: string) => void
 }
 
 // Timers live outside Zustand to avoid serialization issues
@@ -39,6 +40,21 @@ export const useTypingStore = create<TypingState>((set, get) => ({
       const typingByRoom = { ...s.typingByRoom }
       if (Object.keys(room).length === 0) delete typingByRoom[roomId]
       else typingByRoom[roomId] = room
+      return { typingByRoom }
+    })
+  },
+
+  clearRoom: (roomId) => {
+    // Cancel all pending timers for this room to prevent state updates after unmount
+    for (const [key, timer] of timers) {
+      if (key.startsWith(`${roomId}:`)) {
+        clearTimeout(timer)
+        timers.delete(key)
+      }
+    }
+    set(s => {
+      const typingByRoom = { ...s.typingByRoom }
+      delete typingByRoom[roomId]
       return { typingByRoom }
     })
   },

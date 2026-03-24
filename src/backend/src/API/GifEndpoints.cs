@@ -77,7 +77,7 @@ public static class GifEndpoints
                 .ToArray();
 
             return Results.Ok(results);
-        });
+        }).RequireRateLimiting("gif-search");
 
         return app;
     }

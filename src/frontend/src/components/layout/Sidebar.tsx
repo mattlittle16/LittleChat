@@ -191,6 +191,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
               onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
               title="Browse Topics"
+              aria-label="Browse Topics"
             >
               <Search className="w-3.5 h-3.5" />
             </button>
@@ -201,6 +202,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
               onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
               title="Manage Groups"
+              aria-label="Manage Groups"
             >
               <Settings className="w-3.5 h-3.5" />
             </button>
@@ -211,6 +213,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
               onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
               title="Create Topic"
+              aria-label="Create Topic"
             >
               +
             </button>
@@ -287,6 +290,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                 onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
                 title="New DM"
+                aria-label="New DM"
               >
                 +
               </button>
@@ -338,6 +342,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               onClick={() => setProfileOpen(true)}
               className="flex items-center gap-2 rounded px-1 py-0.5 transition-colors hover:bg-sidebar-active-bg/50 min-w-0 flex-1"
               title="Edit profile"
+              aria-label="Edit profile"
             >
               <UserAvatar
                 userId={currentUserId}
@@ -355,6 +360,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               onClick={() => { window.location.href = '/admin' }}
               className="p-1 rounded transition-colors hover:bg-sidebar-active-bg/50"
               title="Admin Panel"
+              aria-label="Admin Panel"
             >
               <ShieldCheck className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
             </button>
@@ -549,6 +555,7 @@ function RoomItem({
           className="flex items-center justify-center w-5 h-5 rounded transition-colors"
           style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
           title="Notification settings"
+          aria-label="Notification settings"
         >
           <BellOff className="w-3 h-3" />
         </button>
@@ -719,6 +726,7 @@ function DmItem({ room, isActive, onClick }: { room: Room; isActive: boolean; on
           className="flex items-center justify-center w-5 h-5 rounded transition-colors"
           style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
           title="Notification settings"
+          aria-label="Notification settings"
         >
           <BellOff className="w-3 h-3" />
         </button>

@@ -52,17 +52,19 @@ export async function startConnection(
     useOutboxStore.getState().drainOutbox()
     // Fix stale presence refcounts after a server crash — forces refcount back to 1
     // so the next disconnect correctly broadcasts offline. Safe no-op on a healthy reconnect.
-    _connection?.invoke('ReassertPresence').catch(() => {})
+    _connection?.invoke('ReassertPresence').catch(err => console.error('[SignalR] ReassertPresence failed', err))
   })
 
   _connection.onclose(() => {
     onClose()
   })
 
+  _connection.off('UserProfileUpdated')
   _connection.on('UserProfileUpdated', ({ userId, displayName, profileImageUrl }: { userId: string; displayName: string; profileImageUrl: string | null }) => {
     useUserProfileStore.getState().updateUser(userId, { displayName, profileImageUrl })
   })
 
+  _connection.off('ForceLogout')
   _connection.on('ForceLogout', () => {
     clearSession()
     window.location.href = '/'

@@ -5,6 +5,7 @@ import { AdminTopicsView } from './AdminTopicsView'
 import { AdminAuditLogView } from './AdminAuditLogView'
 import { useThemeStore } from '../../stores/themeStore'
 import { useTheme } from '../../hooks/useTheme'
+import { ErrorBoundary } from '../common/ErrorBoundary'
 
 type AdminTab = 'users' | 'topics' | 'audit-log'
 
@@ -67,9 +68,9 @@ export function AdminLayout() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
-        {activeTab === 'users' && <AdminUsersView />}
-        {activeTab === 'topics' && <AdminTopicsView />}
-        {activeTab === 'audit-log' && <AdminAuditLogView />}
+        {activeTab === 'users' && <ErrorBoundary name="Users"><AdminUsersView /></ErrorBoundary>}
+        {activeTab === 'topics' && <ErrorBoundary name="Topics"><AdminTopicsView /></ErrorBoundary>}
+        {activeTab === 'audit-log' && <ErrorBoundary name="Audit Log"><AdminAuditLogView /></ErrorBoundary>}
       </div>
     </div>
   )

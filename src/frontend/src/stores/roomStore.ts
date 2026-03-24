@@ -50,7 +50,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       ),
     }))
     // Persist last-read position to server (fire-and-forget)
-    api.post(`/api/rooms/${roomId}/read`, null).catch(() => {})
+    api.post(`/api/rooms/${roomId}/read`, null).catch(err => console.error('[roomStore] markRead failed', err))
   },
 
   updateUnread: (roomId, count) => {

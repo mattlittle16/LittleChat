@@ -1,7 +1,7 @@
 import { setAccessToken } from './apiClient'
 
-const TOKEN_KEY = 'access_token'
-const TOKEN_EXPIRY_KEY = 'access_token_expires_at'
+const TOKEN_KEY = 'littlechat_access_token'
+const TOKEN_EXPIRY_KEY = 'littlechat_access_token_expires_at'
 
 export function login() {
   window.location.href = '/auth/login'

@@ -15,31 +15,7 @@ namespace Identity.API;
 
 public static class IdentityEndpoints
 {
-    // Verifies that a byte header matches a known image format signature.
-    // Guards against MIME type spoofing — file.ContentType is client-supplied and untrustworthy.
-    static bool HasValidImageMagicBytes(byte[] header)
-    {
-        // JPEG: FF D8 FF
-        if (header.Length >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF)
-            return true;
-        // PNG: 89 50 4E 47
-        if (header.Length >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47)
-            return true;
-        // GIF87a / GIF89a: 47 49 46 38
-        if (header.Length >= 4 && header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x38)
-            return true;
-        // WebP: RIFF????WEBP (bytes 0-3 = RIFF, 8-11 = WEBP)
-        if (header.Length >= 12 &&
-            header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
-            header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50)
-            return true;
-        // HEIC/HEIF: ISO base media file — 'ftyp' box marker at byte offset 4
-        if (header.Length >= 8 && header[4] == 0x66 && header[5] == 0x74 && header[6] == 0x79 && header[7] == 0x70)
-            return true;
-        return false;
-    }
-
-    // ProfileImagePath is stored as "{guid}/{filename}" — the GUID subdirectory
+// ProfileImagePath is stored as "{guid}/{filename}" — the GUID subdirectory
     // acts as a natural version token that changes on every upload, so browsers
     // cache the URL safely and re-fetch automatically when the avatar is replaced.
     static string? AvatarUrl(Guid userId, string? profileImagePath)
@@ -174,11 +150,9 @@ public static class IdentityEndpoints
 
             // Validate magic bytes — verify the file is actually an image regardless of declared content type
             await using var stream = file.OpenReadStream();
-            var header = new byte[12];
-            var bytesRead = await stream.ReadAsync(header, ctx.RequestAborted);
-            if (bytesRead < 3 || !HasValidImageMagicBytes(header))
+            var magicError = await FileMagicBytes.ValidateAsync(stream, "jpg", ctx.RequestAborted);
+            if (magicError is not null)
                 return Results.BadRequest(new { error = "File does not appear to be a valid image." });
-            stream.Position = 0;
 
             // Parse crop values — use InvariantCulture to handle any locale
             if (!float.TryParse(form["cropX"], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cropX) ||

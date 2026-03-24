@@ -13,7 +13,7 @@ import { emojiMap } from './emojiMap'
 import type { UserSearchResult } from '../../types'
 
 const TYPING_DEBOUNCE_MS = 500
-const MAX_LENGTH = 4_000
+const MAX_LENGTH = 15_000
 const MAX_FILE_COUNT = 15
 const MAX_PER_FILE_BYTES = 200 * 1024 * 1024   // 200 MB
 const MAX_COMBINED_BYTES = 500 * 1024 * 1024   // 500 MB
@@ -41,6 +41,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [failedFiles, setFailedFiles] = useState<string[]>([])
+  const [filePickErrors, setFilePickErrors] = useState<string[]>([])
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
@@ -57,6 +58,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const helpButtonRef = useRef<HTMLButtonElement>(null)
   const editorRef = useRef<InlineMarkdownEditorRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const xhrRef = useRef<XMLHttpRequest | null>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestContentRef = useRef('')
   const cursorPosRef = useRef(0)
@@ -251,7 +253,10 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
       combined.push({ file, previewUrl })
     }
 
-    if (errors.length > 0) alert(errors.join('\n'))
+    if (errors.length > 0) {
+      setFilePickErrors(errors)
+      setTimeout(() => setFilePickErrors([]), 6_000)
+    }
     setStagedFiles(combined)
   }
 
@@ -291,6 +296,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
 
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
+      xhrRef.current = xhr
       xhr.open('POST', `/api/rooms/${roomId}/messages`)
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
 
@@ -331,12 +337,20 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
 
       xhr.onerror = () => {
         setUploadProgress(null)
+        xhrRef.current = null
         setFailedFiles(['Upload failed — please check your connection and try again.'])
         reject(new Error('Upload error'))
       }
 
+      xhr.onabort = () => {
+        setUploadProgress(null)
+        xhrRef.current = null
+        resolve()
+      }
+
       xhr.send(formData)
     }).catch(() => {})
+    xhrRef.current = null
 
     editorRef.current?.focus()
   }
@@ -397,6 +411,16 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
         </div>
       )}
 
+      {/* File picker validation errors (replaces browser alert) */}
+      {filePickErrors.length > 0 && (
+        <div className="flex items-start gap-2 text-xs text-destructive">
+          <span>{filePickErrors.join(' · ')}</span>
+          <button onClick={() => setFilePickErrors([])} className="ml-auto flex-shrink-0 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Partial upload failure warning */}
       {failedFiles.length > 0 && (
         <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">
@@ -450,10 +474,21 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
 
       {/* Upload progress bar */}
       {isUploading && (
-        <FileUploadProgress
-          fileName={stagedFiles.length > 1 ? `${stagedFiles.length} files` : (stagedFiles[0]?.file.name ?? 'file')}
-          progress={uploadProgress!}
-        />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <FileUploadProgress
+              fileName={stagedFiles.length > 1 ? `${stagedFiles.length} files` : (stagedFiles[0]?.file.name ?? 'file')}
+              progress={uploadProgress!}
+            />
+          </div>
+          <button
+            onClick={() => xhrRef.current?.abort()}
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+            aria-label="Cancel upload"
+          >
+            Cancel
+          </button>
+        </div>
       )}
 
       <div className="flex items-end gap-2">
@@ -528,6 +563,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
             type="button"
             onClick={openShortcodeHelp}
             title="Emoji shortcodes"
+            aria-label="Emoji shortcodes"
             className="absolute bottom-1.5 right-8 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           >
             <HelpCircle size={14} />
@@ -539,6 +575,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
             onClick={openEmojiPicker}
             disabled={isDisabled || isUploading}
             title="Insert emoji"
+            aria-label="Insert emoji"
             className="absolute bottom-1.5 right-1.5 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-40 transition-colors"
           >
             <Smile size={16} />
@@ -600,6 +637,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
           onClick={() => fileInputRef.current?.click()}
           disabled={isDisabled || isUploading || stagedFiles.length >= MAX_FILE_COUNT}
           title="Attach files"
+          aria-label="Attach files"
           className="self-stretch rounded-md px-2 hover:opacity-90
                      disabled:opacity-50 flex-shrink-0 flex items-center"
           style={{ background: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))' }}

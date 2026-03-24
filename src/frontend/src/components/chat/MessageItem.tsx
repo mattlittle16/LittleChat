@@ -138,7 +138,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         messageId: (message as Message).id,
         roomId: message.roomId,
         content: trimmed,
-      }).catch(() => {})
+      }).catch(err => console.error('[MessageItem] EditMessage failed', err))
     }
     cancelEdit()
   }
@@ -149,7 +149,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
       connection.invoke('DeleteMessage', {
         messageId: (message as Message).id,
         roomId: message.roomId,
-      }).catch(() => {})
+      }).catch(err => console.error('[MessageItem] DeleteMessage failed', err))
     }
     setConfirmDelete(false)
   }
@@ -178,7 +178,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
       messageId: (message as Message).id,
       roomId: message.roomId,
       emoji: data.emoji,
-    }).catch(() => {})
+    }).catch(err => console.error('[MessageItem] AddReaction failed', err))
   }
 
   const showPill = !editing && (hovered || confirmDelete || pickerOpen)
@@ -210,6 +210,7 @@ export function MessageItem({ message, isGrouped = false, isPending = false, isK
         onClick={handleOpenEmojiPicker}
         className="rounded-full px-1.5 py-1 flex items-center justify-center text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         title="Add reaction"
+        aria-label="Add reaction"
       >
         🙂
       </button>

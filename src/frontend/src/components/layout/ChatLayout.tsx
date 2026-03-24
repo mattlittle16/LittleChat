@@ -25,6 +25,7 @@ import { UserProfileDialog } from '../profile/UserProfileDialog'
 import { OnboardingWizardModal } from '../onboarding/OnboardingWizardModal'
 import { NotificationCenter } from '../notifications/NotificationCenter'
 import { useAdminAuth } from '../../hooks/useAdminAuth'
+import { ErrorBoundary } from '../common/ErrorBoundary'
 
 export function ChatLayout() {
   useTheme()
@@ -90,13 +91,17 @@ export function ChatLayout() {
       })
       .catch(() => {
         // Fallback to legacy call that only returns id
-        api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(() => {})
+        api.get<{ id: string }>('/api/users/me').then(u => setCurrentUserId(u.id)).catch(err => console.error('[ChatLayout] /api/users/me fallback failed', err))
       })
     // Seed profile store for all users so avatars render on first render (TTL-guarded — 60s)
     fetchAllUsers()
-    loadPreferences().catch(() => {})
-    loadOverrides().catch(() => {})
-    loadNotifications().catch(() => {})
+    loadPreferences().catch(err => console.error('[ChatLayout] loadPreferences failed', err))
+    loadOverrides().catch(err => console.error('[ChatLayout] loadOverrides failed', err))
+    loadNotifications().catch(err => console.error('[ChatLayout] loadNotifications failed', err))
+
+    // Periodically refresh the user list so newly joined users appear without a page reload
+    const userRefreshInterval = setInterval(() => fetchAllUsers(), 5 * 60 * 1000)
+    return () => clearInterval(userRefreshInterval)
   }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides, fetchAllUsers, loadNotifications])
 
   // Mark notifications as read when navigating to a room
@@ -205,7 +210,7 @@ export function ChatLayout() {
             connection.invoke('DeleteMessage', {
               messageId: selectedMessageId,
               roomId: activeRoomId,
-            }).catch(() => {})
+            }).catch(err => console.error('[ChatLayout] DeleteMessage failed', err))
           }
           setSelectedMessageId(null)
           setDeleteConfirmPending(false)
@@ -258,7 +263,9 @@ export function ChatLayout() {
 
       {/* Sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex">
-        <Sidebar />
+        <ErrorBoundary name="Sidebar">
+          <Sidebar />
+        </ErrorBoundary>
       </div>
 
       {/* Mobile slide-out drawer */}
@@ -299,6 +306,7 @@ export function ChatLayout() {
               <button
                 onClick={() => setShowMemberPanel(!showMemberPanel)}
                 title="Members"
+                aria-label="Members"
                 className="flex items-center gap-1 rounded px-1.5 py-1 text-sm transition-colors"
                 style={{
                   color: showMemberPanel ? 'hsl(var(--foreground))' : 'hsl(var(--foreground) / 0.6)',
@@ -315,6 +323,7 @@ export function ChatLayout() {
                 <button
                   onClick={() => { setRoomMenuOpen(o => !o); setRoomConfirming(false) }}
                   title="Room options"
+                  aria-label="Room options"
                   className="rounded px-1.5 py-1 text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60"
                 >
                   ⋯
@@ -358,6 +367,7 @@ export function ChatLayout() {
                 <button
                   onClick={() => { setDmMenuOpen(o => !o); setDmConfirming(false) }}
                   title="DM options"
+                  aria-label="DM options"
                   className="rounded px-1.5 py-1 text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60"
                 >
                   ⋯
@@ -400,6 +410,7 @@ export function ChatLayout() {
               <button
                 onClick={() => setNotifOpen(!isNotifOpen)}
                 title="Notifications"
+                aria-label="Notifications"
                 className="relative rounded p-1.5 text-foreground/70 hover:text-foreground hover:bg-muted/60 transition-colors"
               >
                 <Bell className="w-4 h-4" />
@@ -409,7 +420,11 @@ export function ChatLayout() {
                   </span>
                 )}
               </button>
-              {isNotifOpen && <NotificationCenter onClose={() => setNotifOpen(false)} />}
+              {isNotifOpen && (
+                <ErrorBoundary name="Notifications">
+                  <NotificationCenter onClose={() => setNotifOpen(false)} />
+                </ErrorBoundary>
+              )}
             </div>
 
             <button
@@ -477,12 +492,14 @@ export function ChatLayout() {
           <div className="flex flex-1 flex-col min-w-0">
             {activeRoomId ? (
               <>
-                <MessageList
-                  roomId={activeRoomId}
-                  selectedMessageId={selectedMessageId}
-                  deleteConfirmPending={deleteConfirmPending}
-                  editingMessageId={editingMessageId}
-                />
+                <ErrorBoundary name="Message List">
+                  <MessageList
+                    roomId={activeRoomId}
+                    selectedMessageId={selectedMessageId}
+                    deleteConfirmPending={deleteConfirmPending}
+                    editingMessageId={editingMessageId}
+                  />
+                </ErrorBoundary>
                 <TypingIndicator roomId={activeRoomId} />
                 <MessageInput
                   roomId={activeRoomId}

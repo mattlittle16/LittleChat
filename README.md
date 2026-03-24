@@ -77,7 +77,7 @@ Neither pattern creates a hard dependency on another module's internals, keeping
 | **Auth** | OIDC → JWT Bearer tokens |
 | **Image processing** | SixLabors.ImageSharp (resize, HEIC/HEIF support) |
 | **Drag & drop** | @dnd-kit (topic sidebar reordering) |
-| **Virtualisation** | @tanstack/react-virtual (large message lists) |
+| **Virtualisation** | — (cursor-based pagination bounds DOM size) |
 | **Infrastructure** | Docker Compose, nginx, Nginx Proxy Manager |
 | **CI/CD** | GitHub Actions → self-hosted runner |
 
@@ -130,9 +130,13 @@ Both the backend (`dotnet watch`) and frontend (Vite) support hot reload — fil
 ### 4. Run the tests
 
 ```bash
+# Backend (unit + architecture tests)
 cd src/backend
-dotnet test tests/Unit/
-dotnet test tests/Architecture/
+dotnet test
+
+# Frontend (unit tests + lint)
+cd src/frontend
+npm test && npm run lint
 ```
 
 ---
@@ -206,6 +210,10 @@ A few intentional choices worth understanding:
 - **System messages use `user_id = NULL`** — ban notices and system events are stored as regular messages but excluded from unread counts and notifications. The sender name is persisted so it survives page reloads.
 - **Admin audit log** — all admin actions (bans, unbans, member changes, topic create/delete) are recorded with timestamp, actor, and target.
 - **Token blocklist in Valkey** — banned users have their JWT invalidated immediately via a Redis-backed blocklist; they cannot reconnect until the ban expires.
+- **Blocklist fail-safe** — a 30-second in-memory fallback cache ensures recently-banned users stay blocked even during a Valkey outage.
+- **Rate limiting** — sliding-window rate limits protect all message, search, and room-creation endpoints. Limits are configurable via `appsettings.json` under `RateLimit`.
+- **Magic byte validation** — uploaded files are validated against their declared extension using header magic bytes, preventing MIME-type spoofing.
+- **Health checks** — `/health` and `/ready` endpoints report PostgreSQL and Valkey connectivity for container orchestration and load balancer use.
 
 ---
 

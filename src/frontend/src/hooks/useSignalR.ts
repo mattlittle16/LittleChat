@@ -68,6 +68,14 @@ export function useSignalR(roomId: string | null) {
         if (cancelled) return
         setStatus('connected')
 
+      const events = [
+        'ReceiveMessage', 'DmCreated', 'DmDeleted', 'RoomDeleted',
+        'RoomMembershipChanged', 'RemovedFromRoom', 'MemberListChanged',
+        'PresenceUpdate', 'PresenceSnapshot', 'MessageEdited', 'MessageDeleted',
+        'ReactionUpdated', 'UserTyping', 'MentionNotification', 'NotificationReceived',
+      ]
+      events.forEach(e => connection.off(e))
+
       connection.on('ReceiveMessage', (msg: Message) => {
         addMessage(msg)
 
@@ -265,12 +273,23 @@ export function useSignalR(roomId: string | null) {
         retryTimer = null
       }
       clearHeartbeat()
+      const conn = getConnection()
+      if (conn) {
+        ;[
+          'ReceiveMessage', 'DmCreated', 'DmDeleted', 'RoomDeleted',
+          'RoomMembershipChanged', 'RemovedFromRoom', 'MemberListChanged',
+          'PresenceUpdate', 'PresenceSnapshot', 'MessageEdited', 'MessageDeleted',
+          'ReactionUpdated', 'UserTyping', 'MentionNotification', 'NotificationReceived',
+        ].forEach(e => conn.off(e))
+      }
     }
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Join new room group when active room changes (without reconnecting)
   useEffect(() => {
     if (!roomId || roomId === prevRoomRef.current) return
+    // Clear typing timers for the previous room to prevent stale state updates
+    if (prevRoomRef.current) useTypingStore.getState().clearRoom(prevRoomRef.current)
     prevRoomRef.current = roomId
 
     const connection = getConnection()

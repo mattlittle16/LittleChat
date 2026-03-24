@@ -6,7 +6,7 @@ export function setAccessToken(token: string | null) {
 }
 
 export function getAccessToken(): string | null {
-  return _accessToken ?? localStorage.getItem('access_token')
+  return _accessToken ?? localStorage.getItem('littlechat_access_token')
 }
 
 interface ProblemDetails {

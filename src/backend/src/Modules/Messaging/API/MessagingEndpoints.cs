@@ -58,7 +58,7 @@ public static class MessagingEndpoints
                 {
                     return Results.BadRequest(ex.Message);
                 }
-            });
+            }).RequireRateLimiting("rooms");
 
         // GET /api/rooms/{roomId}/messages — paginated message history
         // Modes: default (before/beforeId), aroundId, after/afterId
@@ -179,6 +179,10 @@ public static class MessagingEndpoints
                 if (string.IsNullOrWhiteSpace(content) && formFiles.Count == 0)
                     return Results.BadRequest("Message must have text content or at least one file attachment.");
 
+                // Validate content length
+                if (content.Length > 15000)
+                    return Results.BadRequest("Message content exceeds the maximum length of 15,000 characters.");
+
                 // Validate file count
                 if (formFiles.Count > maxFileCount)
                     return Results.BadRequest($"A message may have at most {maxFileCount} file attachments.");
@@ -209,11 +213,17 @@ public static class MessagingEndpoints
                 if (blockedFiles.Count > 0)
                     return Results.BadRequest(new { error = "One or more file types are not permitted.", blockedFiles });
 
-                // Validate per-file and combined sizes
+                // Validate per-file size and magic bytes
                 foreach (var f in formFiles)
                 {
                     if (f.Length > maxPerFileBytes)
                         return Results.BadRequest($"File '{f.FileName}' exceeds the 200 MB per-file limit.");
+
+                    var ext = Path.GetExtension(f.FileName);
+                    await using var headerStream = f.OpenReadStream();
+                    var magicError = await FileMagicBytes.ValidateAsync(headerStream, ext, ctx.RequestAborted);
+                    if (magicError is not null)
+                        return Results.BadRequest($"File '{f.FileName}': {magicError}");
                 }
 
                 if (formFiles.Sum(f => f.Length) > maxCombinedBytes)
@@ -247,7 +257,8 @@ public static class MessagingEndpoints
                     return Results.Forbid();
                 }
             }).DisableRequestTimeout()
-              .WithMetadata(new DisableRequestSizeLimitAttribute());
+              .WithMetadata(new DisableRequestSizeLimitAttribute())
+              .RequireRateLimiting("messages");
 
         // PATCH /api/rooms/{roomId}/messages/{messageId} — edit own message
         app.MapPatch("/api/rooms/{roomId:guid}/messages/{messageId:guid}",
@@ -257,6 +268,9 @@ public static class MessagingEndpoints
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null)
                     return Results.Unauthorized();
+
+                if (body.Content.Length > 15000)
+                    return Results.BadRequest("Message content exceeds the maximum length of 15,000 characters.");
 
                 try
                 {

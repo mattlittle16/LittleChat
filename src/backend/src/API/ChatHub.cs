@@ -1,3 +1,4 @@
+using API.Services;
 using MediatR;
 using Messaging.Application.Commands;
 using Messaging.Application.Queries;
@@ -21,11 +22,13 @@ public sealed class ChatHub : Hub<IChatHubClient>
 {
     private readonly ISender _sender;
     private readonly IPresenceService _presence;
+    private readonly SignalRRateLimiter _rateLimiter;
 
-    public ChatHub(ISender sender, IPresenceService presence)
+    public ChatHub(ISender sender, IPresenceService presence, SignalRRateLimiter rateLimiter)
     {
         _sender = sender;
         _presence = presence;
+        _rateLimiter = rateLimiter;
     }
 
     public override async Task OnConnectedAsync()
@@ -123,6 +126,9 @@ public sealed class ChatHub : Hub<IChatHubClient>
         var userId = Context.User?.GetInternalUserId()
             ?? throw new HubException("Unauthorized");
 
+        if (request.Content.Length > 15000)
+            throw new HubException("Message content exceeds the maximum length of 15,000 characters.");
+
         try
         {
             await _sender.Send(new EditMessageCommand(
@@ -166,6 +172,12 @@ public sealed class ChatHub : Hub<IChatHubClient>
     {
         var userId = Context.User?.GetInternalUserId()
             ?? throw new HubException("Unauthorized");
+
+        if (request.Content.Length > 15000)
+            throw new HubException("Message content exceeds the maximum length of 15,000 characters.");
+
+        if (!_rateLimiter.IsAllowed(userId.ToString()))
+            throw new HubException("Too many messages. Please slow down.");
 
         var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
         var avatarUrl = Context.User?.FindFirst("picture")?.Value;

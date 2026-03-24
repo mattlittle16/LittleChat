@@ -48,7 +48,7 @@ public static class SearchEndpoints
                 RoomId: roomId), ctx.RequestAborted);
 
             return Results.Ok(results);
-        });
+        }).RequireRateLimiting("search");
 
         return app;
     }

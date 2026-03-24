@@ -9,6 +9,7 @@ import { isAuthenticated, restoreSession } from './services/authService'
 import { useAdminAuth } from './hooks/useAdminAuth'
 import { useFaviconBadge } from './hooks/useFaviconBadge'
 import { useUpdateDetection } from './hooks/useUpdateDetection'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 export default function App() {
   useFaviconBadge()
@@ -57,9 +58,9 @@ function AuthenticatedApp() {
     if (!authenticated) return <LandingPage />
     if (path.startsWith('/admin')) {
       if (!isAdmin) return null // redirect handled above
-      return <AdminLayout />
+      return <ErrorBoundary name="Admin"><AdminLayout /></ErrorBoundary>
     }
-    return <ChatLayout />
+    return <ErrorBoundary name="Chat"><ChatLayout /></ErrorBoundary>
   }
 
   return (
