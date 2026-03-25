@@ -10,8 +10,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-mituw16%2Flittlechat-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/mituw16/littlechat)
 
 *Slack-inspired, deliberately minimal, runs entirely on your own infrastructure.*
+
+**[📖 Documentation & self-hosting guide →](https://github.com/mattlittle16/LittleChat/wiki)**
 
 </div>
 
