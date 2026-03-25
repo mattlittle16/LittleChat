@@ -10,9 +10,11 @@ packages/
 *.snupkg
 TestResults/
 **/localup.sh
-**/.claude/settings.local.json
+**/.claude/commands
 **/docs/mcl
-**/_bmad-output
+**/_bmad
+**/.specify 
+
 
 # ── Node / Frontend ────────────────────────────────────────────────────────
 node_modules/
