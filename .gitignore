@@ -12,7 +12,7 @@ TestResults/
 **/localup.sh
 **/.claude/settings.local.json
 **/docs/mcl
-
+**/_bmad-output
 
 # ── Node / Frontend ────────────────────────────────────────────────────────
 node_modules/
