@@ -1,9 +1,6 @@
 services:
   chat-backend:
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
-      target: final
+    image: mituw16/littlechat:backend-latest
     expose:
       - "5000"
     volumes:
@@ -11,9 +8,10 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
-      - AUTHENTIK_AUTHORITY=${AUTHENTIK_AUTHORITY}
-      - AUTHENTIK_CLIENT_ID=${AUTHENTIK_CLIENT_ID}
-      - AUTHENTIK_CLIENT_SECRET=${AUTHENTIK_CLIENT_SECRET}
+      - OIDC_AUTHORITY=${OIDC_AUTHORITY}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_SKIP_RESPONSE_VALIDATION=${OIDC_SKIP_RESPONSE_VALIDATION:-true}
       - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
       - VALKEY_CONNECTION_STRING=${VALKEY_CONNECTION_STRING}
       - UPLOAD_PATH=/uploads
@@ -52,12 +50,7 @@ services:
       - internal
 
   chat-frontend:
-    build:
-      context: src/frontend
-      dockerfile: Dockerfile
-      target: final
-      args:
-        GIT_COMMIT: ${GIT_COMMIT:-dev}
+    image: mituw16/littlechat:frontend-latest
     expose:
       - "80"
     restart: unless-stopped

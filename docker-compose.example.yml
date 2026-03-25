@@ -1,0 +1,93 @@
+# LittleChat — self-hosted deployment example
+#
+# 1. Copy this file to docker-compose.yml
+# 2. Copy .env.example to .env and fill in your values
+# 3. Copy docker/nginx/nginx.conf to the same directory as your docker-compose.yml
+# 4. Run: docker compose up -d
+
+services:
+  chat-backend:
+    image: mituw16/littlechat:backend-latest
+    expose:
+      - "5000"
+    volumes:
+      - uploads:/uploads
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      # OIDC provider — any OIDC-compliant IdP works (Keycloak, Auth0, Okta, Authelia, Authentik...)
+      - OIDC_AUTHORITY=${OIDC_AUTHORITY}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      # Set to true only if your IdP uses hybrid flow (Authentik users: set this to true)
+      - OIDC_SKIP_RESPONSE_VALIDATION=${OIDC_SKIP_RESPONSE_VALIDATION:-false}
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - VALKEY_CONNECTION_STRING=valkey:6379
+      - UPLOAD_PATH=/uploads
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - MESSAGE_PAGE_SIZE=${MESSAGE_PAGE_SIZE:-100}
+      # Admin group config — match your IdP's group claim field and value
+      - ADMIN_CLAIM_FIELD=${ADMIN_CLAIM_FIELD:-groups}
+      - ADMIN_CLAIM_VALUES=${ADMIN_CLAIM_VALUES:-app-admin}
+      - KLIPY_API_KEY=${KLIPY_API_KEY:-}
+    depends_on:
+      chat-db:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - internal
+
+  chat-frontend:
+    image: mituw16/littlechat:frontend-latest
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  chat-db:
+    image: postgres:16-alpine
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-littlechat}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-littlechat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - internal
+
+  valkey:
+    image: valkey/valkey:latest
+    restart: unless-stopped
+    networks:
+      - internal
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      # Copy docker/nginx/nginx.conf from the LittleChat repo into the same directory
+      # as this docker-compose.yml, then reference it here.
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - chat-backend
+      - chat-frontend
+    restart: unless-stopped
+    networks:
+      - internal
+
+volumes:
+  postgres-data:
+  uploads:
+
+networks:
+  internal:
+    driver: bridge

@@ -57,8 +57,45 @@ jobs:
       - name: Lint
         run: npm run lint
 
-  deploy:
+  publish:
     needs: [backend-ci, frontend-ci]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: src/backend
+          file: src/backend/Dockerfile
+          target: final
+          push: true
+          tags: |
+            mituw16/littlechat:backend-latest
+            mituw16/littlechat:backend-${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: src/frontend
+          file: src/frontend/Dockerfile
+          target: final
+          push: true
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+          tags: |
+            mituw16/littlechat:frontend-latest
+            mituw16/littlechat:frontend-${{ github.sha }}
+
+  deploy:
+    needs: [publish]
     runs-on: self-hosted
 
     steps:
@@ -71,18 +108,18 @@ jobs:
           echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
           echo "POSTGRES_CONNECTION_STRING=${{ secrets.POSTGRES_CONNECTION_STRING }}" >> .env
           echo "VALKEY_CONNECTION_STRING=${{ secrets.VALKEY_CONNECTION_STRING }}" >> .env
-          echo "AUTHENTIK_AUTHORITY=${{ secrets.AUTHENTIK_AUTHORITY }}" >> .env
-          echo "AUTHENTIK_CLIENT_ID=${{ secrets.AUTHENTIK_CLIENT_ID }}" >> .env
-          echo "AUTHENTIK_CLIENT_SECRET=${{ secrets.AUTHENTIK_CLIENT_SECRET }}" >> .env
+          echo "OIDC_AUTHORITY=${{ secrets.AUTHENTIK_AUTHORITY }}" >> .env
+          echo "OIDC_CLIENT_ID=${{ secrets.AUTHENTIK_CLIENT_ID }}" >> .env
+          echo "OIDC_CLIENT_SECRET=${{ secrets.AUTHENTIK_CLIENT_SECRET }}" >> .env
+          echo "OIDC_SKIP_RESPONSE_VALIDATION=true" >> .env
           echo "UPLOAD_PATH=${{ secrets.UPLOAD_PATH }}" >> .env
           echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env
           echo "MESSAGE_PAGE_SIZE=${{ secrets.MESSAGE_PAGE_SIZE }}" >> .env
           echo "POSTGRES_DATA_PATH=${{ secrets.POSTGRES_DATA_PATH }}" >> .env
-          echo "GIT_COMMIT=${{ github.sha }}" >> .env
           echo "KLIPY_API_KEY=${{ secrets.KLIPY_API_KEY }}" >> .env
 
-      - name: Build images
-        run: docker compose -f docker-compose.prod.yml build
+      - name: Pull latest images
+        run: docker compose -f docker-compose.prod.yml pull
 
       - name: Deploy services
         run: docker compose -f docker-compose.prod.yml up -d --force-recreate

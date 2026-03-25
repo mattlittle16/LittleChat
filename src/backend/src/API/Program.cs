@@ -55,12 +55,13 @@ builder.Services.AddCors(options =>
 });
 
 // ── Authentication ────────────────────────────────────────────────────────────
-var authority = builder.Configuration["AUTHENTIK_AUTHORITY"]
-    ?? throw new InvalidOperationException("AUTHENTIK_AUTHORITY is required.");
-var clientId = builder.Configuration["AUTHENTIK_CLIENT_ID"]
-    ?? throw new InvalidOperationException("AUTHENTIK_CLIENT_ID is required.");
-var clientSecret = builder.Configuration["AUTHENTIK_CLIENT_SECRET"]
-    ?? throw new InvalidOperationException("AUTHENTIK_CLIENT_SECRET is required.");
+var authority = builder.Configuration["OIDC_AUTHORITY"]
+    ?? throw new InvalidOperationException("OIDC_AUTHORITY is required.");
+var clientId = builder.Configuration["OIDC_CLIENT_ID"]
+    ?? throw new InvalidOperationException("OIDC_CLIENT_ID is required.");
+var clientSecret = builder.Configuration["OIDC_CLIENT_SECRET"]
+    ?? throw new InvalidOperationException("OIDC_CLIENT_SECRET is required.");
+var skipResponseValidation = builder.Configuration["OIDC_SKIP_RESPONSE_VALIDATION"] == "true";
 
 builder.Services
     .AddAuthentication(options =>
@@ -147,7 +148,8 @@ builder.Services
         options.GetClaimsFromUserInfoEndpoint = false;
         options.MapInboundClaims = false;
 
-        options.ProtocolValidator = new AuthentikProtocolValidator();
+        if (skipResponseValidation)
+            options.ProtocolValidator = new OidcSkipResponseValidator();
 
         options.Events = new OpenIdConnectEvents
         {
@@ -430,17 +432,17 @@ app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.
 
 app.Run();
 
-// Authentik includes id_token alongside the authorization code in its redirect (non-standard
-// hybrid-flow behavior). The auth-response validator rejects this when response_mode is query.
-// We override it to skip auth-response validation when a code is present — the id_token from
-// the authorization endpoint is unused; valid tokens are obtained from the token endpoint.
-sealed class AuthentikProtocolValidator : OpenIdConnectProtocolValidator
+// Some IdPs (e.g. Authentik) use a hybrid flow that returns tokens in the authorization redirect
+// (non-standard OIDC behaviour). The auth-response validator rejects this when response_mode is
+// query. Set OIDC_SKIP_RESPONSE_VALIDATION=true to opt in to skipping that check.
+// Standard code-flow providers (Keycloak, Auth0, Okta, Authelia) don't need this.
+sealed class OidcSkipResponseValidator : OpenIdConnectProtocolValidator
 {
     public override void ValidateAuthenticationResponse(
         OpenIdConnectProtocolValidationContext validationContext)
     {
-        // Skip auth-response validation entirely. State/CSRF is validated before this is called.
-        // Authentik's auth response doesn't conform (returns tokens via query string).
+        // No-op: skips auth-response validation for IdPs that use hybrid flow.
+        // State/CSRF is validated before this is called.
         // The token endpoint exchange (ValidateTokenResponse) still runs normally.
     }
 }
