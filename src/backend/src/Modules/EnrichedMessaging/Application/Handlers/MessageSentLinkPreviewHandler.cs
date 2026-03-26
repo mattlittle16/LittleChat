@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using EnrichedMessaging.Application.Services;
 using EnrichedMessaging.Domain;
+using Microsoft.Extensions.DependencyInjection;
 using Shared.Contracts.Events;
 using Shared.Contracts.Interfaces;
 
@@ -15,17 +16,14 @@ public sealed class MessageSentLinkPreviewHandler : IIntegrationEventHandler<Mes
     private static readonly Regex CodeSpanRegex = new(@"`[^`]+`", RegexOptions.Compiled);
 
     private readonly ILinkPreviewFetcher _fetcher;
-    private readonly ILinkPreviewRepository _previews;
-    private readonly IEventBus _eventBus;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public MessageSentLinkPreviewHandler(
         ILinkPreviewFetcher fetcher,
-        ILinkPreviewRepository previews,
-        IEventBus eventBus)
+        IServiceScopeFactory scopeFactory)
     {
         _fetcher = fetcher;
-        _previews = previews;
-        _eventBus = eventBus;
+        _scopeFactory = scopeFactory;
     }
 
     public Task HandleAsync(MessageSentIntegrationEvent evt, CancellationToken cancellationToken = default)
@@ -42,7 +40,9 @@ public sealed class MessageSentLinkPreviewHandler : IIntegrationEventHandler<Mes
 
         var url = match.Value;
 
-        // Fire-and-forget: don't block message delivery
+        // Fire-and-forget: don't block message delivery.
+        // Create a fresh DI scope so scoped services (DbContext-backed repositories)
+        // are not tied to the request scope that will be disposed before this task completes.
         _ = Task.Run(async () =>
         {
             try
@@ -55,9 +55,13 @@ public sealed class MessageSentLinkPreviewHandler : IIntegrationEventHandler<Mes
                     result.Title, result.Description, result.ThumbnailUrl,
                     false, DateTime.UtcNow);
 
-                await _previews.UpsertAsync(preview, CancellationToken.None);
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var previews  = scope.ServiceProvider.GetRequiredService<ILinkPreviewRepository>();
+                var eventBus  = scope.ServiceProvider.GetRequiredService<IEventBus>();
 
-                await _eventBus.PublishAsync(new LinkPreviewReadyIntegrationEvent
+                await previews.UpsertAsync(preview, CancellationToken.None);
+
+                await eventBus.PublishAsync(new LinkPreviewReadyIntegrationEvent
                 {
                     MessageId    = evt.MessageId,
                     RoomId       = evt.RoomId,
