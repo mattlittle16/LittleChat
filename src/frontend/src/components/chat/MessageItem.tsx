@@ -277,7 +277,7 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
   }
 
   const showPill = !editing && (hovered || confirmDelete || pickerOpen)
-  const hasReactions = !isOutbox(message) && (message.reactions?.length ?? 0) > 0
+
 
   // Edit/delete buttons shared between both pill variants
   const editDeleteButtons = !confirmDelete ? (
@@ -362,10 +362,7 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
     </>
   )
 
-  // Inline pill for messages that already have reactions:
-  // - not own: no pill (+ handles adding emojis)
-  // - own: edit/delete only (+ handles adding emojis)
-  const inlinePill = hasReactions && showPill && isOwn ? editDeleteButtons : undefined
+  const inlinePill = undefined
 
   return (
     <div
@@ -541,18 +538,16 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
         />
       </div>
 
-      {/* Hover action pill — only shown when message has no reactions; otherwise rendered inline in ReactionBar */}
-      {!hasReactions && (
-        <div
-          className={cn(
-            'absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600',
-            'transition-opacity duration-150',
-            showPill ? 'opacity-100' : 'opacity-0 pointer-events-none',
-          )}
-        >
-          {pillButtons}
-        </div>
-      )}
+      {/* Hover action pill */}
+      <div
+        className={cn(
+          'absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-0.5 border rounded-full shadow-sm px-1.5 py-0.5 z-20 bg-zinc-200 dark:bg-zinc-600',
+          'transition-opacity duration-150',
+          showPill ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        )}
+      >
+        {pillButtons}
+      </div>
 
       {lightbox && (
         <AvatarLightbox
