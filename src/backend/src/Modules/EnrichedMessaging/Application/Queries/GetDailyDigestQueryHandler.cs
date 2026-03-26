@@ -57,7 +57,7 @@ public sealed class GetDailyDigestQueryHandler : IRequestHandler<GetDailyDigestQ
                                 poll.Question,
                                 poll.VoteMode,
                                 poll.Options.Select(o => new PollOptionDto(o.Id, o.Text, o.DisplayOrder, o.VoteCount, o.VoterDisplayNames)).ToList(),
-                                []
+                                poll.CurrentUserVotedOptionIds
                             );
                         }
                     }

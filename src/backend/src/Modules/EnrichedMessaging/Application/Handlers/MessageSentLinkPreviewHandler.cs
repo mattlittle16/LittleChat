@@ -34,8 +34,9 @@ public sealed class MessageSentLinkPreviewHandler : IIntegrationEventHandler<Mes
         if (evt.MessageType != "text" || evt.IsSystem)
             return Task.CompletedTask;
 
-        // Find first URL outside backtick code spans
-        var stripped = CodeSpanRegex.Replace(evt.Content, string.Empty);
+        // Strip fenced blocks then inline spans before scanning for URLs
+        var stripped = FencedCodeRegex.Replace(evt.Content, string.Empty);
+        stripped = CodeSpanRegex.Replace(stripped, string.Empty);
         var match = UrlRegex.Match(stripped);
         if (!match.Success)
             return Task.CompletedTask;

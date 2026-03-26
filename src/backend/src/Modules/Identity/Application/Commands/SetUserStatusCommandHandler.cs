@@ -21,6 +21,9 @@ public sealed class SetUserStatusCommandHandler : IRequestHandler<SetUserStatusC
 
     public async Task<SetUserStatusResult> Handle(SetUserStatusCommand request, CancellationToken cancellationToken)
     {
+        if (request.Emoji is not null && request.Emoji.Length > 20)
+            throw new InvalidOperationException("Status emoji must be 20 characters or fewer.");
+
         if (request.Text is not null && request.Text.Length > 60)
             throw new InvalidOperationException("Status text must be 60 characters or fewer.");
 

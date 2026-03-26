@@ -21,44 +21,62 @@ public sealed class PollRepository : IPollRepository
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(ct);
-        return await LoadPoll(conn, "WHERE p.id = @pollId", new { pollId }, currentUserId, ct);
+        return await LoadPollById(conn, pollId, currentUserId, ct);
     }
 
     public async Task<Poll?> GetByMessageIdAsync(Guid messageId, Guid currentUserId, CancellationToken ct = default)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(ct);
-        return await LoadPoll(conn, "WHERE p.message_id = @messageId", new { messageId }, currentUserId, ct);
+        return await LoadPollByMessageId(conn, messageId, currentUserId, ct);
     }
 
-    private static async Task<Poll?> LoadPoll(NpgsqlConnection conn, string whereClause, object param, Guid currentUserId, CancellationToken ct)
+    private static Task<Poll?> LoadPollById(NpgsqlConnection conn, Guid pollId, Guid currentUserId, CancellationToken ct)
     {
-        var sql = $@"
+        const string sql = @"
             SELECT p.id AS PollId, p.message_id AS MessageId, p.question AS Question,
                    p.vote_mode AS VoteMode, p.created_at AS CreatedAt,
                    po.id AS OptionId, po.text AS OptionText, po.display_order AS DisplayOrder,
-                   COUNT(pv.id) AS VoteCount,
-                   STRING_AGG(pv.display_name, ',' ORDER BY pv.created_at) AS VoterNames
+                   COUNT(pv.id) AS VoteCount
             FROM polls p
             JOIN poll_options po ON po.poll_id = p.id
             LEFT JOIN poll_votes pv ON pv.option_id = po.id
-            {whereClause}
+            WHERE p.id = @pollId
             GROUP BY p.id, po.id
             ORDER BY po.display_order";
 
         var cmd = new NpgsqlCommand(sql, conn);
-        if (param is { } p)
-        {
-            var props = p.GetType().GetProperties();
-            foreach (var prop in props)
-                cmd.Parameters.AddWithValue(prop.Name, prop.GetValue(p) ?? DBNull.Value);
-        }
+        cmd.Parameters.AddWithValue("pollId", pollId);
+        return LoadPollFromCommand(cmd, conn, currentUserId, ct);
+    }
+
+    private static Task<Poll?> LoadPollByMessageId(NpgsqlConnection conn, Guid messageId, Guid currentUserId, CancellationToken ct)
+    {
+        const string sql = @"
+            SELECT p.id AS PollId, p.message_id AS MessageId, p.question AS Question,
+                   p.vote_mode AS VoteMode, p.created_at AS CreatedAt,
+                   po.id AS OptionId, po.text AS OptionText, po.display_order AS DisplayOrder,
+                   COUNT(pv.id) AS VoteCount
+            FROM polls p
+            JOIN poll_options po ON po.poll_id = p.id
+            LEFT JOIN poll_votes pv ON pv.option_id = po.id
+            WHERE p.message_id = @messageId
+            GROUP BY p.id, po.id
+            ORDER BY po.display_order";
+
+        var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("messageId", messageId);
+        return LoadPollFromCommand(cmd, conn, currentUserId, ct);
+    }
+
+    private static async Task<Poll?> LoadPollFromCommand(NpgsqlCommand cmd, NpgsqlConnection conn, Guid currentUserId, CancellationToken ct)
+    {
 
         Guid? pollId = null;
         string? question = null, voteMode = null;
         DateTime createdAt = default;
         Guid? messageId = null;
-        var options = new List<(Guid id, string text, int order, int count, string? names)>();
+        var options = new List<(Guid id, string text, int order, int count)>();
 
         await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
@@ -66,26 +84,43 @@ public sealed class PollRepository : IPollRepository
             {
                 if (pollId is null)
                 {
-                    pollId = reader.GetGuid(reader.GetOrdinal("PollId"));
+                    pollId    = reader.GetGuid(reader.GetOrdinal("PollId"));
                     messageId = reader.GetGuid(reader.GetOrdinal("MessageId"));
-                    question = reader.GetString(reader.GetOrdinal("Question"));
-                    voteMode = reader.GetString(reader.GetOrdinal("VoteMode"));
+                    question  = reader.GetString(reader.GetOrdinal("Question"));
+                    voteMode  = reader.GetString(reader.GetOrdinal("VoteMode"));
                     createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
                 }
-                var oid = reader.GetGuid(reader.GetOrdinal("OptionId"));
-                var otext = reader.GetString(reader.GetOrdinal("OptionText"));
-                var oorder = reader.GetInt32(reader.GetOrdinal("DisplayOrder"));
-                var ocount = (int)(long)reader.GetValue(reader.GetOrdinal("VoteCount"));
-                var onames = reader.IsDBNull(reader.GetOrdinal("VoterNames")) ? null : reader.GetString(reader.GetOrdinal("VoterNames"));
-                options.Add((oid, otext, oorder, ocount, onames));
+                options.Add((
+                    reader.GetGuid(reader.GetOrdinal("OptionId")),
+                    reader.GetString(reader.GetOrdinal("OptionText")),
+                    reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
+                    (int)(long)reader.GetValue(reader.GetOrdinal("VoteCount"))
+                ));
             }
         }
 
         if (pollId is null) return null;
 
+        // Fetch voter display names per option as proper rows — avoids comma-delimiter corruption
+        var voterNamesByOption = new Dictionary<Guid, List<string>>();
+        var voterNamesCmd = new NpgsqlCommand(
+            "SELECT option_id, display_name FROM poll_votes WHERE poll_id = @pid ORDER BY created_at", conn);
+        voterNamesCmd.Parameters.AddWithValue("pid", pollId.Value);
+        await using (var voterReader = await voterNamesCmd.ExecuteReaderAsync(ct))
+        {
+            while (await voterReader.ReadAsync(ct))
+            {
+                var optId = voterReader.GetGuid(0);
+                var name  = voterReader.GetString(1);
+                if (!voterNamesByOption.TryGetValue(optId, out var list))
+                    voterNamesByOption[optId] = list = [];
+                list.Add(name);
+            }
+        }
+
         // Get current user's voted option IDs
-        var votedSql = "SELECT option_id FROM poll_votes WHERE poll_id = @pid AND user_id = @uid";
-        var votedCmd = new NpgsqlCommand(votedSql, conn);
+        var votedCmd = new NpgsqlCommand(
+            "SELECT option_id FROM poll_votes WHERE poll_id = @pid AND user_id = @uid", conn);
         votedCmd.Parameters.AddWithValue("pid", pollId.Value);
         votedCmd.Parameters.AddWithValue("uid", currentUserId);
         var votedIds = new List<Guid>();
@@ -101,10 +136,10 @@ public sealed class PollRepository : IPollRepository
             o.text,
             o.order,
             o.count,
-            o.names?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? []
+            voterNamesByOption.TryGetValue(o.id, out var names) ? names : []
         )).ToList();
 
-        return new Poll(pollId.Value, messageId!.Value, question!, voteMode!, pollOptions, createdAt);
+        return new Poll(pollId.Value, messageId!.Value, question!, voteMode!, pollOptions, createdAt, votedIds);
     }
 
     public async Task CreatePollMessageAsync(Guid messageId, Guid roomId, Guid userId, string question, DateTime now, CancellationToken ct = default)
@@ -232,7 +267,7 @@ public sealed class PollRepository : IPollRepository
             }
         }
 
-        return await LoadPoll(conn, "WHERE p.id = @pollId", new { pollId }, userId, ct);
+        return await LoadPollById(conn, pollId, userId, ct);
     }
 
     public async Task<bool> IsMemberAsync(Guid roomId, Guid userId, CancellationToken ct = default)

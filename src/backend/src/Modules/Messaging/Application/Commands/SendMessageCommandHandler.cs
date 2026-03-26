@@ -155,7 +155,7 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
             CreatedAt   = message.CreatedAt,
             MessageType = "text",
             QuoteData   = request.QuotedMessageId.HasValue
-                ? new QuoteDto(request.QuotedMessageId, quotedAuthorDn!, quotedSnapshot!, true)
+                ? new QuoteDto(request.QuotedMessageId, quotedAuthorDn ?? string.Empty, quotedSnapshot ?? string.Empty, true)
                 : null,
         }, cancellationToken);
 

@@ -55,7 +55,7 @@ public sealed class CreatePollCommandHandler : IRequestHandler<CreatePollCommand
         await _polls.CreatePollMessageAsync(messageId, request.RoomId, request.UserId, request.Question, now, cancellationToken);
 
         // Create poll + options via EF
-        var poll = new Poll(pollId, messageId, request.Question, request.VoteMode, [], now);
+        var poll = new Poll(pollId, messageId, request.Question, request.VoteMode, [], now, []);
         var options = request.Options
             .Select((text, idx) => new PollOption(Guid.NewGuid(), pollId, text, idx, 0, []))
             .ToList();

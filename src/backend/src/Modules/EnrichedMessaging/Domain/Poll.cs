@@ -6,7 +6,8 @@ public sealed record Poll(
     string Question,
     string VoteMode,
     IReadOnlyList<PollOption> Options,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    IReadOnlyList<Guid> CurrentUserVotedOptionIds
 );
 
 public sealed record PollOption(
