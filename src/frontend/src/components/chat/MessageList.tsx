@@ -21,6 +21,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const contentRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
   const isPaginatingRef = useRef(false)
+  const isRoomSwitchingRef = useRef(false)
   const scrollHeightBeforeRef = useRef(0)
   const scrollToAttemptsRef = useRef(0)
 
@@ -43,6 +44,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   // condition where loadPage and loadAroundMessage fire simultaneously.
   useEffect(() => {
     isPaginatingRef.current = false
+    isRoomSwitchingRef.current = true
     useMessageStore.setState(s => {
       const nextHasNewer = new Map(s.hasNewerByRoom)
       nextHasNewer.delete(roomId)
@@ -80,20 +82,17 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     isPaginatingRef.current = false
   }, [roomMessages.length])
 
-  // Auto-scroll to bottom when new messages arrive — only when near bottom and not in context mode
-  useEffect(() => {
+  // Scroll to bottom when entering a room or when a new message arrives while already at the bottom.
+  // useLayoutEffect fires synchronously before the browser paints, so there is no flash of
+  // unscrolled content on room load or page reload.
+  // ResizeObserver (below) handles the image/media load case where scrollHeight grows after this runs.
+  useLayoutEffect(() => {
     if (!isNearBottomRef.current) return
     if (hasNewer) return  // In context mode — don't auto-scroll to absolute bottom
     const list = listRef.current
     if (!list) return
-    // Double-RAF: first frame flushes React DOM, second lets browser complete layout.
-    // Re-check isNearBottomRef inside the RAF — the user may have scrolled up in the gap.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (!isNearBottomRef.current) return
-      if (useMessageStore.getState().hasNewerByRoom.get(roomId)) return
-      list.scrollTop = list.scrollHeight
-      isNearBottomRef.current = true
-    }))
+    list.scrollTop = list.scrollHeight
+    isRoomSwitchingRef.current = false  // Safe to allow top-of-list pagination now
     if (!document.hidden) {
       const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
       if (room && room.unreadCount > 0) {
@@ -147,8 +146,9 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
         }
       }
 
-      // Trigger older pagination when near top
-      if (el.scrollTop < 100 && hasMore && !isPaginatingRef.current) {
+      // Trigger older pagination when near top — but not during room switch, where scrollTop
+      // can be near 0 briefly and would accidentally load older history instead of the latest page.
+      if (el.scrollTop < 100 && hasMore && !isPaginatingRef.current && !isRoomSwitchingRef.current) {
         const oldest = roomMessages[0]
         if (oldest) {
           isPaginatingRef.current = true
