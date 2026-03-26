@@ -22,10 +22,11 @@ public static class EnrichedMessagingModuleExtensions
             options.UseNpgsql(connectionString,
                 npgsql => npgsql.MigrationsAssembly(typeof(EnrichedMessagingDbContext).Assembly.GetName().Name)));
 
+        services.AddTransient<SsrfGuardHandler>();
         services.AddHttpClient<ILinkPreviewFetcher, LinkPreviewFetcherService>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(10);
-        });
+        }).AddHttpMessageHandler<SsrfGuardHandler>();
 
         services.AddScoped<IPollRepository, PollRepository>();
         services.AddScoped<IHighlightRepository, HighlightRepository>();
