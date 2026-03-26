@@ -24,6 +24,20 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const isRoomSwitchingRef = useRef(false)
   const scrollHeightBeforeRef = useRef(0)
   const scrollToAttemptsRef = useRef(0)
+  const prevRoomIdRef = useRef(roomId)
+
+  // Render-phase detection: set isRoomSwitchingRef before useLayoutEffect fires.
+  // useLayoutEffect runs before useEffect, so we can't rely on the room switch useEffect
+  // to set this flag in time — especially when cached messages mean roomMessages.length
+  // doesn't change and useLayoutEffect only re-fires due to the roomId dep.
+  if (prevRoomIdRef.current !== roomId) {
+    prevRoomIdRef.current = roomId
+    const pending = useMessageStore.getState().pendingAroundByRoom.get(roomId)
+    if (!pending) {
+      isRoomSwitchingRef.current = true
+      isNearBottomRef.current = true
+    }
+  }
 
   const scrollToMessageId = useMessageStore((s) => s.scrollToMessageId)
   const setScrollToMessageId = useMessageStore((s) => s.setScrollToMessageId)
@@ -91,10 +105,10 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   // so that stale scroll state can't prevent landing at the bottom on initial load or page reload.
   // ResizeObserver (below) handles the image/media load case where scrollHeight grows after this runs.
   useLayoutEffect(() => {
-    if (hasNewer) return  // In context mode — don't auto-scroll to absolute bottom
     const list = listRef.current
     if (!list) return
     const forceScroll = isRoomSwitchingRef.current
+    if (!forceScroll && hasNewer) return  // In context mode — don't auto-scroll to absolute bottom
     if (!forceScroll && !isNearBottomRef.current) return
     list.scrollTop = list.scrollHeight
     if (forceScroll) isRoomSwitchingRef.current = false  // Allow top-of-list pagination now
