@@ -4,4 +4,5 @@ namespace Shared.Contracts.Interfaces;
 public interface IUserLookupService
 {
     Task<Guid?> FindIdByDisplayNameAsync(string displayName, CancellationToken ct = default);
+    Task<string?> GetDisplayNameAsync(Guid userId, CancellationToken ct = default);
 }

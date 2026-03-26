@@ -72,6 +72,15 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         return result is Guid id ? id : null;
     }
 
+    public async Task<string?> GetDisplayNameAsync(Guid userId, CancellationToken ct = default)
+    {
+        const string sql = "SELECT display_name FROM users WHERE id = $1 LIMIT 1";
+        await using var cmd = _dataSource.CreateCommand(sql);
+        cmd.Parameters.AddWithValue(userId);
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return result as string;
+    }
+
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         const string sql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status, status_emoji, status_text, status_color FROM users WHERE id = $1";

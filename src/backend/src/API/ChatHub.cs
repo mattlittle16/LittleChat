@@ -23,12 +23,14 @@ public sealed class ChatHub : Hub<IChatHubClient>
     private readonly ISender _sender;
     private readonly IPresenceService _presence;
     private readonly SignalRRateLimiter _rateLimiter;
+    private readonly IUserLookupService _userLookup;
 
-    public ChatHub(ISender sender, IPresenceService presence, SignalRRateLimiter rateLimiter)
+    public ChatHub(ISender sender, IPresenceService presence, SignalRRateLimiter rateLimiter, IUserLookupService userLookup)
     {
         _sender = sender;
         _presence = presence;
         _rateLimiter = rateLimiter;
+        _userLookup = userLookup;
     }
 
     public override async Task OnConnectedAsync()
@@ -164,7 +166,7 @@ public sealed class ChatHub : Hub<IChatHubClient>
         var userId = Context.User?.GetInternalUserId();
         if (userId is null) return;
 
-        var displayName = Context.User?.FindFirst("preferred_username")?.Value ?? "Unknown";
+        var displayName = await _userLookup.GetDisplayNameAsync(userId.Value) ?? "Unknown";
 
         // Broadcast to all others in the room (excluding the sender)
         await Clients.OthersInGroup($"room:{request.RoomId}")
