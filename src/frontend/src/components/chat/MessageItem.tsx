@@ -5,6 +5,7 @@ import { InlineMarkdownEditor } from './InlineMarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMentions from '../../lib/remarkMentions'
+import rehypeEmoji, { isEmojiOnly } from '../../lib/rehypeEmoji'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api } from '../../services/apiClient'
@@ -459,9 +460,10 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
                 <span className="text-muted-foreground/60 mt-[1px] select-none flex-shrink-0">|</span>
               </>
             )}
-            <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words min-w-0', isHighlighted ? 'grouped-prose' : isGrouped ? 'grouped-prose' : 'mt-0.5')}>
+            <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words min-w-0', isHighlighted ? 'grouped-prose' : isGrouped ? 'grouped-prose' : 'mt-0.5', isEmojiOnly(message.content) && 'emoji-only')}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMentions]}
+                rehypePlugins={[rehypeEmoji]}
                 remarkRehypeOptions={remarkRehypeOptions}
                 components={{
                   mention({ children, ...props }: { children?: unknown; [key: string]: unknown }) {

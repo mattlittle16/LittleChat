@@ -122,7 +122,7 @@ function ReactionChip({ reaction, onClick }: { reaction: Reaction; onClick: () =
       className="flex items-center gap-1 rounded-full border bg-zinc-200 dark:bg-zinc-600 px-2.5 py-1
                  text-sm hover:bg-zinc-300 dark:hover:bg-zinc-500 transition-colors"
     >
-      <span>{reaction.emoji}</span>
+      <span className="text-base leading-none">{reaction.emoji}</span>
       <span className="font-medium">{reaction.count}</span>
     </button>
   )

@@ -150,6 +150,19 @@
   background-color: hsl(var(--muted-foreground) / 0.8);
 }
 
+/* Emoji sizing in chat messages */
+.chat-emoji {
+  font-size: 1.4em;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.emoji-only .chat-emoji {
+  font-size: 2.5em;
+  line-height: 1.2;
+}
+
 /* @mention / @topic highlight */
 .mention {
   @apply font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded px-0.5;
