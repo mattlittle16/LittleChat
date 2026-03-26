@@ -72,6 +72,16 @@ C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventio
 
 
 <!-- MANUAL ADDITIONS START -->
+## Database Column Naming Convention
+
+**All database columns MUST use snake_case.** This is the project-wide standard enforced
+across all modules, DbContext configurations, EF Core migrations, and raw SQL repositories.
+
+- EF Core entity configurations MUST use `.HasColumnName("snake_case_name")` for every property.
+- Raw SQL in repositories MUST reference columns without quoted identifiers (no `"ColumnName"`).
+- Any migration that introduces new columns MUST use snake_case names.
+- PascalCase column names are a bug. Any found MUST be corrected with an EF migration + HasColumnName fix.
+
 ## Dependency Version Lock
 
 **MediatR is locked at ≤ 12.5.0.** Do NOT upgrade to v13 or later. MediatR went commercial

@@ -15,13 +15,13 @@ public sealed class AdminDbContext : DbContext
         {
             entity.ToTable("admin_audit_log");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).UseIdentityAlwaysColumn();
-            entity.Property(e => e.AdminId).IsRequired();
-            entity.Property(e => e.AdminName).IsRequired();
-            entity.Property(e => e.Action).IsRequired();
-            entity.Property(e => e.TargetId);
-            entity.Property(e => e.TargetName);
-            entity.Property(e => e.OccurredAt).IsRequired()
+            entity.Property(e => e.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            entity.Property(e => e.AdminId).HasColumnName("admin_id").IsRequired();
+            entity.Property(e => e.AdminName).HasColumnName("admin_name").IsRequired();
+            entity.Property(e => e.Action).HasColumnName("action").IsRequired();
+            entity.Property(e => e.TargetId).HasColumnName("target_id");
+            entity.Property(e => e.TargetName).HasColumnName("target_name");
+            entity.Property(e => e.OccurredAt).HasColumnName("occurred_at").IsRequired()
                 .HasDefaultValueSql("NOW()");
 
             entity.HasIndex(e => e.OccurredAt)

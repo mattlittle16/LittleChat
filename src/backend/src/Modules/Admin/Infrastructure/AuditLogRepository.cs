@@ -27,18 +27,18 @@ public sealed class AuditLogRepository : IAuditLogRepository
 
         await using var countCmd = _dataSource.CreateCommand(@"
             SELECT COUNT(*) FROM admin_audit_log
-            WHERE ($1::date IS NULL OR ""OccurredAt"" >= $1::date)
-              AND ($2::date IS NULL OR ""OccurredAt"" < ($2::date + INTERVAL '1 day'))");
+            WHERE ($1::date IS NULL OR occurred_at >= $1::date)
+              AND ($2::date IS NULL OR occurred_at < ($2::date + INTERVAL '1 day'))");
         countCmd.Parameters.AddWithValue(from.HasValue ? (object)from.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value);
         countCmd.Parameters.AddWithValue(to.HasValue ? (object)to.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value);
         var totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
 
         await using var cmd = _dataSource.CreateCommand(@"
-            SELECT ""Id"", ""AdminId"", ""AdminName"", ""Action"", ""TargetId"", ""TargetName"", ""OccurredAt""
+            SELECT id, admin_id, admin_name, action, target_id, target_name, occurred_at
             FROM admin_audit_log
-            WHERE ($1::date IS NULL OR ""OccurredAt"" >= $1::date)
-              AND ($2::date IS NULL OR ""OccurredAt"" < ($2::date + INTERVAL '1 day'))
-            ORDER BY ""OccurredAt"" DESC
+            WHERE ($1::date IS NULL OR occurred_at >= $1::date)
+              AND ($2::date IS NULL OR occurred_at < ($2::date + INTERVAL '1 day'))
+            ORDER BY occurred_at DESC
             LIMIT $3 OFFSET $4");
         cmd.Parameters.AddWithValue(from.HasValue ? (object)from.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value);
         cmd.Parameters.AddWithValue(to.HasValue ? (object)to.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value);
