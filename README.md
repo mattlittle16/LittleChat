@@ -37,10 +37,16 @@
 | 🔔 **Notification settings** | Per-room: all messages, mentions only, or muted |
 | 👤 **User profiles** | Avatar upload, display name, onboarding wizard |
 | 🗂️ **Topic management** | Create, join, reorder, and discover public topics |
+| ⭐ **Highlights** | Star any message to save it; view all highlights per topic or DM |
+| 🔖 **Bookmarks** | Bookmark messages for quick personal reference across all rooms |
+| 📋 **Daily Digest** | Per-room summary of recent highlights, polls, and activity |
+| 📊 **Polls** | Create single or multi-choice polls directly in a message |
+| 🔗 **Link previews** | URLs in messages automatically unfurl with title and description |
 | 🛡️ **Admin panel** | User management, banning, topic control, and full audit log |
 | 🔄 **Update detection** | In-app banner when a new version is deployed |
 | 🔐 **OIDC authentication** | Any OIDC-compliant identity provider — no passwords, no registration |
 | 📦 **Offline resilience** | IndexedDB outbox queues messages during connectivity gaps |
+| 🔗 **URL-based navigation** | Browser URL reflects current topic, DM, or panel — reload returns you exactly where you were |
 
 ---
 
