@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using MediatR;
 using Messaging.Domain;
 using Microsoft.Extensions.Logging;
+using Shared.Contracts.DTOs;
 using Shared.Contracts.Events;
 using Shared.Contracts.Interfaces;
 
@@ -51,6 +52,21 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
         if (!isMember)
             throw new UnauthorizedAccessException("User is not a member of this room.");
 
+        // Resolve quoted message if provided
+        string? quotedAuthorDn = null;
+        string? quotedSnapshot = null;
+        Message? quotedMessage = null;
+        if (request.QuotedMessageId.HasValue)
+        {
+            quotedMessage = await _messages.GetByIdAsync(request.QuotedMessageId.Value, cancellationToken);
+            if (quotedMessage is null)
+                throw new InvalidOperationException("Quoted message not found.");
+            quotedAuthorDn = quotedMessage.AuthorDisplayName;
+            quotedSnapshot = quotedMessage.Content.Length > 500
+                ? quotedMessage.Content[..500]
+                : quotedMessage.Content;
+        }
+
         // Upload files, collecting results
         var savedAttachments = new List<MessageAttachment>();
         var failedFileNames  = new List<string>();
@@ -87,17 +103,21 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
             return new SendMessageResult(request.MessageId, failedFileNames);
 
         var message = new Message(
-            Id:                request.MessageId,
-            RoomId:            request.RoomId,
-            UserId:            request.UserId,
-            AuthorDisplayName: request.AuthorDisplayName,
-            AuthorAvatarUrl:   request.AuthorAvatarUrl,
-            Content:           request.Content,
-            Attachments:       savedAttachments,
-            CreatedAt:         DateTime.UtcNow,
-            EditedAt:          null,
-            ExpiresAt:         DateTime.UtcNow.AddDays(30),
-            Reactions:         []
+            Id:                      request.MessageId,
+            RoomId:                  request.RoomId,
+            UserId:                  request.UserId,
+            AuthorDisplayName:       request.AuthorDisplayName,
+            AuthorAvatarUrl:         request.AuthorAvatarUrl,
+            Content:                 request.Content,
+            Attachments:             savedAttachments,
+            CreatedAt:               DateTime.UtcNow,
+            EditedAt:                null,
+            ExpiresAt:               DateTime.UtcNow.AddDays(30),
+            Reactions:               [],
+            MessageType:             "text",
+            QuotedMessageId:         request.QuotedMessageId,
+            QuotedAuthorDisplayName: quotedAuthorDn,
+            QuotedContentSnapshot:   quotedSnapshot
         );
 
         try
@@ -116,6 +136,10 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
             throw;
         }
 
+        var contentPreview = hasContent && message.Content.Length > 100
+            ? message.Content[..100] + "…"
+            : message.Content;
+
         // Persist-first, then broadcast (Constitution Principle I)
         await _eventBus.PublishAsync(new MessageSentIntegrationEvent
         {
@@ -129,11 +153,29 @@ public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageComma
                 .Select(a => new AttachmentEventData(a.Id, a.FileName, a.FileSize, a.ContentType, a.IsImage))
                 .ToList(),
             CreatedAt   = message.CreatedAt,
+            MessageType = "text",
+            QuoteData   = request.QuotedMessageId.HasValue
+                ? new QuoteDto(request.QuotedMessageId, quotedAuthorDn!, quotedSnapshot!, true)
+                : null,
         }, cancellationToken);
 
-        var contentPreview = hasContent && message.Content.Length > 100
-            ? message.Content[..100] + "…"
-            : message.Content;
+        // Notify quoted message author (no self-quotes)
+        if (request.QuotedMessageId.HasValue
+            && quotedMessage!.UserId.HasValue
+            && quotedMessage.UserId != request.UserId)
+        {
+            var roomNameForQuote = await _messages.GetRoomNameAsync(message.RoomId, cancellationToken) ?? string.Empty;
+            await _eventBus.PublishAsync(new MessageQuotedIntegrationEvent
+            {
+                MessageId             = message.Id,
+                RoomId                = message.RoomId,
+                RoomName              = roomNameForQuote,
+                QuotedMessageAuthorId = quotedMessage.UserId!.Value,
+                QuoterUserId          = message.UserId!.Value,
+                QuoterDisplayName     = message.AuthorDisplayName,
+                ContentPreview        = contentPreview,
+            }, cancellationToken);
+        }
 
         // Detect @mentions and publish one event per unique mentioned user
         if (_userLookup is not null && hasContent)

@@ -13,16 +13,29 @@ import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { useUserProfileStore } from '../../stores/userProfileStore'
+import { useBookmarkStore } from '../../stores/bookmarkStore'
+import { useHighlightStore } from '../../stores/highlightStore'
+import { useLinkPreviewStore } from '../../stores/linkPreviewStore'
 import { ReactionBar } from './ReactionBar'
 import { AttachmentGrid } from './AttachmentGrid'
 import { UserAvatar } from '../common/UserAvatar'
 import { AvatarLightbox } from '../common/AvatarLightbox'
+import { QuoteBlock } from './QuoteBlock'
+import { PollMessage } from './PollMessage'
+import { LinkPreviewCard } from './LinkPreviewCard'
 import { cn } from '../../lib/utils'
+import { Quote, Star, Bookmark, BookmarkCheck } from 'lucide-react'
+import { addBookmark, removeBookmark, addHighlight, removeHighlight } from '../../services/enrichedMessagingApiService'
 import type { Message, Room } from '../../types'
 import type { OutboxMessage } from '../../types'
 
 interface MentionNode {
   value: string
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  green: '#22c55e', yellow: '#eab308', red: '#ef4444', grey: '#6b7280',
+  blue: '#3b82f6', orange: '#f97316', purple: '#a855f7', pink: '#ec4899',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +63,9 @@ interface MessageItemProps {
   isKeyboardSelected?: boolean
   deleteConfirmPending?: boolean
   shouldStartEditing?: boolean
+  onSetPendingQuote?: (quoteData: { messageId: string; authorDisplayName: string; contentSnapshot: string }) => void
+  onAddHighlight?: (messageId: string) => void
+  onJumpTo?: (messageId: string) => void
 }
 
 function isOutbox(m: Message | OutboxMessage): m is OutboxMessage {
@@ -75,7 +91,7 @@ async function openDmWithUser(userId: string) {
   setActiveRoom(room.id)
 }
 
-export const MessageItem = memo(function MessageItem({ message, isGrouped = false, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, isGrouped = false, isPending = false, isKeyboardSelected = false, deleteConfirmPending = false, shouldStartEditing = false, onSetPendingQuote, onAddHighlight, onJumpTo }: MessageItemProps) {
   const authorId = isOutbox(message) ? null : message.author.id
   const isSystemAuthor = !authorId || authorId === '00000000-0000-0000-0000-000000000000'
   const isAuthorOnline = usePresenceStore(s => (!isSystemAuthor && authorId) ? s.isOnline(authorId) : false)
@@ -91,7 +107,31 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null)
   const [lightbox, setLightbox] = useState<{ src: string; authed: boolean } | null>(null)
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
+  const [justHighlighted, setJustHighlighted] = useState(false)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
+
+  const bookmarkFolders = useBookmarkStore(s => s.folders)
+  const bookmarkUnfiled = useBookmarkStore(s => s.unfiled)
+  const addBookmarkToStore = useBookmarkStore(s => s.addBookmark)
+  const removeBookmarkFromStore = useBookmarkStore(s => s.removeBookmark)
+
+  const messageId = isOutbox(message) ? null : (message as Message).id
+  const livePreview = useLinkPreviewStore(s => messageId ? s.previews[messageId] : undefined)
+  const existingBookmark = messageId
+    ? (bookmarkUnfiled.find(b => b.messageId === messageId) ??
+       bookmarkFolders.flatMap(f => f.bookmarks).find(b => b.messageId === messageId))
+    : undefined
+  const isBookmarked = !!existingBookmark
+
+  const addHighlightToStore = useHighlightStore(s => s.addHighlight)
+  const removeHighlightFromStore = useHighlightStore(s => s.removeHighlight)
+  const existingHighlight = useHighlightStore(s =>
+    !isOutbox(message)
+      ? (s.highlights[(message as Message).roomId] ?? []).find(h => h.messageId === (message as Message).id) ?? null
+      : null
+  )
+  const isHighlighted = existingHighlight !== null
 
   const [prevShouldStartEditing, setPrevShouldStartEditing] = useState(shouldStartEditing)
   if (prevShouldStartEditing !== shouldStartEditing) {
@@ -188,6 +228,53 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
     }).catch(err => console.error('[MessageItem] AddReaction failed', err))
   }
 
+  async function handleToggleBookmark() {
+    if (bookmarkLoading || isOutbox(message)) return
+    setBookmarkLoading(true)
+    try {
+      if (isBookmarked && existingBookmark) {
+        await removeBookmark(existingBookmark.id)
+        removeBookmarkFromStore(existingBookmark.id)
+      } else {
+        const bm = await addBookmark((message as Message).id, null)
+        addBookmarkToStore(bm)
+      }
+    } catch { /* ignore */ } finally {
+      setBookmarkLoading(false)
+    }
+  }
+
+  async function handleToggleHighlight() {
+    if (isOutbox(message) || !message.roomId) return
+    if (onAddHighlight) {
+      onAddHighlight((message as Message).id)
+      return
+    }
+    if (isHighlighted && existingHighlight) {
+      try {
+        await removeHighlight(message.roomId, existingHighlight.id)
+        removeHighlightFromStore(message.roomId, existingHighlight.id)
+        setJustHighlighted(false)
+      } catch { /* ignore */ }
+    } else {
+      try {
+        const result = await addHighlight(message.roomId, (message as Message).id)
+        addHighlightToStore(message.roomId, result)
+        setJustHighlighted(true)
+        setTimeout(() => setJustHighlighted(false), 2000)
+      } catch { /* ignore */ }
+    }
+  }
+
+  function handleSetPendingQuote() {
+    if (isOutbox(message) || !onSetPendingQuote) return
+    onSetPendingQuote({
+      messageId: (message as Message).id,
+      authorDisplayName: (message as Message).author.displayName,
+      contentSnapshot: message.content,
+    })
+  }
+
   const showPill = !editing && (hovered || confirmDelete || pickerOpen)
   const hasReactions = !isOutbox(message) && (message.reactions?.length ?? 0) > 0
 
@@ -221,6 +308,50 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
       >
         🙂
       </button>
+      {!isOutbox(message) && onSetPendingQuote && (
+        <button
+          onClick={handleSetPendingQuote}
+          className="rounded-full px-1.5 py-1 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          title="Quote message"
+          aria-label="Quote message"
+        >
+          <Quote size={14} />
+        </button>
+      )}
+      {!isOutbox(message) && (
+        <button
+          onClick={handleToggleHighlight}
+          className="rounded-full px-1.5 py-1 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground group/star"
+          title={isHighlighted ? 'Remove highlight' : 'Highlight message'}
+          aria-label={isHighlighted ? 'Remove highlight' : 'Highlight message'}
+        >
+          <Star
+            size={14}
+            className={
+              isHighlighted
+                ? 'fill-yellow-400 text-yellow-400 group-hover/star:fill-yellow-500 group-hover/star:text-yellow-500'
+                : justHighlighted
+                ? 'fill-yellow-400 text-yellow-400'
+                : ''
+            }
+          />
+        </button>
+      )}
+      {!isOutbox(message) && (
+        <button
+          onClick={handleToggleBookmark}
+          disabled={bookmarkLoading}
+          className={
+            isBookmarked
+              ? 'rounded-full px-1.5 py-1 flex items-center justify-center text-green-500 hover:bg-muted/60 disabled:opacity-50'
+              : 'rounded-full px-1.5 py-1 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-50'
+          }
+          title={isBookmarked ? 'Remove bookmark' : 'Bookmark message'}
+          aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark message'}
+        >
+          {isBookmarked ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+        </button>
+      )}
       {isOwn && (
         <>
           <div className="w-px h-4 bg-border mx-0.5" />
@@ -264,19 +395,40 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
             </button>
             <div className="flex items-baseline gap-2">
               <button
-                className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                className="text-sm font-semibold hover:underline"
                 onClick={() => openDmWithUser(message.author.id)}
                 title={`DM ${message.author.displayName}`}
               >
-                <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${showAuthorOnline ? 'bg-green-500' : 'bg-red-500'}`} />
                 {authorProfile?.displayName ?? message.author.displayName}
               </button>
+              {(() => {
+                const status = authorProfile?.status
+                const dotColor = showAuthorOnline && status?.color
+                  ? (STATUS_COLORS[status.color] ?? status.color)
+                  : showAuthorOnline ? '#22c55e' : '#ef4444'
+                const showEmoji = status?.emoji
+                const statusText = status?.text ? (status.text.length > 100 ? status.text.slice(0, 100) + '…' : status.text) : null
+                return (
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor }} />
+                    {showEmoji && <span className="text-xs">{status!.emoji}</span>}
+                    {statusText && <span className="text-xs text-muted-foreground">{statusText}</span>}
+                  </span>
+                )
+              })()}
               <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
               {message.editedAt && (
                 <span className="text-xs text-muted-foreground">(edited)</span>
               )}
             </div>
           </div>
+        )}
+
+        {!isOutbox(message) && (message as Message).quote && (
+          <QuoteBlock
+            quote={(message as Message).quote!}
+            onJumpTo={onJumpTo}
+          />
         )}
 
         {editing ? (
@@ -297,57 +449,78 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
               <span className="text-xs text-muted-foreground self-center">Enter to save · Esc to cancel</span>
             </div>
           </div>
+        ) : !isOutbox(message) && (message as Message).messageType === 'poll' && (message as Message).poll ? (
+          <PollMessage poll={(message as Message).poll!} />
         ) : (
-          <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words', isGrouped ? 'grouped-prose' : 'mt-0.5')}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMentions]}
-              remarkRehypeOptions={remarkRehypeOptions}
-              components={{
-                mention({ children, ...props }: { children?: unknown; [key: string]: unknown }) {
-                  const value: string = (props.value as string) ?? String(children)
-                  const isTopic = value.toLowerCase() === '@topic'
-                  return (
-                    <span className={isTopic ? 'mention-topic' : 'mention'}>
-                      {value}
-                    </span>
-                  )
-                },
-                a({ href, children, ...props }) {
-                  const safeHref = href ?? ''
-                  const isSafe = safeHref.startsWith('https://') || safeHref.startsWith('http://')
-                  if (!isSafe) return <span>{children}</span>
-                  return <a href={safeHref} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                },
-                code({ className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className ?? '')
-                  const isBlock = !props.ref && match
-                  if (isBlock) {
+          <div className={cn('flex items-start gap-1.5', isHighlighted && (isGrouped ? '' : 'mt-0.5'))}>
+            {isHighlighted && (
+              <>
+                <Star size={11} className="fill-yellow-400 text-yellow-400 mt-[3px] flex-shrink-0" aria-label="Highlighted" />
+                <span className="text-muted-foreground/60 mt-[1px] select-none flex-shrink-0">|</span>
+              </>
+            )}
+            <div className={cn('prose prose-sm dark:prose-invert max-w-none break-words min-w-0', isHighlighted ? 'grouped-prose' : isGrouped ? 'grouped-prose' : 'mt-0.5')}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMentions]}
+                remarkRehypeOptions={remarkRehypeOptions}
+                components={{
+                  mention({ children, ...props }: { children?: unknown; [key: string]: unknown }) {
+                    const value: string = (props.value as string) ?? String(children)
+                    const isTopic = value.toLowerCase() === '@topic'
                     return (
-                      <SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div">
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
+                      <span className={isTopic ? 'mention-topic' : 'mention'}>
+                        {value}
+                      </span>
                     )
-                  }
-                  return (
-                    <code
-                      className="rounded px-[0.35em] py-[0.1em] text-[0.85em] font-mono"
-                      style={{
-                        background: 'hsl(var(--muted))',
-                        border: '1px solid hsl(var(--border))',
-                        color: 'hsl(var(--foreground))',
-                      }}
-                      {...props}
-                    >
-                      {children}
-                    </code>
-                  )
-                },
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
+                  },
+                  a({ href, children, ...props }) {
+                    const safeHref = href ?? ''
+                    const isSafe = safeHref.startsWith('https://') || safeHref.startsWith('http://')
+                    if (!isSafe) return <span>{children}</span>
+                    return <a href={safeHref} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                  },
+                  code({ className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className ?? '')
+                    const isBlock = !props.ref && match
+                    if (isBlock) {
+                      return (
+                        <SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div">
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      )
+                    }
+                    return (
+                      <code
+                        className="rounded px-[0.35em] py-[0.1em] text-[0.85em] font-mono"
+                        style={{
+                          background: 'hsl(var(--muted))',
+                          border: '1px solid hsl(var(--border))',
+                          color: 'hsl(var(--foreground))',
+                        }}
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    )
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
+
+        {!isOutbox(message) && (() => {
+          const preview = livePreview ?? (message as Message).linkPreview
+          return preview && !preview.isDismissed ? (
+            <LinkPreviewCard
+              messageId={(message as Message).id}
+              preview={preview}
+              isCurrentUserSender={isOwn}
+            />
+          ) : null
+        })()}
 
         {isKeyboardSelected && (
           <span className="text-xs text-muted-foreground mt-0.5 block">

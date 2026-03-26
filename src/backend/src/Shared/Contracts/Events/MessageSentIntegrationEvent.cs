@@ -1,3 +1,5 @@
+using Shared.Contracts.DTOs;
+
 namespace Shared.Contracts.Events;
 
 public sealed class MessageSentIntegrationEvent : IntegrationEvent
@@ -11,4 +13,7 @@ public sealed class MessageSentIntegrationEvent : IntegrationEvent
     public IReadOnlyList<AttachmentEventData> Attachments { get; init; } = [];
     public DateTime CreatedAt { get; init; }
     public bool IsSystem { get; init; }
+    public string MessageType { get; init; } = "text";
+    public PollDataDto? PollData { get; init; }
+    public QuoteDto? QuoteData { get; init; }
 }

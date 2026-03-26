@@ -11,7 +11,7 @@ using Shared.Contracts.Interfaces;
 
 namespace API;
 
-public sealed record SendMessageRequest(Guid MessageId, Guid RoomId, string Content);
+public sealed record SendMessageRequest(Guid MessageId, Guid RoomId, string Content, Guid? QuotedMessageId = null);
 public sealed record AddReactionRequest(Guid MessageId, Guid RoomId, string Emoji);
 public sealed record StartTypingRequest(Guid RoomId);
 public sealed record EditMessageRequest(Guid MessageId, Guid RoomId, string Content);
@@ -194,7 +194,8 @@ public sealed class ChatHub : Hub<IChatHubClient>
                 AuthorDisplayName: displayName,
                 AuthorAvatarUrl: avatarUrl,
                 Content: request.Content,
-                Files: []
+                Files: [],
+                QuotedMessageId: request.QuotedMessageId
             ));
         }
         catch (InvalidOperationException ex)

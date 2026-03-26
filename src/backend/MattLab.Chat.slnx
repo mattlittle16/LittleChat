@@ -4,6 +4,19 @@
     <Project Path="src/API/LittleChat.API.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/EnrichedMessaging/" />
+  <Folder Name="/src/Modules/EnrichedMessaging/API/">
+    <Project Path="src/Modules/EnrichedMessaging/API/EnrichedMessaging.API.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/EnrichedMessaging/Application/">
+    <Project Path="src/Modules/EnrichedMessaging/Application/EnrichedMessaging.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/EnrichedMessaging/Domain/">
+    <Project Path="src/Modules/EnrichedMessaging/Domain/EnrichedMessaging.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/EnrichedMessaging/Infrastructure/">
+    <Project Path="src/Modules/EnrichedMessaging/Infrastructure/EnrichedMessaging.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Files/" />
   <Folder Name="/src/Modules/Files/API/">
     <Project Path="src/Modules/Files/API/Files.API.csproj" />

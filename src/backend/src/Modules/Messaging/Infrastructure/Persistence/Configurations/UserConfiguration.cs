@@ -26,5 +26,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<UserEntity>
             .IsRequired()
             .HasMaxLength(20)
             .HasDefaultValue("not_started");
+        builder.Property(u => u.StatusEmoji).HasColumnName("status_emoji");
+        builder.Property(u => u.StatusText).HasColumnName("status_text").HasMaxLength(60);
+        builder.Property(u => u.StatusColor).HasColumnName("status_color").HasMaxLength(20);
     }
 }

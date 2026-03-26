@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
-import { Smile, HelpCircle } from 'lucide-react'
+import { Smile, HelpCircle, BarChart2, X } from 'lucide-react'
 import { InlineMarkdownEditor } from './InlineMarkdownEditor'
 import type { InlineMarkdownEditorRef } from './InlineMarkdownEditor'
 import { useOutboxStore } from '../../stores/outboxStore'
@@ -9,6 +9,7 @@ import { getConnection } from '../../services/signalrClient'
 import { getAccessToken, api } from '../../services/apiClient'
 import { FileUploadProgress } from '../files/FileUploadProgress'
 import { GifPicker } from './GifPicker'
+import { PollCreator } from './PollCreator'
 import { emojiMap } from './emojiMap'
 import type { UserSearchResult } from '../../types'
 
@@ -18,9 +19,17 @@ const MAX_FILE_COUNT = 15
 const MAX_PER_FILE_BYTES = 200 * 1024 * 1024   // 200 MB
 const MAX_COMBINED_BYTES = 500 * 1024 * 1024   // 500 MB
 
+interface PendingQuote {
+  messageId: string
+  authorDisplayName: string
+  contentSnapshot: string
+}
+
 interface MessageInputProps {
   roomId: string
   disabled?: boolean
+  pendingQuote?: PendingQuote | null
+  onClearQuote?: () => void
   onArrowUpOnEmpty?: () => void
   onArrowDown?: () => boolean
 }
@@ -36,7 +45,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArrowDown }: MessageInputProps) {
+export function MessageInput({ roomId, disabled = false, pendingQuote, onClearQuote, onArrowUpOnEmpty, onArrowDown }: MessageInputProps) {
   const [content, setContent] = useState('')
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
@@ -46,6 +55,7 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
   const [mentionUsers, setMentionUsers] = useState<UserSearchResult[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const [gifSearchTerm, setGifSearchTerm] = useState<string | null>(null)
+  const [pollOpen, setPollOpen] = useState(false)
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
   const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
   const [shortcodeHelpOpen, setShortcodeHelpOpen] = useState(false)
@@ -365,7 +375,9 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
     // Don't send the raw /klipy command — it's a GIF picker trigger, not a message
     if (trimmed.startsWith('/klipy')) return
     setContent('')
-    await enqueue(roomId, trimmed)
+    const quoteId = pendingQuote?.messageId
+    onClearQuote?.()
+    await enqueue(roomId, trimmed, quoteId)
     editorRef.current?.focus()
   }
 
@@ -487,6 +499,24 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
             aria-label="Cancel upload"
           >
             Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Quote preview strip */}
+      {pendingQuote && (
+        <div className="flex items-start gap-2 rounded border-l-2 border-primary bg-muted/60 px-2 py-1 text-sm">
+          <div className="flex-1 min-w-0">
+            <span className="font-medium text-primary text-xs">{pendingQuote.authorDisplayName}</span>
+            <p className="text-muted-foreground text-xs truncate">{pendingQuote.contentSnapshot}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClearQuote}
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Cancel quote"
+          >
+            <X size={14} />
           </button>
         </div>
       )}
@@ -630,6 +660,9 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
           </>,
           document.body,
         )}
+        {pollOpen && (
+          <PollCreator roomId={roomId} onClose={() => setPollOpen(false)} />
+        )}
 
         {/* Clip button — between text area and Send */}
         <button
@@ -638,11 +671,27 @@ export function MessageInput({ roomId, disabled = false, onArrowUpOnEmpty, onArr
           disabled={isDisabled || isUploading || stagedFiles.length >= MAX_FILE_COUNT}
           title="Attach files"
           aria-label="Attach files"
-          className="self-stretch rounded-md px-2 hover:opacity-90
-                     disabled:opacity-50 flex-shrink-0 flex items-center"
-          style={{ background: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))' }}
+          className="self-stretch rounded-md px-2.5 border border-border bg-background text-foreground
+                     hover:bg-accent hover:border-accent-foreground/20 hover:text-accent-foreground
+                     active:scale-95 transition-colors disabled:opacity-40 disabled:pointer-events-none
+                     flex-shrink-0 flex items-center text-base"
         >
           📎
+        </button>
+
+        {/* Poll button */}
+        <button
+          type="button"
+          onClick={() => setPollOpen(true)}
+          disabled={isDisabled || isUploading}
+          title="Create poll"
+          aria-label="Create poll"
+          className="self-stretch rounded-md px-2.5 border border-border bg-background text-muted-foreground
+                     hover:bg-accent hover:border-accent-foreground/20 hover:text-accent-foreground
+                     active:scale-95 transition-colors disabled:opacity-40 disabled:pointer-events-none
+                     flex-shrink-0 flex items-center"
+        >
+          <BarChart2 size={16} />
         </button>
 
         <button

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using Shared.Contracts;
 using Shared.Contracts.DTOs;
+using Shared.Contracts.Interfaces;
 
 namespace Messaging.API;
 
@@ -65,6 +66,8 @@ public static class MessagingEndpoints
         app.MapGet("/api/rooms/{roomId:guid}/messages",
             [Authorize] async (Guid roomId, HttpContext ctx, ISender sender,
                 IOptions<MessagingOptions> opts,
+                ILinkPreviewReader linkPreviews,
+                IPollDataReader pollReader,
                 DateTime? before, Guid? beforeId, Guid? aroundId,
                 DateTime? after, Guid? afterId, int? limit) =>
             {
@@ -80,6 +83,10 @@ public static class MessagingEndpoints
                         new GetMessagesQuery(roomId, userId.Value, before, beforeId, pageSize,
                             AroundId: aroundId, After: after, AfterId: afterId),
                         ctx.RequestAborted);
+
+                    var msgIds = page.Messages.Select(m => m.Id).ToList();
+                    var previews = await linkPreviews.GetForMessagesAsync(msgIds, ctx.RequestAborted);
+                    var polls = await pollReader.GetForMessagesAsync(msgIds, userId.Value, ctx.RequestAborted);
 
                     var dtos = page.Messages.Select(m => new MessageDto(
                         Id: m.Id,
@@ -97,7 +104,13 @@ public static class MessagingEndpoints
                             .ToList(),
                         CreatedAt: m.CreatedAt,
                         EditedAt: m.EditedAt,
-                        IsSystem: m.IsSystem
+                        IsSystem: m.IsSystem,
+                        MessageType: m.MessageType,
+                        Quote: m.QuotedMessageId.HasValue
+                            ? new QuoteDto(m.QuotedMessageId, m.QuotedAuthorDisplayName!, m.QuotedContentSnapshot!, true)
+                            : null,
+                        Poll: polls.TryGetValue(m.Id, out var pd) ? pd : null,
+                        LinkPreview: previews.TryGetValue(m.Id, out var lp) ? lp : null
                     )).ToList();
 
                     return Results.Ok(new { messages = dtos, hasMore = page.HasMore, hasNewer = page.HasNewer });

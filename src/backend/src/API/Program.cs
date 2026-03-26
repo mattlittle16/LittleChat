@@ -36,6 +36,9 @@ using Shared.Contracts.Events;
 using Shared.Contracts.Interfaces;
 using Shared.Infrastructure;
 using StackExchange.Redis;
+using EnrichedMessaging.API;
+using EnrichedMessaging.Infrastructure;
+using EnrichedMessaging.Application.Handlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -274,6 +277,7 @@ builder.Services.AddScoped<IIntegrationEventHandler<ReactionUpdatedIntegrationEv
 builder.Services.AddScoped<IIntegrationEventHandler<ReactionUpdatedIntegrationEvent>, ReactionAddedNotificationHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageEditedIntegrationEvent>, MessageEditedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MessageDeletedIntegrationEvent>, MessageDeletedHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MessageDeletedIntegrationEvent>, MessageDeletedPollCleanupHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MentionDetectedIntegrationEvent>, UserMentionedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<TopicAlertIntegrationEvent>, TopicAlertHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<DmMessageSentIntegrationEvent>, DmUnreadNotificationHandler>();
@@ -283,6 +287,18 @@ builder.Services.AddScoped<IIntegrationEventHandler<RoomDeletedIntegrationEvent>
 builder.Services.AddScoped<IIntegrationEventHandler<MemberAddedIntegrationEvent>, MemberAddedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<MemberRemovedIntegrationEvent>, MemberRemovedHandler>();
 builder.Services.AddScoped<IIntegrationEventHandler<UserProfileUpdatedIntegrationEvent>, UserProfileUpdatedHandler>();
+
+// EnrichedMessaging / US1 quote notification
+builder.Services.AddScoped<IIntegrationEventHandler<MessageQuotedIntegrationEvent>, QuoteNotificationHandler>();
+// US2 poll vote
+builder.Services.AddScoped<IIntegrationEventHandler<PollVoteUpdatedIntegrationEvent>, PollVoteUpdatedHandler>();
+// US3 highlight
+builder.Services.AddScoped<IIntegrationEventHandler<HighlightChangedIntegrationEvent>, HighlightChangedHandler>();
+// US5 user status
+builder.Services.AddScoped<IIntegrationEventHandler<UserStatusUpdatedIntegrationEvent>, UserStatusUpdatedHandler>();
+// US7 link preview
+builder.Services.AddScoped<IIntegrationEventHandler<LinkPreviewReadyIntegrationEvent>, LinkPreviewReadyHandler>();
+builder.Services.AddScoped<IIntegrationEventHandler<MessageSentIntegrationEvent>, MessageSentLinkPreviewHandler>();
 
 // Admin module
 builder.Services.AddAdminModule(builder.Configuration);
@@ -300,6 +316,8 @@ builder.Services.AddSearchModule();
 builder.Services.AddFilesModule(builder.Configuration);
 builder.Services.AddNotificationsModule(builder.Configuration);
 builder.Services.AddNotificationsApiModule();
+builder.Services.AddEnrichedMessagingModule(builder.Configuration);
+builder.Services.AddEnrichedMessagingApiModule();
 builder.Services.AddRealTimeModule();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 
@@ -318,6 +336,8 @@ var app = builder.Build();
     await notificationsDb.Database.MigrateAsync();
     var adminDb = scope.ServiceProvider.GetRequiredService<LittleChat.Modules.Admin.Infrastructure.AdminDbContext>();
     await adminDb.Database.MigrateAsync();
+    var enrichedDb = scope.ServiceProvider.GetRequiredService<EnrichedMessaging.Infrastructure.EnrichedMessagingDbContext>();
+    await enrichedDb.Database.MigrateAsync();
 
     // Seed the General room if it doesn't exist yet (idempotent — checks is_protected flag)
     var generalRoom = messagingDb.Rooms
@@ -415,6 +435,7 @@ app.MapGifEndpoints();
 app.MapVideoTokenEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 app.MapAdminEndpoints();
+app.MapEnrichedMessagingEndpoints();
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {

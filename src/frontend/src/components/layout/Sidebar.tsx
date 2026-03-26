@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BellOff, Search, Settings, ChevronDown, ChevronRight, Lock, GripVertical, ShieldCheck } from 'lucide-react'
+import { BellOff, Search, Settings, ChevronDown, ChevronRight, Lock, GripVertical, ShieldCheck, Bookmark, BookOpen } from 'lucide-react'
 import { useAdminAuth } from '../../hooks/useAdminAuth'
 import { useRoomStore } from '../../stores/roomStore'
 import { usePresenceStore } from '../../stores/presenceStore'
@@ -51,9 +51,11 @@ function extractGroupId(headingId: string) {
 
 interface SidebarProps {
   onNavigate?: () => void
+  onOpenBookmarks?: () => void
+  onOpenDigest?: () => void
 }
 
-export function Sidebar({ onNavigate }: SidebarProps = {}) {
+export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarProps = {}) {
   const { rooms, activeRoomId, loadRooms, setActiveRoom } = useRoomStore()
   const [creating, setCreating] = useState(false)
   const [composing, setComposing] = useState(false)
@@ -309,6 +311,30 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                 No DMs yet
               </p>
             )}
+
+            {/* Bookmarks & Digest shortcuts */}
+            <div className="mt-3 px-2 space-y-0.5">
+              <button
+                onClick={() => { onOpenBookmarks?.(); onNavigate?.() }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors"
+                style={{ color: 'hsl(var(--sidebar-fg))' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg))')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Bookmark className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
+                <span className="truncate">Bookmarks</span>
+              </button>
+              <button
+                onClick={() => { onOpenDigest?.(); onNavigate?.() }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors"
+                style={{ color: 'hsl(var(--sidebar-fg))' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg))')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'hsl(var(--sidebar-muted-fg))' }} />
+                <span className="truncate">Daily Digest</span>
+              </button>
+            </div>
           </nav>
 
           {/* DragOverlay: ghost of item being dragged */}
@@ -590,14 +616,14 @@ function RoomItem({
         <button
           onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
           className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center
-            justify-center w-5 h-5 rounded transition-colors"
+            justify-center w-5 h-5 rounded transition-colors text-base leading-none"
           style={{ color: 'hsl(var(--sidebar-muted-fg))' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--destructive))')}
+          onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-fg))')}
           onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--sidebar-muted-fg))')}
           title={isOwner ? 'Delete topic' : 'Leave topic'}
           aria-label={isOwner ? 'Delete topic' : 'Leave topic'}
         >
-          &#x2715;
+          ⋯
         </button>
       )}
 

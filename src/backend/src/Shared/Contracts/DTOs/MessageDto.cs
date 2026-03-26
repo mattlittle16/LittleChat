@@ -9,5 +9,9 @@ public record MessageDto(
     IReadOnlyList<ReactionDto> Reactions,
     DateTime CreatedAt,
     DateTime? EditedAt,
-    bool IsSystem = false
+    bool IsSystem = false,
+    string MessageType = "text",
+    QuoteDto? Quote = null,
+    PollDataDto? Poll = null,
+    LinkPreviewDataDto? LinkPreview = null
 );

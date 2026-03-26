@@ -109,6 +109,26 @@ namespace Messaging.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_system");
 
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("text")
+                        .HasColumnName("message_type");
+
+                    b.Property<string>("QuotedAuthorDisplayName")
+                        .HasColumnType("text")
+                        .HasColumnName("quoted_author_display_name");
+
+                    b.Property<string>("QuotedContentSnapshot")
+                        .HasColumnType("text")
+                        .HasColumnName("quoted_content_snapshot");
+
+                    b.Property<Guid?>("QuotedMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quoted_message_id");
+
                     b.Property<Guid>("RoomId")
                         .HasColumnType("uuid")
                         .HasColumnName("room_id");
@@ -351,6 +371,20 @@ namespace Messaging.Infrastructure.Migrations
                     b.Property<string>("ProfileImagePath")
                         .HasColumnType("text")
                         .HasColumnName("profile_image_path");
+
+                    b.Property<string>("StatusColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status_color");
+
+                    b.Property<string>("StatusEmoji")
+                        .HasColumnType("text")
+                        .HasColumnName("status_emoji");
+
+                    b.Property<string>("StatusText")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("status_text");
 
                     b.HasKey("Id");
 

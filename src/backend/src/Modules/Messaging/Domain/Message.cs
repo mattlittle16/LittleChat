@@ -12,7 +12,11 @@ public sealed record Message(
     DateTime? EditedAt,
     DateTime ExpiresAt,
     IReadOnlyList<MessageReaction> Reactions,
-    bool IsSystem = false
+    bool IsSystem = false,
+    string MessageType = "text",
+    Guid? QuotedMessageId = null,
+    string? QuotedAuthorDisplayName = null,
+    string? QuotedContentSnapshot = null
 );
 
 public sealed record MessageReaction(string Emoji, string UserDisplayName);

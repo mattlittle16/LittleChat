@@ -9,6 +9,12 @@ export interface User {
 
 export type OnboardingStatus = 'not_started' | 'remind_later' | 'dismissed'
 
+export interface UserStatus {
+  emoji: string | null
+  text: string | null
+  color: string | null
+}
+
 export interface UserProfile {
   id: string
   displayName: string
@@ -20,6 +26,7 @@ export interface UserProfile {
   cropZoom: number | null
   createdAt: string
   onboardingStatus: OnboardingStatus
+  status: UserStatus | null
 }
 
 export interface Room {
@@ -63,6 +70,39 @@ export interface Reaction {
   users: string[] // display names
 }
 
+export interface QuoteData {
+  originalMessageId: string | null
+  authorDisplayName: string
+  contentSnapshot: string
+  originalAvailable: boolean
+}
+
+export interface PollOption {
+  optionId: string
+  text: string
+  displayOrder: number
+  voteCount: number
+  voterDisplayNames: string[]
+}
+
+export interface PollData {
+  pollId: string
+  question: string
+  voteMode: 'single' | 'multi'
+  options: PollOption[]
+  currentUserVotedOptionIds: string[]
+}
+
+export interface LinkPreviewData {
+  url: string
+  title: string | null
+  description: string | null
+  thumbnailUrl: string | null
+  isDismissed: boolean
+}
+
+export type MessageType = 'text' | 'system' | 'poll'
+
 export interface Message {
   id: string
   roomId: string
@@ -73,6 +113,10 @@ export interface Message {
   createdAt: string // ISO8601
   editedAt: string | null
   isSystem?: boolean
+  messageType?: MessageType
+  quote?: QuoteData
+  poll?: PollData
+  linkPreview?: LinkPreviewData
 }
 
 // Client-side outbox entry (IndexedDB, mirrors data-model.md OutboxMessage)
@@ -82,6 +126,7 @@ export interface OutboxMessage {
   content: string
   createdAt: number // Date.now()
   status: 'pending' | 'sending' | 'failed'
+  quotedMessageId?: string
 }
 
 // Search result shape from GET /api/search
@@ -135,7 +180,67 @@ export interface ConversationOverride {
   level: ConversationOverrideLevel
 }
 
-export type NotificationType = 'mention' | 'topic_alert' | 'unread_dm' | 'reaction'
+export type NotificationType = 'mention' | 'topic_alert' | 'unread_dm' | 'reaction' | 'quote'
+
+// 021-enriched-messaging additional types
+
+export interface Highlight {
+  id: string
+  roomId: string
+  messageId: string
+  highlightedByDisplayName: string
+  highlightedAt: string
+  isDeleted: boolean
+  authorDisplayName: string | null
+  contentPreview: string | null
+  messageCreatedAt: string | null
+}
+
+export interface BookmarkFolder {
+  id: string
+  name: string
+  bookmarks: Bookmark[]
+}
+
+export interface Bookmark {
+  id: string
+  messageId: string
+  folderId: string | null
+  roomId: string
+  roomName: string
+  authorDisplayName: string
+  contentPreview: string
+  messageCreatedAt: string
+  createdAt: string
+  isDeleted: boolean
+  placeholderReason: 'message_deleted' | 'room_deleted' | null
+}
+
+export interface BookmarksResponse {
+  folders: BookmarkFolder[]
+  unfiled: Bookmark[]
+}
+
+export interface DigestMessage {
+  id: string
+  author: { id: string | null; displayName: string; avatarUrl: string | null }
+  content: string
+  messageType: MessageType
+  createdAt: string
+  quote: QuoteData | null
+  poll: PollData | null
+}
+
+export interface DigestGroup {
+  roomId: string
+  roomName: string
+  messages: DigestMessage[]
+}
+
+export interface DailyDigest {
+  date: string
+  groups: DigestGroup[]
+}
 
 export interface Notification {
   id: string

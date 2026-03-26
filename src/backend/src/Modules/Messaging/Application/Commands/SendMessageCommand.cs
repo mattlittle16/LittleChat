@@ -9,5 +9,6 @@ public sealed record SendMessageCommand(
     string AuthorDisplayName,
     string? AuthorAvatarUrl,
     string Content,                        // may be empty string for file-only messages
-    IReadOnlyList<FileUpload> Files        // empty list for text-only messages
+    IReadOnlyList<FileUpload> Files,       // empty list for text-only messages
+    Guid? QuotedMessageId = null
 ) : IRequest<SendMessageResult>;

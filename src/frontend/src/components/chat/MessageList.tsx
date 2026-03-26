@@ -11,9 +11,10 @@ interface MessageListProps {
   selectedMessageId?: string | null
   deleteConfirmPending?: boolean
   editingMessageId?: string | null
+  onSetPendingQuote?: (quoteData: { messageId: string; authorDisplayName: string; contentSnapshot: string }) => void
 }
 
-export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPending = false, editingMessageId = null }: MessageListProps) {
+export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPending = false, editingMessageId = null, onSetPendingQuote }: MessageListProps) {
   const { messages, hasMoreByRoom, hasNewerByRoom, loadPage, loadAroundMessage, loadNewerPage } = useMessageStore()
   const { messages: outbox } = useOutboxStore()
   const listRef = useRef<HTMLDivElement>(null)
@@ -240,6 +241,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
                 isKeyboardSelected={msg.id === selectedMessageId}
                 deleteConfirmPending={deleteConfirmPending}
                 shouldStartEditing={msg.id === editingMessageId}
+                onSetPendingQuote={onSetPendingQuote}
               />
             )
           })}

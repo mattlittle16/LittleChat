@@ -1,5 +1,7 @@
 using Identity.Application;
+using Identity.Application.Commands;
 using Identity.Application.Interfaces;
+using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +13,8 @@ public static class IdentityModuleExtensions
     {
         services.AddMemoryCache();
         services.AddScoped<IUserSyncService, UserSyncService>();
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssemblyContaining<SetUserStatusCommandHandler>());
         return services;
     }
 }

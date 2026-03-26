@@ -6,4 +6,5 @@ public static class NotificationType
     public const string TopicAlert = "topic_alert";
     public const string UnreadDm   = "unread_dm";
     public const string Reaction   = "reaction";
+    public const string Quote      = "quote";
 }

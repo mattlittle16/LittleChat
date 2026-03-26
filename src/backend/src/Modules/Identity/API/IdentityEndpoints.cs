@@ -1,4 +1,6 @@
+using Identity.Application.Commands;
 using Identity.Domain;
+using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -77,6 +79,9 @@ public static class IdentityEndpoints
                     OnboardingStatus.Dismissed   => "dismissed",
                     _                            => "not_started",
                 },
+                status = user.StatusEmoji == null && user.StatusText == null && user.StatusColor == null
+                    ? null
+                    : new { emoji = user.StatusEmoji, text = user.StatusText, color = user.StatusColor },
             });
         });
 
@@ -292,15 +297,46 @@ public static class IdentityEndpoints
                     avatarUrl      = user.AvatarUrl,
                     profileImageUrl,
                     isOnline       = onlineIds.Contains(user.Id),
+                    status         = user.StatusEmoji == null && user.StatusText == null && user.StatusColor == null
+                        ? null
+                        : new { emoji = user.StatusEmoji, text = user.StatusText, color = user.StatusColor },
                 });
             }
 
             return Results.Ok(result);
         });
 
+        // PUT /api/users/me/status — set status
+        app.MapPut("/api/users/me/status",
+            [Authorize] async (SetStatusBody body, HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+
+                try
+                {
+                    var result = await sender.Send(
+                        new SetUserStatusCommand(userId.Value, body.Emoji, body.Text, body.Color),
+                        ctx.RequestAborted);
+                    return Results.Ok(new { emoji = result.Emoji, text = result.Text, color = result.Color });
+                }
+                catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+            });
+
+        // DELETE /api/users/me/status — clear status
+        app.MapDelete("/api/users/me/status",
+            [Authorize] async (HttpContext ctx, ISender sender) =>
+            {
+                var userId = ctx.User.GetInternalUserId();
+                if (userId is null) return Results.Unauthorized();
+                await sender.Send(new ClearUserStatusCommand(userId.Value), ctx.RequestAborted);
+                return Results.NoContent();
+            });
+
         return app;
     }
 
     private sealed record UpdateDisplayNameRequest(string? DisplayName);
     private sealed record SetOnboardingStatusRequest(string? Status);
+    internal sealed record SetStatusBody(string? Emoji, string? Text, string? Color);
 }

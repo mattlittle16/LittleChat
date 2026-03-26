@@ -15,4 +15,5 @@ public interface IUserRepository
     Task DeleteAvatarAsync(Guid id, CancellationToken ct = default);
     Task<OnboardingStatus> GetOnboardingStatusAsync(Guid id, CancellationToken ct = default);
     Task SetOnboardingStatusAsync(Guid id, OnboardingStatus status, CancellationToken ct = default);
+    Task UpdateStatusAsync(Guid id, string? emoji, string? text, string? color, CancellationToken ct = default);
 }

@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTheme } from '../../hooks/useTheme'
-import { Bell, ChevronDown, Menu, Users } from 'lucide-react'
+import { Bell, ChevronDown, Menu, Users, Star } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { MobileSidebarDrawer } from './MobileSidebarDrawer'
 import { MessageList } from '../chat/MessageList'
 import { MessageInput } from '../chat/MessageInput'
 import { TypingIndicator } from '../chat/TypingIndicator'
 import { SearchModal } from '../search/SearchModal'
+import { StatusPicker } from '../status/StatusPicker'
 import { MentionToastContainer } from '../chat/MentionToast'
 import { NotificationSettingsPage } from '../settings/NotificationSettingsPage'
 import { TopicMemberPanel } from '../topics/TopicMemberPanel'
+import { HighlightsTab } from '../highlights/HighlightsTab'
+import { BookmarksView } from '../bookmarks/BookmarksView'
+import { DailyDigestView } from '../digest/DailyDigestView'
 import { useRoomStore } from '../../stores/roomStore'
 import { useCurrentUserStore } from '../../stores/currentUserStore'
 import { useMessageStore, getRoomMessages } from '../../stores/messageStore'
+import { useHighlightStore } from '../../stores/highlightStore'
 import { getConnection } from '../../services/signalrClient'
 import { useNotificationPreferencesStore } from '../../stores/notificationPreferencesStore'
 import { useNotificationStore } from '../../stores/notificationStore'
@@ -26,27 +31,36 @@ import { OnboardingWizardModal } from '../onboarding/OnboardingWizardModal'
 import { NotificationCenter } from '../notifications/NotificationCenter'
 import { useAdminAuth } from '../../hooks/useAdminAuth'
 import { ErrorBoundary } from '../common/ErrorBoundary'
+import { getBookmarks, getHighlights, clearStatus } from '../../services/enrichedMessagingApiService'
+import type { UserStatus } from '../../types'
+import { useBookmarkStore } from '../../stores/bookmarkStore'
 
 export function ChatLayout() {
   useTheme()
   const { activeRoomId, rooms } = useRoomStore()
   const { isAdmin } = useAdminAuth()
   const { status } = useSignalR(activeRoomId)
-  const [view, setView] = useState<'chat' | 'notifications'>('chat')
+  const [view, setView] = useState<'chat' | 'notifications' | 'bookmarks' | 'digest'>('chat')
+  // chatTabByRoom: stores the active tab per roomId. If the room has no entry, defaults to 'messages'.
+  const [chatTabByRoom, setChatTabByRoom] = useState<Record<string, 'messages' | 'highlights'>>({})
+  const chatTab = (activeRoomId ? chatTabByRoom[activeRoomId] : undefined) ?? 'messages'
+  function setChatTab(tab: 'messages' | 'highlights') {
+    if (activeRoomId) setChatTabByRoom(prev => ({ ...prev, [activeRoomId]: tab }))
+  }
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [dmMenuOpen, setDmMenuOpen] = useState(false)
   const [dmConfirming, setDmConfirming] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
-  const [roomConfirming, setRoomConfirming] = useState(false)
+  const [statusPickerOpen, setStatusPickerOpen] = useState(false)
+  const [myStatus, setMyStatus] = useState<UserStatus | null>(null)
   const [memberPanelRoomId, setMemberPanelRoomId] = useState<string | null>(null)
   const showMemberPanel = memberPanelRoomId === activeRoomId
   const setShowMemberPanel = (show: boolean) => setMemberPanelRoomId(show ? activeRoomId : null)
   const dmMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
-  const roomMenuRef = useRef<HTMLDivElement>(null)
+
 
   const setCurrentUserId = useCurrentUserStore(s => s.setId)
   const currentUserId = useCurrentUserStore(s => s.id)
@@ -61,6 +75,8 @@ export function ChatLayout() {
   const markRoomNotifRead = useNotificationStore(s => s.markRoomRead)
   const setProfile = useUserProfileStore(s => s.setProfile)
   const fetchAllUsers = useUserProfileStore(s => s.fetchAllUsers)
+  const setHighlights = useHighlightStore(s => s.setHighlights)
+  const setBookmarks = useBookmarkStore(s => s.setBookmarks)
 
   // Onboarding wizard — initial profile snapshot for pre-population
   const [wizardProfile, setWizardProfile] = useState<{ displayName: string; profileImageUrl: string | null; avatarUrl: string | null } | null>(null)
@@ -69,6 +85,9 @@ export function ChatLayout() {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [deleteConfirmPending, setDeleteConfirmPending] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [pendingQuote, setPendingQuote] = useState<{ roomId: string; messageId: string; authorDisplayName: string; contentSnapshot: string } | null>(null)
+  // Derived: only expose the quote when it belongs to the active room (handles room switches without effects)
+  const activePendingQuote = pendingQuote?.roomId === activeRoomId ? pendingQuote : null
 
   const messages = useMessageStore(s => s.messages)
   const myMessages = useMemo(() => {
@@ -85,6 +104,7 @@ export function ChatLayout() {
         setCurrentUserId(u.id)
         setProfile(u.id, { displayName: u.displayName, profileImageUrl: u.profileImageUrl })
         setOnboardingStatus(u.onboardingStatus)
+        setMyStatus(u.status ?? null)
         if (u.onboardingStatus === 'not_started' || u.onboardingStatus === 'remind_later') {
           setWizardProfile({ displayName: u.displayName, profileImageUrl: u.profileImageUrl, avatarUrl: u.avatarUrl ?? null })
         }
@@ -98,11 +118,12 @@ export function ChatLayout() {
     loadPreferences().catch(err => console.error('[ChatLayout] loadPreferences failed', err))
     loadOverrides().catch(err => console.error('[ChatLayout] loadOverrides failed', err))
     loadNotifications().catch(err => console.error('[ChatLayout] loadNotifications failed', err))
+    getBookmarks().then(data => setBookmarks(data.folders, data.unfiled)).catch(() => {})
 
     // Periodically refresh the user list so newly joined users appear without a page reload
     const userRefreshInterval = setInterval(() => fetchAllUsers(), 5 * 60 * 1000)
     return () => clearInterval(userRefreshInterval)
-  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides, fetchAllUsers, loadNotifications])
+  }, [setCurrentUserId, setOnboardingStatus, setProfile, loadPreferences, loadOverrides, fetchAllUsers, loadNotifications, setBookmarks])
 
   // Mark notifications as read when navigating to a room
   useEffect(() => {
@@ -110,6 +131,13 @@ export function ChatLayout() {
       markRoomNotifRead(activeRoomId)
     }
   }, [activeRoomId, markRoomNotifRead])
+
+  // Fetch highlights whenever the active room changes (needed to show star badges in chat feed)
+  useEffect(() => {
+    if (activeRoomId) {
+      getHighlights(activeRoomId).then(items => setHighlights(activeRoomId, items)).catch(() => {})
+    }
+  }, [activeRoomId, setHighlights])
 
   // Update document title with total unread count
   useEffect(() => {
@@ -145,40 +173,38 @@ export function ChatLayout() {
 
   // Close user menu when clicking outside
   useEffect(() => {
-    if (!userMenuOpen) return
+    if (!userMenuOpen && !statusPickerOpen) return
     function handleClickOutside(e: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false)
+        setStatusPickerOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [userMenuOpen])
+  }, [userMenuOpen, statusPickerOpen])
 
-  // Close room menu when clicking outside
-  useEffect(() => {
-    if (!roomMenuOpen) return
-    function handleClickOutside(e: MouseEvent) {
-      if (roomMenuRef.current && !roomMenuRef.current.contains(e.target as Node)) {
-        setRoomMenuOpen(false)
-        setRoomConfirming(false)
-      }
+
+  function handleJumpToMessage(roomId: string, messageId: string) {
+    useRoomStore.getState().setActiveRoom(roomId)
+    useMessageStore.getState().setPendingAround(roomId, messageId)
+    useMessageStore.getState().setScrollToMessageId(messageId)
+    setView('chat')
+    setChatTab('messages')
+  }
+
+  function handleJumpToRoomMessage(messageId: string) {
+    if (activeRoomId) {
+      useMessageStore.getState().setPendingAround(activeRoomId, messageId)
+      useMessageStore.getState().setScrollToMessageId(messageId)
+      setChatTab('messages')
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [roomMenuOpen])
+  }
 
   async function handleDeleteDm() {
     if (!activeRoomId) return
     setDmMenuOpen(false)
     setDmConfirming(false)
-    await useRoomStore.getState().deleteRoom(activeRoomId)
-  }
-
-  async function handleDeleteRoom() {
-    if (!activeRoomId) return
-    setRoomMenuOpen(false)
-    setRoomConfirming(false)
     await useRoomStore.getState().deleteRoom(activeRoomId)
   }
 
@@ -236,7 +262,10 @@ export function ChatLayout() {
       {/* Sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex">
         <ErrorBoundary name="Sidebar">
-          <Sidebar />
+          <Sidebar
+            onOpenBookmarks={() => setView('bookmarks')}
+            onOpenDigest={() => setView('digest')}
+          />
         </ErrorBoundary>
       </div>
 
@@ -249,6 +278,24 @@ export function ChatLayout() {
       <div className="flex flex-1 flex-col min-w-0 relative">
         {view === 'notifications' ? (
           <NotificationSettingsPage onBack={() => setView('chat')} />
+        ) : view === 'bookmarks' ? (
+          <div className="flex flex-col h-full">
+            <header className="flex h-12 items-center gap-2 border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
+              <button onClick={() => setView('chat')} className="text-sm text-muted-foreground hover:text-foreground">← Back</button>
+            </header>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <BookmarksView onNavigate={handleJumpToMessage} />
+            </div>
+          </div>
+        ) : view === 'digest' ? (
+          <div className="flex flex-col h-full">
+            <header className="flex h-12 items-center gap-2 border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
+              <button onClick={() => setView('chat')} className="text-sm text-muted-foreground hover:text-foreground">← Back</button>
+            </header>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <DailyDigestView onNavigate={handleJumpToMessage} />
+            </div>
+          </div>
         ) : (<>
         {/* Toolbar */}
         <header className="flex h-12 items-center justify-between border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
@@ -273,6 +320,22 @@ export function ChatLayout() {
               </span>
             )}
 
+            {/* Highlights tab toggle — only for topic (non-DM) rooms */}
+            {activeRoom && !activeRoom.isDm && (
+              <button
+                onClick={() => setChatTab(chatTab === 'highlights' ? 'messages' : 'highlights')}
+                title="Highlights"
+                aria-label="Highlights"
+                className="flex items-center gap-1 rounded px-1.5 py-1 text-sm transition-colors"
+                style={{
+                  color: chatTab === 'highlights' ? 'hsl(var(--foreground))' : 'hsl(var(--foreground) / 0.6)',
+                  background: chatTab === 'highlights' ? 'hsl(var(--muted))' : 'transparent',
+                }}
+              >
+                <Star className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Members button — only shown for topic (non-DM) rooms */}
             {activeRoom && !activeRoom.isDm && (
               <button
@@ -289,49 +352,7 @@ export function ChatLayout() {
               </button>
             )}
 
-            {/* Group room actions menu — only shown when viewing a non-DM room */}
-            {activeRoom && !activeRoom.isDm && (
-              <div className="relative" ref={roomMenuRef}>
-                <button
-                  onClick={() => { setRoomMenuOpen(o => !o); setRoomConfirming(false) }}
-                  title="Room options"
-                  aria-label="Room options"
-                  className="rounded px-1.5 py-1 text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60"
-                >
-                  ⋯
-                </button>
-                {roomMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded border bg-background shadow-md text-sm">
-                    {!roomConfirming ? (
-                      <button
-                        onClick={() => setRoomConfirming(true)}
-                        className="w-full px-3 py-2 text-left text-destructive hover:bg-muted/60"
-                      >
-                        Delete room
-                      </button>
-                    ) : (
-                      <div className="px-3 py-2 flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground">Are you sure?</span>
-                        <div className="flex gap-1 mt-1">
-                          <button
-                            onClick={handleDeleteRoom}
-                            className="flex-1 rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground hover:opacity-90"
-                          >
-                            Yes, delete
-                          </button>
-                          <button
-                            onClick={() => setRoomConfirming(false)}
-                            className="flex-1 rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-muted/60"
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+
 
             {/* DM actions menu — only shown when viewing a DM */}
             {activeRoom?.isDm && (
@@ -423,8 +444,32 @@ export function ChatLayout() {
                   <span className="max-w-[120px] truncate">{displayName}</span>
                   <ChevronDown className="w-3 h-3 flex-shrink-0" />
                 </button>
+                {statusPickerOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-30">
+                    <StatusPicker
+                      currentStatus={myStatus}
+                      onClose={() => setStatusPickerOpen(false)}
+                      onStatusChange={s => setMyStatus(s)}
+                    />
+                  </div>
+                )}
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded border bg-background shadow-md text-sm">
+                    {myStatus ? (
+                      <button
+                        onClick={() => { setUserMenuOpen(false); clearStatus().catch(() => {}); setMyStatus(null) }}
+                        className="w-full px-3 py-2 text-left hover:bg-muted/60"
+                      >
+                        Clear Status
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setUserMenuOpen(false); setStatusPickerOpen(true) }}
+                        className="w-full px-3 py-2 text-left hover:bg-muted/60"
+                      >
+                        Set Status
+                      </button>
+                    )}
                     <button
                       onClick={() => { setUserMenuOpen(false); setProfileOpen(true) }}
                       className="w-full px-3 py-2 text-left hover:bg-muted/60"
@@ -464,18 +509,30 @@ export function ChatLayout() {
           <div className="flex flex-1 flex-col min-w-0">
             {activeRoomId ? (
               <>
-                <ErrorBoundary name="Message List">
-                  <MessageList
-                    roomId={activeRoomId}
-                    selectedMessageId={selectedMessageId}
-                    deleteConfirmPending={deleteConfirmPending}
-                    editingMessageId={editingMessageId}
-                  />
-                </ErrorBoundary>
-                <TypingIndicator roomId={activeRoomId} />
-                <MessageInput
+                {chatTab === 'highlights' ? (
+                  <ErrorBoundary name="Highlights">
+                    <HighlightsTab
+                      roomId={activeRoomId}
+                      onJumpTo={handleJumpToRoomMessage}
+                    />
+                  </ErrorBoundary>
+                ) : (
+                  <ErrorBoundary name="Message List">
+                    <MessageList
+                      roomId={activeRoomId}
+                      selectedMessageId={selectedMessageId}
+                      deleteConfirmPending={deleteConfirmPending}
+                      editingMessageId={editingMessageId}
+                      onSetPendingQuote={(quoteData) => setPendingQuote({ ...quoteData, roomId: activeRoomId! })}
+                    />
+                  </ErrorBoundary>
+                )}
+                {chatTab === 'messages' && <TypingIndicator roomId={activeRoomId} />}
+                {chatTab === 'messages' && <MessageInput
                   roomId={activeRoomId}
                   disabled={isDisconnected}
+                  pendingQuote={activePendingQuote}
+                  onClearQuote={() => setPendingQuote(null)}
                   onArrowUpOnEmpty={() => {
                     if (myMessages.length === 0) return
                     setEditingMessageId(null)
@@ -499,7 +556,7 @@ export function ChatLayout() {
                     }
                     return true
                   }}
-                />
+                />}
               </>
             ) : (
               <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">

@@ -33,7 +33,10 @@ public sealed class MessageSentHandler : IIntegrationEventHandler<MessageSentInt
             Reactions:   [],
             CreatedAt:   evt.CreatedAt,
             EditedAt:    null,
-            IsSystem:    evt.IsSystem
+            IsSystem:    evt.IsSystem,
+            MessageType: evt.MessageType,
+            Quote:       evt.QuoteData,
+            Poll:        evt.PollData
         );
 
         await _notifier.BroadcastToRoomAsync(

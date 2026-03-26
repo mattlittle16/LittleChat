@@ -35,7 +35,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 group.RoomDeleted(r.RoomId),
             "MemberListChanged" when payload is Guid mlcRoomId =>
                 group.MemberListChanged(mlcRoomId),
-            _ => Task.CompletedTask,
+            // Generic fallback: send untyped event to room group (handles HighlightChanged, PollVoteUpdated, LinkPreviewUpdated, etc.)
+            _ => _untypedHubContext.Clients.Group($"room:{roomId}").SendAsync(eventName, payload, cancellationToken),
         };
     }
 

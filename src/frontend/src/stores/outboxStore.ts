@@ -5,7 +5,7 @@ import type { OutboxMessage } from '../types'
 
 interface OutboxState {
   messages: OutboxMessage[]
-  enqueue: (roomId: string, content: string) => Promise<void>
+  enqueue: (roomId: string, content: string, quotedMessageId?: string) => Promise<void>
   drainOutbox: () => Promise<void>
   retryAll: () => Promise<void>
   loadFromDb: () => Promise<void>
@@ -19,13 +19,14 @@ export const useOutboxStore = create<OutboxState>((set, get) => ({
     set({ messages: pending })
   },
 
-  enqueue: async (roomId, content) => {
+  enqueue: async (roomId, content, quotedMessageId) => {
     const msg: OutboxMessage = {
       clientId: crypto.randomUUID(),
       roomId,
       content,
       createdAt: Date.now(),
       status: 'pending',
+      ...(quotedMessageId ? { quotedMessageId } : {}),
     }
     await addToOutbox(msg)
     set(s => ({ messages: [...s.messages, msg] }))
@@ -54,10 +55,12 @@ export const useOutboxStore = create<OutboxState>((set, get) => ({
           messageId: msg.clientId,
           roomId: msg.roomId,
           content: msg.content,
+          ...(msg.quotedMessageId ? { quotedMessageId: msg.quotedMessageId } : {}),
         })
         await deleteFromOutbox(msg.clientId)
         set(s => ({ messages: s.messages.filter(m => m.clientId !== msg.clientId) }))
-      } catch {
+      } catch (err) {
+        console.error('[outbox] SendMessage failed', err)
         await updateStatus(msg.clientId, 'failed')
         set(s => ({
           messages: s.messages.map(m =>

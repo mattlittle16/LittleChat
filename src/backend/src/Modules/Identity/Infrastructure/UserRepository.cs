@@ -41,8 +41,8 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
     {
         // Both SQL strings are compile-time constants; user input is always bound as a parameter ($1),
         // never interpolated into SQL — no injection risk.
-        const string allSql      = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status FROM users ORDER BY display_name";
-        const string filteredSql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
+        const string allSql      = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status, status_emoji, status_text, status_color FROM users ORDER BY display_name";
+        const string filteredSql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status, status_emoji, status_text, status_color FROM users WHERE display_name ILIKE $1 ORDER BY display_name";
 
         var hasFilter = !string.IsNullOrWhiteSpace(nameFilter);
         await using var cmd = _dataSource.CreateCommand(hasFilter ? filteredSql : allSql);
@@ -74,7 +74,7 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        const string sql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status FROM users WHERE id = $1";
+        const string sql = "SELECT id, display_name, avatar_url, profile_image_path, crop_x, crop_y, crop_zoom, created_at, onboarding_status, status_emoji, status_text, status_color FROM users WHERE id = $1";
 
         await using var cmd = _dataSource.CreateCommand(sql);
         cmd.Parameters.AddWithValue(id);
@@ -147,6 +147,17 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         _                            => "not_started",
     };
 
+    public async Task UpdateStatusAsync(Guid id, string? emoji, string? text, string? color, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(
+            "UPDATE users SET status_emoji = $1, status_text = $2, status_color = $3 WHERE id = $4");
+        cmd.Parameters.AddWithValue(emoji as object ?? DBNull.Value);
+        cmd.Parameters.AddWithValue(text as object ?? DBNull.Value);
+        cmd.Parameters.AddWithValue(color as object ?? DBNull.Value);
+        cmd.Parameters.AddWithValue(id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static User MapUser(NpgsqlDataReader reader) => new(
         reader.GetGuid(0),
         reader.GetString(1),
@@ -156,6 +167,9 @@ public sealed class UserRepository : IUserRepository, IUserLookupService
         reader.IsDBNull(5) ? null : reader.GetFloat(5),
         reader.IsDBNull(6) ? null : reader.GetFloat(6),
         reader.GetDateTime(7),
-        ParseOnboardingStatus(reader.GetString(8))
+        ParseOnboardingStatus(reader.GetString(8)),
+        StatusEmoji: reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetString(9) : null,
+        StatusText:  reader.FieldCount > 10 && !reader.IsDBNull(10) ? reader.GetString(10) : null,
+        StatusColor: reader.FieldCount > 11 && !reader.IsDBNull(11) ? reader.GetString(11) : null
     );
 }

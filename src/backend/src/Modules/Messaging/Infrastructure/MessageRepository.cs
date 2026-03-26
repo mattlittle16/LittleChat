@@ -18,13 +18,18 @@ public sealed class MessageRepository : IMessageRepository
     {
         var entity = new MessageEntity
         {
-            Id                = message.Id,
-            RoomId            = message.RoomId,
-            UserId            = message.UserId,
-            AuthorDisplayName = message.UserId is null ? message.AuthorDisplayName : null,
-            Content           = message.Content,
-            CreatedAt         = message.CreatedAt,
-            ExpiresAt         = message.ExpiresAt,
+            Id                       = message.Id,
+            RoomId                   = message.RoomId,
+            UserId                   = message.UserId,
+            IsSystem                 = message.IsSystem,
+            AuthorDisplayName        = message.UserId is null ? message.AuthorDisplayName : null,
+            Content                  = message.Content,
+            MessageType              = message.MessageType,
+            QuotedMessageId          = message.QuotedMessageId,
+            QuotedAuthorDisplayName  = message.QuotedAuthorDisplayName,
+            QuotedContentSnapshot    = message.QuotedContentSnapshot,
+            CreatedAt                = message.CreatedAt,
+            ExpiresAt                = message.ExpiresAt,
         };
 
         // Add attachment entities
@@ -231,13 +236,13 @@ public sealed class MessageRepository : IMessageRepository
     }
 
     private static Message ToMessage(MessageEntity e) => new(
-        Id:                e.Id,
-        RoomId:            e.RoomId,
-        UserId:            e.UserId,
-        AuthorDisplayName: e.User?.DisplayName ?? e.AuthorDisplayName ?? string.Empty,
-        AuthorAvatarUrl:   e.User?.AvatarUrl,
-        Content:           e.Content,
-        Attachments:       e.Attachments
+        Id:                      e.Id,
+        RoomId:                  e.RoomId,
+        UserId:                  e.UserId,
+        AuthorDisplayName:       e.User?.DisplayName ?? e.AuthorDisplayName ?? string.Empty,
+        AuthorAvatarUrl:         e.User?.AvatarUrl,
+        Content:                 e.Content,
+        Attachments:             e.Attachments
             .OrderBy(a => a.DisplayOrder)
             .Select(a => new MessageAttachment(
                 Id:           a.Id,
@@ -249,12 +254,17 @@ public sealed class MessageRepository : IMessageRepository
                 IsImage:      a.IsImage,
                 DisplayOrder: a.DisplayOrder))
             .ToList(),
-        CreatedAt:         e.CreatedAt,
-        EditedAt:          e.EditedAt,
-        ExpiresAt:         e.ExpiresAt,
-        Reactions:         e.Reactions
+        CreatedAt:               e.CreatedAt,
+        EditedAt:                e.EditedAt,
+        ExpiresAt:               e.ExpiresAt,
+        Reactions:               e.Reactions
             .OrderBy(r => r.CreatedAt)
             .Select(r => new MessageReaction(r.Emoji, r.User?.DisplayName ?? string.Empty))
-            .ToList()
+            .ToList(),
+        IsSystem:                e.IsSystem,
+        MessageType:             e.MessageType,
+        QuotedMessageId:         e.QuotedMessageId,
+        QuotedAuthorDisplayName: e.QuotedAuthorDisplayName,
+        QuotedContentSnapshot:   e.QuotedContentSnapshot
     );
 }

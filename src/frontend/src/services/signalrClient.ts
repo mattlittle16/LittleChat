@@ -3,6 +3,10 @@ import { getAccessToken } from './apiClient'
 import { clearSession } from './authService'
 import { useOutboxStore } from '../stores/outboxStore'
 import { useUserProfileStore } from '../stores/userProfileStore'
+import { usePollStore } from '../stores/pollStore'
+import { useHighlightStore } from '../stores/highlightStore'
+import { useLinkPreviewStore } from '../stores/linkPreviewStore'
+import type { PollOption, LinkPreviewData } from '../types'
 
 let _connection: signalR.HubConnection | null = null
 
@@ -72,6 +76,50 @@ export async function startConnection(
   _connection.on('ForceLogout', () => {
     clearSession()
     window.location.href = '/'
+  })
+
+  _connection.off('PollVoteUpdated')
+  _connection.on('PollVoteUpdated', ({ pollId, options }: { pollId: string; options: PollOption[]; currentUserVotedOptionIds: string[] }) => {
+    // Only update vote counts — each user's own currentUserVotedOptionIds is managed locally via handleVote
+    usePollStore.getState().updateOptionCounts(pollId, options)
+  })
+
+  _connection.off('HighlightChanged')
+  _connection.on('HighlightChanged', ({ action, highlightId, roomId, messageId, highlightedByDisplayName, highlightedAt, contentPreview, authorDisplayName }: { action: string; highlightId: string; roomId: string; messageId: string; highlightedByDisplayName: string; highlightedAt: string; contentPreview?: string | null; authorDisplayName?: string | null }) => {
+    if (action === 'removed') {
+      useHighlightStore.getState().removeHighlight(roomId, highlightId)
+    } else {
+      useHighlightStore.getState().addHighlight(roomId, {
+        id: highlightId,
+        roomId,
+        messageId,
+        highlightedByDisplayName,
+        highlightedAt,
+        isDeleted: false,
+        authorDisplayName: authorDisplayName ?? null,
+        contentPreview: contentPreview ?? null,
+        messageCreatedAt: null,
+      })
+    }
+  })
+
+  _connection.off('UserStatusUpdated')
+  _connection.on('UserStatusUpdated', ({ userId, emoji, text, color }: { userId: string; emoji: string | null; text: string | null; color: string | null }) => {
+    const profiles = useUserProfileStore.getState().profiles
+    if (profiles[userId]) {
+      const status = emoji == null && text == null && color == null ? null : { emoji, text, color }
+      useUserProfileStore.getState().setProfile(userId, { ...profiles[userId], status })
+    }
+  })
+
+  _connection.off('LinkPreviewUpdated')
+  _connection.on('LinkPreviewUpdated', ({ messageId, isDismissed, url, title, description, thumbnailUrl }: { messageId: string; isDismissed: boolean; url: string; title: string | null; description: string | null; thumbnailUrl: string | null }) => {
+    const preview: LinkPreviewData = { url, title, description, thumbnailUrl, isDismissed }
+    if (isDismissed) {
+      useLinkPreviewStore.getState().dismissPreview(messageId)
+    } else {
+      useLinkPreviewStore.getState().setPreview(messageId, preview)
+    }
   })
 
   await _connection.start()

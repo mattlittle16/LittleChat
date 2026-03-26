@@ -15,6 +15,11 @@ public sealed class MessageEntity
     public DateTime ExpiresAt { get; set; }
     public NpgsqlTsVector? SearchVector { get; set; }
 
+    public string MessageType { get; set; } = "text";
+    public Guid? QuotedMessageId { get; set; }
+    public string? QuotedAuthorDisplayName { get; set; }
+    public string? QuotedContentSnapshot { get; set; }
+
     public RoomEntity Room { get; set; } = null!;
     public UserEntity? User { get; set; }
     public ICollection<ReactionEntity> Reactions { get; set; } = [];

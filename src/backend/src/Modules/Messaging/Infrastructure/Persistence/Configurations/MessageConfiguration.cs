@@ -21,6 +21,11 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<MessageEntit
         builder.Property(m => m.ExpiresAt).HasColumnName("expires_at")
             .HasDefaultValueSql("NOW() + INTERVAL '30 days'");
 
+        builder.Property(m => m.MessageType).HasColumnName("message_type").IsRequired().HasMaxLength(20).HasDefaultValue("text");
+        builder.Property(m => m.QuotedMessageId).HasColumnName("quoted_message_id");
+        builder.Property(m => m.QuotedAuthorDisplayName).HasColumnName("quoted_author_display_name");
+        builder.Property(m => m.QuotedContentSnapshot).HasColumnName("quoted_content_snapshot");
+
         // Full-text search vector — GENERATED ALWAYS AS computed column
         builder.Property(m => m.SearchVector)
             .HasColumnName("search_vector")

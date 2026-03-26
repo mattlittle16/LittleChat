@@ -9,5 +9,8 @@ public sealed record User(
     float? CropY,
     float? CropZoom,
     DateTime CreatedAt,
-    OnboardingStatus OnboardingStatus
+    OnboardingStatus OnboardingStatus,
+    string? StatusEmoji = null,
+    string? StatusText = null,
+    string? StatusColor = null
 );

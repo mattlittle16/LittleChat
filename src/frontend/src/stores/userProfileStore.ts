@@ -1,9 +1,11 @@
 import { create } from 'zustand'
 import { api } from '../services/apiClient'
+import type { UserStatus } from '../types'
 
 interface ProfileEntry {
   displayName: string
   profileImageUrl: string | null
+  status?: UserStatus | null
 }
 
 interface State {
@@ -40,11 +42,11 @@ export const useUserProfileStore = create<State>((set, get) => ({
     if (!forceRefresh && Date.now() - get().usersFetchedAt < 60_000) return Promise.resolve()
     if (fetchInFlight) return fetchInFlight
     fetchInFlight = api
-      .get<Array<{ id: string; displayName: string; profileImageUrl: string | null }>>('/api/users')
+      .get<Array<{ id: string; displayName: string; profileImageUrl: string | null; status?: UserStatus | null }>>('/api/users')
       .then(users => {
         set(state => {
           const updated = { ...state.profiles }
-          users.forEach(u => { updated[u.id] = { displayName: u.displayName, profileImageUrl: u.profileImageUrl } })
+          users.forEach(u => { updated[u.id] = { displayName: u.displayName, profileImageUrl: u.profileImageUrl, status: u.status ?? null } })
           return { profiles: updated, usersFetchedAt: Date.now() }
         })
       })

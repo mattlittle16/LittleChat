@@ -3,6 +3,9 @@
 ##MOST IMPORTANT 
 Don't ever assume, guess, or make up stats or theories without investigating the code base first. If you do need to propose a theory, you MUST tell me it's a theory rather than propose it as fact.
 
+##Searching
+You should try to use the LSP plugins as much as possible. It's cheaper and faster than text searching. 
+
 ##Important
 Before you consider any tasks done where we are changing code I want you run the front build / lint process and make sure the backend compiles. 
 
@@ -74,4 +77,11 @@ C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventio
 **MediatR is locked at ≤ 12.5.0.** Do NOT upgrade to v13 or later. MediatR went commercial
 (paid license) starting with v13.0.0 (July 2025). Version 12.5.0 is the last Apache 2.0
 release. Any PR or task that bumps MediatR beyond 12.5.0 MUST be rejected.
+
+## System Messages Rule
+
+**NEVER use `is_system = true` or insert messages with `message_type = 'system'`.** All system-style
+announcements (room events, moderation actions, etc.) MUST be sent as regular messages from
+"Chat News Bot": `UserId = null`, `IsSystem = false`, `AuthorDisplayName = "Chat News Bot"`.
+See `AdminRemovedTopicMemberMessageHandler.cs` for the canonical pattern.
 <!-- MANUAL ADDITIONS END -->

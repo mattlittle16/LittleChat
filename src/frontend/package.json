@@ -15,6 +15,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@microsoft/signalr": "^10.0.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@tiptap/react": "^3.20.1",
     "@tiptap/starter-kit": "^3.20.1",
     "@types/react-syntax-highlighter": "^15.5.13",
