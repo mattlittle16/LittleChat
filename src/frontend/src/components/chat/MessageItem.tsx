@@ -271,7 +271,7 @@ export const MessageItem = memo(function MessageItem({ message, isGrouped = fals
     if (isOutbox(message) || !onSetPendingQuote) return
     onSetPendingQuote({
       messageId: (message as Message).id,
-      authorDisplayName: (message as Message).author.displayName,
+      authorDisplayName: authorProfile?.displayName ?? (message as Message).author.displayName,
       contentSnapshot: message.content,
     })
   }
