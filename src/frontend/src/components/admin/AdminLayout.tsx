@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Shield, Users, Hash, ScrollText, Sun, Moon } from 'lucide-react'
 import { AdminUsersView } from './AdminUsersView'
 import { AdminTopicsView } from './AdminTopicsView'
@@ -9,9 +9,17 @@ import { ErrorBoundary } from '../common/ErrorBoundary'
 
 type AdminTab = 'users' | 'topics' | 'audit-log'
 
+function tabFromPath(pathname: string): AdminTab {
+  if (pathname.endsWith('/topics')) return 'topics'
+  if (pathname.endsWith('/audit-log')) return 'audit-log'
+  return 'users'
+}
+
 export function AdminLayout() {
   useTheme()
-  const [activeTab, setActiveTab] = useState<AdminTab>('users')
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const activeTab = tabFromPath(pathname)
   const { theme, toggleTheme } = useThemeStore()
 
   return (
@@ -33,7 +41,7 @@ export function AdminLayout() {
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
-            onClick={() => { window.location.href = '/' }}
+            onClick={() => navigate('/')}
             className="text-sm text-muted-foreground hover:text-foreground border border-border rounded-md px-3 py-1.5 bg-muted/90 dark:bg-white/[0.06] hover:brightness-110 transition-colors"
           >
             ← Back to Chat
@@ -50,19 +58,19 @@ export function AdminLayout() {
           icon={<Users className="w-4 h-4" />}
           label="Users"
           active={activeTab === 'users'}
-          onClick={() => setActiveTab('users')}
+          onClick={() => navigate('/admin/users')}
         />
         <TabButton
           icon={<Hash className="w-4 h-4" />}
           label="Topics"
           active={activeTab === 'topics'}
-          onClick={() => setActiveTab('topics')}
+          onClick={() => navigate('/admin/topics')}
         />
         <TabButton
           icon={<ScrollText className="w-4 h-4" />}
           label="Audit Log"
           active={activeTab === 'audit-log'}
-          onClick={() => setActiveTab('audit-log')}
+          onClick={() => navigate('/admin/audit-log')}
         />
       </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { AdminLayout } from './components/admin/AdminLayout'
 import { ChatLayout } from './components/layout/ChatLayout'
@@ -13,24 +14,14 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 export default function App() {
   useFaviconBadge()
-  const path = window.location.pathname
-
-  // Handle OIDC callback before anything else
-  if (path === '/auth/callback') {
-    return <AuthCallbackPage />
-  }
-
   return <AuthenticatedApp />
 }
 
 function AuthenticatedApp() {
-  // Lazy initializer: restoreSession() and isAuthenticated() are synchronous localStorage
-  // reads, so we can compute the initial value without a useEffect.
   const [authenticated] = useState<boolean>(() => restoreSession() || isAuthenticated())
   const [sessionExpired, setSessionExpired] = useState(false)
   const { updateAvailable, countdown, countdownPaused } = useUpdateDetection()
   const { isAdmin } = useAdminAuth()
-  const path = window.location.pathname
 
   useEffect(() => {
     const handler = () => setSessionExpired(true)
@@ -38,7 +29,6 @@ function AuthenticatedApp() {
     return () => window.removeEventListener('session-expired', handler)
   }, [])
 
-  // Proactive check: catch expiry when the user is idle (no API calls being made)
   useEffect(() => {
     if (!authenticated) return
     const interval = setInterval(() => {
@@ -47,26 +37,28 @@ function AuthenticatedApp() {
     return () => clearInterval(interval)
   }, [authenticated])
 
-  // If navigating to /admin but not authenticated or not admin, redirect to /
-  useEffect(() => {
-    if (path.startsWith('/admin') && (!authenticated || !isAdmin)) {
-      window.location.href = '/'
-    }
-  }, [path, authenticated, isAdmin])
-
-  function renderMain() {
-    if (!authenticated) return <LandingPage />
-    if (path.startsWith('/admin')) {
-      if (!isAdmin) return null // redirect handled above
-      return <ErrorBoundary name="Admin"><AdminLayout /></ErrorBoundary>
-    }
-    return <ErrorBoundary name="Chat"><ChatLayout /></ErrorBoundary>
-  }
-
   return (
     <>
       {updateAvailable && <UpdateBanner countdown={countdown} countdownPaused={countdownPaused} />}
-      {renderMain()}
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route
+          path="/admin/*"
+          element={
+            authenticated && isAdmin
+              ? <ErrorBoundary name="Admin"><AdminLayout /></ErrorBoundary>
+              : <Navigate to="/" replace />
+          }
+        />
+        <Route
+          path="/*"
+          element={
+            authenticated
+              ? <ErrorBoundary name="Chat"><ChatLayout /></ErrorBoundary>
+              : <LandingPage />
+          }
+        />
+      </Routes>
       {sessionExpired && <SessionExpiredModal />}
     </>
   )

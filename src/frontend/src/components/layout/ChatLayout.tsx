@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { Bell, ChevronDown, Menu, Users, Star } from 'lucide-react'
 import { Sidebar } from './Sidebar'
@@ -34,23 +35,69 @@ import { ErrorBoundary } from '../common/ErrorBoundary'
 import { getBookmarks, getHighlights, clearStatus } from '../../services/enrichedMessagingApiService'
 import type { UserStatus } from '../../types'
 import { useBookmarkStore } from '../../stores/bookmarkStore'
+import { roomPath, findRoomBySlug } from '../../utils/slugify'
 
 export function ChatLayout() {
   useTheme()
-  const { activeRoomId, rooms } = useRoomStore()
+  const { activeRoomId, rooms, setActiveRoom } = useRoomStore()
   const { isAdmin } = useAdminAuth()
   const { status } = useSignalR(activeRoomId)
-  const [view, setView] = useState<'chat' | 'notifications' | 'bookmarks' | 'digest'>('chat')
-  // chatTabByRoom: stores the active tab per roomId. If the room has no entry, defaults to 'messages'.
-  const [chatTabByRoom, setChatTabByRoom] = useState<Record<string, 'messages' | 'highlights'>>({})
-  const chatTab = (activeRoomId ? chatTabByRoom[activeRoomId] : undefined) ?? 'messages'
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+
+  // Derive view from URL
+  const view = useMemo(() => {
+    if (pathname === '/bookmarks') return 'bookmarks' as const
+    if (pathname === '/digest') return 'digest' as const
+    if (pathname === '/notifications') return 'notifications' as const
+    return 'chat' as const
+  }, [pathname])
+
+  // Derive room slug, type, and tab from URL
+  const { roomSlug, roomType, chatTab } = useMemo(() => {
+    const match = pathname.match(/^\/(topics|dm)\/([^/]+)(\/highlights)?$/)
+    if (!match) return { roomSlug: null, roomType: null, chatTab: 'messages' as const }
+    return {
+      roomSlug: match[2],
+      roomType: match[1] as 'topics' | 'dm',
+      chatTab: match[3] ? 'highlights' as const : 'messages' as const,
+    }
+  }, [pathname])
+
+  // Sync activeRoomId from URL slug when rooms are loaded
+  useEffect(() => {
+    if (!roomSlug || !roomType || rooms.length === 0) return
+    const isDm = roomType === 'dm'
+    const room = findRoomBySlug(rooms, roomSlug, isDm)
+    if (room && room.id !== activeRoomId) setActiveRoom(room.id)
+  }, [roomSlug, roomType, rooms, activeRoomId, setActiveRoom])
+
+  // Redirect from / to first available room
+  useEffect(() => {
+    if (pathname !== '/' && pathname !== '') return
+    if (rooms.length === 0) return
+    const savedId = localStorage.getItem('littlechat_active_room')
+    const startRoom = (savedId ? rooms.find(r => r.id === savedId) : undefined) ?? rooms[0]
+    navigate(roomPath(startRoom), { replace: true })
+  }, [pathname, rooms, navigate])
+
+  function navigateToChat() {
+    if (activeRoomId) {
+      const room = rooms.find(r => r.id === activeRoomId)
+      if (room) { navigate(roomPath(room)); return }
+    }
+    navigate('/')
+  }
+
   function setChatTab(tab: 'messages' | 'highlights') {
-    if (activeRoomId) setChatTabByRoom(prev => ({ ...prev, [activeRoomId]: tab }))
+    if (!activeRoomId) return
+    const room = rooms.find(r => r.id === activeRoomId)
+    if (!room) return
+    navigate(tab === 'highlights' ? `${roomPath(room)}/highlights` : roomPath(room))
   }
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [dmMenuOpen, setDmMenuOpen] = useState(false)
-  const [dmConfirming, setDmConfirming] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [statusPickerOpen, setStatusPickerOpen] = useState(false)
@@ -164,7 +211,6 @@ export function ChatLayout() {
     function handleClickOutside(e: MouseEvent) {
       if (dmMenuRef.current && !dmMenuRef.current.contains(e.target as Node)) {
         setDmMenuOpen(false)
-        setDmConfirming(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -189,7 +235,7 @@ export function ChatLayout() {
     useRoomStore.getState().setActiveRoom(roomId)
     useMessageStore.getState().setPendingAround(roomId, messageId)
     useMessageStore.getState().setScrollToMessageId(messageId)
-    setView('chat')
+    navigateToChat()
     setChatTab('messages')
   }
 
@@ -201,12 +247,6 @@ export function ChatLayout() {
     }
   }
 
-  async function handleDeleteDm() {
-    if (!activeRoomId) return
-    setDmMenuOpen(false)
-    setDmConfirming(false)
-    await useRoomStore.getState().deleteRoom(activeRoomId)
-  }
 
   // Ctrl+K / Cmd+K shortcut to open search
   useEffect(() => {
@@ -262,10 +302,7 @@ export function ChatLayout() {
       {/* Sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex">
         <ErrorBoundary name="Sidebar">
-          <Sidebar
-            onOpenBookmarks={() => setView('bookmarks')}
-            onOpenDigest={() => setView('digest')}
-          />
+          <Sidebar />
         </ErrorBoundary>
       </div>
 
@@ -277,11 +314,11 @@ export function ChatLayout() {
 
       <div className="flex flex-1 flex-col min-w-0 relative">
         {view === 'notifications' ? (
-          <NotificationSettingsPage onBack={() => setView('chat')} />
+          <NotificationSettingsPage onBack={navigateToChat} />
         ) : view === 'bookmarks' ? (
           <div className="flex flex-col h-full">
             <header className="flex h-12 items-center gap-2 border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
-              <button onClick={() => setView('chat')} className="text-sm text-muted-foreground hover:text-foreground">← Back</button>
+              <button onClick={navigateToChat} className="text-sm text-muted-foreground hover:text-foreground">← Back</button>
             </header>
             <div className="flex-1 min-h-0 overflow-hidden">
               <BookmarksView onNavigate={handleJumpToMessage} />
@@ -290,7 +327,7 @@ export function ChatLayout() {
         ) : view === 'digest' ? (
           <div className="flex flex-col h-full">
             <header className="flex h-12 items-center gap-2 border-b px-4 flex-shrink-0 bg-muted/90 dark:bg-white/[0.06]">
-              <button onClick={() => setView('chat')} className="text-sm text-muted-foreground hover:text-foreground">← Back</button>
+              <button onClick={navigateToChat} className="text-sm text-muted-foreground hover:text-foreground">← Back</button>
             </header>
             <div className="flex-1 min-h-0 overflow-hidden">
               <DailyDigestView onNavigate={handleJumpToMessage} />
@@ -320,8 +357,8 @@ export function ChatLayout() {
               </span>
             )}
 
-            {/* Highlights tab toggle — only for topic (non-DM) rooms */}
-            {activeRoom && !activeRoom.isDm && (
+            {/* Highlights tab toggle */}
+            {activeRoom && (
               <button
                 onClick={() => setChatTab(chatTab === 'highlights' ? 'messages' : 'highlights')}
                 title="Highlights"
@@ -354,49 +391,6 @@ export function ChatLayout() {
 
 
 
-            {/* DM actions menu — only shown when viewing a DM */}
-            {activeRoom?.isDm && (
-              <div className="relative" ref={dmMenuRef}>
-                <button
-                  onClick={() => { setDmMenuOpen(o => !o); setDmConfirming(false) }}
-                  title="DM options"
-                  aria-label="DM options"
-                  className="rounded px-1.5 py-1 text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60"
-                >
-                  ⋯
-                </button>
-                {dmMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded border bg-background shadow-md text-sm">
-                    {!dmConfirming ? (
-                      <button
-                        onClick={() => setDmConfirming(true)}
-                        className="w-full px-3 py-2 text-left text-destructive hover:bg-muted/60"
-                      >
-                        Delete conversation
-                      </button>
-                    ) : (
-                      <div className="px-3 py-2 flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground">Are you sure?</span>
-                        <div className="flex gap-1 mt-1">
-                          <button
-                            onClick={handleDeleteDm}
-                            className="flex-1 rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground hover:opacity-90"
-                          >
-                            Yes, delete
-                          </button>
-                          <button
-                            onClick={() => setDmConfirming(false)}
-                            className="flex-1 rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-muted/60"
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Notification bell + center */}
             <div className="relative">
@@ -477,14 +471,14 @@ export function ChatLayout() {
                       Edit Profile
                     </button>
                     <button
-                      onClick={() => { setUserMenuOpen(false); setView('notifications') }}
+                      onClick={() => { setUserMenuOpen(false); navigate('/notifications') }}
                       className="w-full px-3 py-2 text-left hover:bg-muted/60"
                     >
                       Notification Settings
                     </button>
                     {isAdmin && (
                       <button
-                        onClick={() => { window.location.href = '/admin' }}
+                        onClick={() => { navigate('/admin') }}
                         className="w-full px-3 py-2 text-left hover:bg-muted/60"
                       >
                         Admin Panel

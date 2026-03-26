@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   DndContext,
   DragOverlay,
@@ -29,6 +30,7 @@ import { UserAvatar } from '../common/UserAvatar'
 import { ThemeToggle } from '../ThemeToggle'
 import logoSvg from '../../assets/logo.svg'
 import type { ConversationOverrideLevel, Room } from '../../types'
+import { roomPath } from '../../utils/slugify'
 
 const sidebarStyle = {
   background: 'hsl(var(--sidebar-bg))',
@@ -51,12 +53,12 @@ function extractGroupId(headingId: string) {
 
 interface SidebarProps {
   onNavigate?: () => void
-  onOpenBookmarks?: () => void
-  onOpenDigest?: () => void
 }
 
-export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarProps = {}) {
-  const { rooms, activeRoomId, loadRooms, setActiveRoom } = useRoomStore()
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
+  const { rooms, loadRooms } = useRoomStore()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [creating, setCreating] = useState(false)
   const [composing, setComposing] = useState(false)
   const [browsing, setBrowsing] = useState(false)
@@ -77,15 +79,6 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
     fetchGroups()
   }, [loadRooms, fetchGroups])
 
-  // Restore last-viewed room on mount
-  useEffect(() => {
-    const savedId = localStorage.getItem('littlechat_active_room')
-    if (savedId && rooms.some(r => r.id === savedId)) {
-      setActiveRoom(savedId)
-    } else if (rooms.length > 0 && !activeRoomId) {
-      setActiveRoom(rooms[0].id)
-    }
-  }, [rooms, activeRoomId, setActiveRoom])
 
   const topicRooms = rooms.filter(r => !r.isDm)
   const dmRooms = rooms.filter(r => r.isDm)
@@ -244,8 +237,8 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
                         <SortableRoomItem
                           key={room.id}
                           room={room}
-                          isActive={room.id === activeRoomId}
-                          onClick={() => { setActiveRoom(room.id); onNavigate?.() }}
+                          isActive={pathname.startsWith(roomPath(room))}
+                          onClick={() => { navigate(roomPath(room)); onNavigate?.() }}
                         />
                       ))}
                       {groupRooms.length === 0 && activeDragId && (
@@ -265,8 +258,8 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
                 <SortableRoomItem
                   key={room.id}
                   room={room}
-                  isActive={room.id === activeRoomId}
-                  onClick={() => { setActiveRoom(room.id); onNavigate?.() }}
+                  isActive={pathname.startsWith(roomPath(room))}
+                  onClick={() => { navigate(roomPath(room)); onNavigate?.() }}
                 />
               ))}
             </SortableContext>
@@ -302,8 +295,8 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
               <DmItem
                 key={room.id}
                 room={room}
-                isActive={room.id === activeRoomId}
-                onClick={() => { setActiveRoom(room.id); onNavigate?.() }}
+                isActive={pathname.startsWith(roomPath(room))}
+                onClick={() => { navigate(roomPath(room)); onNavigate?.() }}
               />
             ))}
             {dmRooms.length === 0 && (
@@ -315,7 +308,7 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
             {/* Bookmarks & Digest shortcuts */}
             <div className="mt-3 px-2 space-y-0.5">
               <button
-                onClick={() => { onOpenBookmarks?.(); onNavigate?.() }}
+                onClick={() => { navigate('/bookmarks'); onNavigate?.() }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors"
                 style={{ color: 'hsl(var(--sidebar-fg))' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg))')}
@@ -325,7 +318,7 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
                 <span className="truncate">Bookmarks</span>
               </button>
               <button
-                onClick={() => { onOpenDigest?.(); onNavigate?.() }}
+                onClick={() => { navigate('/digest'); onNavigate?.() }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors"
                 style={{ color: 'hsl(var(--sidebar-fg))' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--sidebar-active-bg))')}
@@ -383,7 +376,7 @@ export function Sidebar({ onNavigate, onOpenBookmarks, onOpenDigest }: SidebarPr
           )}
           {isAdmin && (
             <button
-              onClick={() => { window.location.href = '/admin' }}
+              onClick={() => { navigate('/admin') }}
               className="p-1 rounded transition-colors hover:bg-sidebar-active-bg/50"
               title="Admin Panel"
               aria-label="Admin Panel"
@@ -623,7 +616,7 @@ function RoomItem({
           title={isOwner ? 'Delete topic' : 'Leave topic'}
           aria-label={isOwner ? 'Delete topic' : 'Leave topic'}
         >
-          ⋯
+          ✕
         </button>
       )}
 
