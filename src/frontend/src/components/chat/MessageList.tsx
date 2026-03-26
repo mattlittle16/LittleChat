@@ -55,7 +55,9 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     if (pending) {
       // Context mode: start with isNearBottom=false so the ResizeObserver and
       // scroll handler don't fire loadNewerPage before scroll-to-message runs.
+      // Also clear isRoomSwitching so the layout effect doesn't force-scroll to bottom.
       isNearBottomRef.current = false
+      isRoomSwitchingRef.current = false
       useMessageStore.setState(s => {
         const next = new Map(s.pendingAroundByRoom)
         next.delete(roomId)
@@ -85,14 +87,17 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   // Scroll to bottom when entering a room or when a new message arrives while already at the bottom.
   // useLayoutEffect fires synchronously before the browser paints, so there is no flash of
   // unscrolled content on room load or page reload.
+  // isRoomSwitchingRef acts as a force-scroll flag during room load — bypasses isNearBottomRef
+  // so that stale scroll state can't prevent landing at the bottom on initial load or page reload.
   // ResizeObserver (below) handles the image/media load case where scrollHeight grows after this runs.
   useLayoutEffect(() => {
-    if (!isNearBottomRef.current) return
     if (hasNewer) return  // In context mode — don't auto-scroll to absolute bottom
     const list = listRef.current
     if (!list) return
+    const forceScroll = isRoomSwitchingRef.current
+    if (!forceScroll && !isNearBottomRef.current) return
     list.scrollTop = list.scrollHeight
-    isRoomSwitchingRef.current = false  // Safe to allow top-of-list pagination now
+    if (forceScroll) isRoomSwitchingRef.current = false  // Allow top-of-list pagination now
     if (!document.hidden) {
       const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
       if (room && room.unreadCount > 0) {
@@ -107,7 +112,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     const list = listRef.current
     if (!content || !list) return
     const observer = new ResizeObserver(() => {
-      if (isNearBottomRef.current && !useMessageStore.getState().hasNewerByRoom.get(roomId)) {
+      if ((isNearBottomRef.current || isRoomSwitchingRef.current) && !useMessageStore.getState().hasNewerByRoom.get(roomId)) {
         list.scrollTop = list.scrollHeight
       }
     })
