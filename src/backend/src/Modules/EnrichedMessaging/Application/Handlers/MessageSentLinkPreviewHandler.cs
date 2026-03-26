@@ -13,7 +13,9 @@ public sealed class MessageSentLinkPreviewHandler : IIntegrationEventHandler<Mes
         @"(?<![`])https?://[^\s`]+(?![`])",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    private static readonly Regex CodeSpanRegex = new(@"`[^`]+`", RegexOptions.Compiled);
+    // Strips fenced code blocks (```...```) before inline spans to avoid unfurling URLs inside them
+    private static readonly Regex FencedCodeRegex = new(@"```[\s\S]*?```", RegexOptions.Compiled);
+    private static readonly Regex CodeSpanRegex   = new(@"`[^`]+`", RegexOptions.Compiled);
 
     private readonly ILinkPreviewFetcher _fetcher;
     private readonly IServiceScopeFactory _scopeFactory;

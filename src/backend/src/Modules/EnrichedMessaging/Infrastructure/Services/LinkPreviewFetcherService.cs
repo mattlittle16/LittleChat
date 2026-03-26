@@ -16,11 +16,13 @@ public sealed class LinkPreviewFetcherService : ILinkPreviewFetcher
         _logger = logger;
     }
 
+    private const int MaxResponseBytes = 5 * 1024 * 1024; // 5 MB
+
     public async Task<LinkPreviewResult?> FetchAsync(string url, CancellationToken ct = default)
     {
         try
         {
-            using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseContentRead, ct);
+            using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -28,7 +30,14 @@ public sealed class LinkPreviewFetcherService : ILinkPreviewFetcher
             if (!contentType.Contains("html", StringComparison.OrdinalIgnoreCase))
                 return null;
 
-            var html = await response.Content.ReadAsStringAsync(ct);
+            // Reject based on declared Content-Length before reading the body
+            if (response.Content.Headers.ContentLength > MaxResponseBytes)
+                return null;
+
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var limited = new System.IO.StreamReader(
+                new LimitedStream(stream, MaxResponseBytes));
+            var html = await limited.ReadToEndAsync(ct);
 
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
@@ -58,4 +67,55 @@ public sealed class LinkPreviewFetcherService : ILinkPreviewFetcher
             $"//meta[@name='{property}']");
         return node?.GetAttributeValue("content", null);
     }
+}
+
+/// <summary>
+/// Wraps a stream and throws if more than <paramref name="maxBytes"/> are read,
+/// preventing unbounded memory consumption on large or malicious responses.
+/// </summary>
+internal sealed class LimitedStream(Stream inner, long maxBytes) : Stream
+{
+    private long _bytesRead;
+
+    public override bool CanRead  => true;
+    public override bool CanSeek  => false;
+    public override bool CanWrite => false;
+    public override long Length   => throw new NotSupportedException();
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        var n = inner.Read(buffer, offset, count);
+        _bytesRead += n;
+        if (_bytesRead > maxBytes)
+            throw new InvalidOperationException("Response exceeded maximum allowed size.");
+        return n;
+    }
+
+    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+    {
+        var n = await inner.ReadAsync(buffer, offset, count, ct);
+        _bytesRead += n;
+        if (_bytesRead > maxBytes)
+            throw new InvalidOperationException("Response exceeded maximum allowed size.");
+        return n;
+    }
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+    {
+        var n = await inner.ReadAsync(buffer, ct);
+        _bytesRead += n;
+        if (_bytesRead > maxBytes)
+            throw new InvalidOperationException("Response exceeded maximum allowed size.");
+        return n;
+    }
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value)                => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
