@@ -25,6 +25,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
   const scrollHeightBeforeRef = useRef(0)
   const scrollToAttemptsRef = useRef(0)
   const prevRoomIdRef = useRef(roomId)
+  const snapToBottomUntilRef = useRef(0)
 
   // Render-phase detection: set isRoomSwitchingRef before useLayoutEffect fires.
   // useLayoutEffect runs before useEffect, so we can't rely on the room switch useEffect
@@ -111,7 +112,10 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     if (!forceScroll && hasNewer) return  // In context mode — don't auto-scroll to absolute bottom
     if (!forceScroll && !isNearBottomRef.current) return
     list.scrollTop = list.scrollHeight
-    if (forceScroll) isRoomSwitchingRef.current = false  // Allow top-of-list pagination now
+    if (forceScroll) {
+      isRoomSwitchingRef.current = false  // Allow top-of-list pagination now
+      snapToBottomUntilRef.current = Date.now() + 2000
+    }
     if (!document.hidden) {
       const room = useRoomStore.getState().rooms.find(r => r.id === roomId)
       if (room && room.unreadCount > 0) {
@@ -127,7 +131,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     if (!content || !list) return
     const observer = new ResizeObserver(() => {
       if (useMessageStore.getState().hasNewerByRoom.get(roomId)) return
-      if (isNearBottomRef.current) list.scrollTop = list.scrollHeight
+      if (isNearBottomRef.current || Date.now() < snapToBottomUntilRef.current) list.scrollTop = list.scrollHeight
     })
     observer.observe(content)
     return () => observer.disconnect()
