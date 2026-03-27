@@ -127,11 +127,7 @@ export function MessageList({ roomId, selectedMessageId = null, deleteConfirmPen
     if (!content || !list) return
     const observer = new ResizeObserver(() => {
       if (useMessageStore.getState().hasNewerByRoom.get(roomId)) return
-      // Check actual distance rather than isNearBottomRef — scroll events from
-      // programmatic scrollTop changes can be async, leaving the ref stale when
-      // images load and trigger this observer immediately after.
-      const dist = list.scrollHeight - list.scrollTop - list.clientHeight
-      if (dist < 200) list.scrollTop = list.scrollHeight
+      if (isNearBottomRef.current) list.scrollTop = list.scrollHeight
     })
     observer.observe(content)
     return () => observer.disconnect()
