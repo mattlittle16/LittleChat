@@ -11,6 +11,7 @@ packages/
 TestResults/
 **/localup.sh
 **/.claude/commands
+**/.claude/settings.local.json
 **/docs/mcl
 **/_bmad
 **/.specify 

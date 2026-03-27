@@ -401,23 +401,26 @@ app.UseStatusCodePages();
 
 app.UseCors();
 
-// ── Request diagnostics ───────────────────────────────────────────────────────
-app.Use(async (ctx, next) =>
+// ── Request diagnostics (dev only) ────────────────────────────────────────────
+if (app.Environment.IsDevelopment())
 {
-    var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
-    if (ctx.Request.Path.StartsWithSegments("/auth/callback"))
-        log.LogWarning("AUTH_CALLBACK method={Method} query={Query}",
-            ctx.Request.Method, ctx.Request.QueryString);
-
-    if (ctx.Request.Path.StartsWithSegments("/api"))
+    app.Use(async (ctx, next) =>
     {
-        var auth = ctx.Request.Headers.Authorization.ToString();
-        log.LogWarning("API_REQUEST path={Path} auth={Auth}",
-            ctx.Request.Path,
-            string.IsNullOrEmpty(auth) ? "MISSING" : $"Bearer ...{auth[^10..]}");
-    }
-    await next(ctx);
-});
+        var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+        if (ctx.Request.Path.StartsWithSegments("/auth/callback"))
+            log.LogWarning("AUTH_CALLBACK method={Method} query={Query}",
+                ctx.Request.Method, ctx.Request.QueryString);
+
+        if (ctx.Request.Path.StartsWithSegments("/api"))
+        {
+            var auth = ctx.Request.Headers.Authorization.ToString();
+            log.LogWarning("API_REQUEST path={Path} auth={Auth}",
+                ctx.Request.Path,
+                string.IsNullOrEmpty(auth) ? "MISSING" : $"Bearer ...{auth[^10..]}");
+        }
+        await next(ctx);
+    });
+}
 
 app.UseAuthentication();
 app.UseTokenBlocklist();
