@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v6
         with:
-          configFile: src/frontend/commitlint.config.js
+          configFile: src/frontend/commitlint.config.mjs
 
   backend-ci:
     needs: [commitlint]
