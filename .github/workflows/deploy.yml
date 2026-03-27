@@ -81,6 +81,18 @@ jobs:
             mituw16/littlechat:backend-latest
             mituw16/littlechat:backend-${{ github.sha }}
 
+      - name: Inject HEADSCRIPTS
+        env:
+          HEADSCRIPTS: ${{ vars.HEADSCRIPTS }}
+        run: |
+          python3 -c "
+          import os
+          path = 'src/frontend/index.html'
+          content = open(path).read()
+          content = content.replace('<!-- HEADSCRIPTS -->', os.environ.get('HEADSCRIPTS', ''))
+          open(path, 'w').write(content)
+          "
+
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:

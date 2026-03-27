@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LittleChat — Private real-time chat for your crew</title>
+  <meta name="description" content="LittleChat is a self-hosted, real-time group chat app built with .NET 8, React 19, and SignalR. Topics, DMs, reactions, file sharing, and more." />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: 'hsl(258, 65%, 52%)',
+              light:   'hsl(258, 58%, 68%)',
+              dim:     'hsl(258, 65%, 42%)',
+            },
+            sidebar: {
+              DEFAULT: 'hsl(252, 22%, 13%)',
+              active:  'hsl(252, 22%, 20%)',
+              fg:      'hsl(252, 10%, 80%)',
+              muted:   'hsl(252, 10%, 52%)',
+            },
+            surface: {
+              DEFAULT: 'hsl(231, 14%, 18%)',
+              raised:  'hsl(231, 12%, 22%)',
+              border:  'hsl(231, 10%, 26%)',
+            }
+          },
+          animation: {
+            'fade-up': 'fadeUp 0.5s ease both',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            fadeUp: {
+              '0%':   { opacity: '0', transform: 'translateY(16px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .delay-100 { animation-delay: 100ms; }
+      .delay-200 { animation-delay: 200ms; }
+      .delay-300 { animation-delay: 300ms; }
+      .delay-400 { animation-delay: 400ms; }
+      .delay-500 { animation-delay: 500ms; }
+      .glow-brand {
+        box-shadow: 0 0 40px -8px hsl(258 65% 52% / 0.5);
+      }
+      .glow-brand-sm {
+        box-shadow: 0 0 20px -4px hsl(258 65% 52% / 0.35);
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-white dark:bg-surface text-slate-800 dark:text-slate-100 antialiased transition-colors duration-300">
+
+  <!-- ───────────────────────── NAV ───────────────────────── -->
+  <header class="sticky top-0 z-50 border-b border-slate-200 dark:border-surface-border bg-white/80 dark:bg-surface/80 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-2.5 group">
+        <img src="./favicon.svg" alt="LittleChat logo" class="w-8 h-8" />
+        <span class="font-bold text-lg tracking-tight text-slate-900 dark:text-white">LittleChat</span>
+      </a>
+
+      <!-- Nav links -->
+      <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-500 dark:text-slate-400">
+        <a href="#features" class="hover:text-slate-900 dark:hover:text-white transition-colors">Features</a>
+        <a href="#stack"    class="hover:text-slate-900 dark:hover:text-white transition-colors">Stack</a>
+        <a href="https://github.com/mattlittle16/LittleChat" target="_blank" rel="noopener"
+           class="hover:text-slate-900 dark:hover:text-white transition-colors">GitHub</a>
+      </nav>
+
+      <!-- Right controls -->
+      <div class="flex items-center gap-3">
+        <!-- Dark mode toggle -->
+        <button id="theme-toggle" aria-label="Toggle dark mode"
+          class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-surface-raised transition-colors">
+          <!-- Sun (shown in dark mode) -->
+          <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+          </svg>
+          <!-- Moon (shown in light mode) -->
+          <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
+        <a href="https://github.com/mattlittle16/LittleChat" target="_blank" rel="noopener"
+           class="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-semibold hover:opacity-90 transition-opacity">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.091.683-.217.683-.483 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.461-1.11-1.461-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.53 2.341 1.088 2.91.832.091-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.682-.103-.253-.447-1.27.097-2.646 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.376.202 2.393.1 2.646.64.698 1.027 1.591 1.027 2.682 0 3.841-2.337 4.687-4.565 4.935.359.308.678.919.678 1.852 0 1.335-.012 2.415-.012 2.741 0 .269.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ───────────────────────── HERO ───────────────────────── -->
+  <section class="relative overflow-hidden pt-24 pb-20 px-6">
+    <!-- Background glow -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-brand/10 dark:bg-brand-light/8 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="relative max-w-6xl mx-auto">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <!-- Badge -->
+        <div class="animate-fade-up inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold
+                    bg-brand/10 dark:bg-brand-light/15 text-brand dark:text-brand-light border border-brand/20 dark:border-brand-light/20 mb-6">
+          <span class="w-1.5 h-1.5 rounded-full bg-brand dark:bg-brand-light animate-pulse-slow"></span>
+          Self-hosted · Open source
+        </div>
+
+        <h1 class="animate-fade-up delay-100 text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-[1.1]">
+          Chat built for<br />
+          <span class="text-brand dark:text-brand-light">your people.</span>
+        </h1>
+
+        <p class="animate-fade-up delay-200 text-lg text-slate-500 dark:text-slate-400 leading-relaxed mb-10 max-w-xl mx-auto">
+          LittleChat is a self-hosted real-time chat app for trusted private groups.
+          Topics, direct messages, reactions, file sharing, @mentions — everything your crew needs, on your own infrastructure.
+        </p>
+
+        <div class="animate-fade-up delay-300 flex flex-wrap justify-center gap-4">
+          <a href="https://github.com/mattlittle16/LittleChat" target="_blank" rel="noopener"
+             class="flex items-center gap-2 px-6 py-3 rounded-xl bg-brand dark:bg-brand-light text-white font-semibold text-sm hover:opacity-90 transition-opacity glow-brand-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.091.683-.217.683-.483 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.461-1.11-1.461-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.53 2.341 1.088 2.91.832.091-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.682-.103-.253-.447-1.27.097-2.646 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.376.202 2.393.1 2.646.64.698 1.027 1.591 1.027 2.682 0 3.841-2.337 4.687-4.565 4.935.359.308.678.919.678 1.852 0 1.335-.012 2.415-.012 2.741 0 .269.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+            </svg>
+            View on GitHub
+          </a>
+          <a href="https://github.com/mattlittle16/LittleChat/wiki" target="_blank" rel="noopener"
+             class="flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-200 dark:border-surface-border text-slate-700 dark:text-slate-300 font-semibold text-sm hover:border-brand/50 dark:hover:border-brand-light/50 hover:text-brand dark:hover:text-brand-light transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            Read the Wiki
+          </a>
+        </div>
+      </div>
+
+      <!-- ── App Mockup ── -->
+      <div class="animate-fade-up delay-400 relative mx-auto max-w-4xl">
+        <!-- Glow behind mockup -->
+        <div class="absolute inset-0 bg-brand/20 dark:bg-brand-light/15 rounded-2xl blur-2xl scale-95"></div>
+
+        <!-- App window chrome -->
+        <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-surface-border shadow-2xl glow-brand">
+          <!-- Window title bar -->
+          <div class="flex items-center gap-2 px-4 py-3 bg-slate-100 dark:bg-sidebar border-b border-slate-200 dark:border-surface-border">
+            <span class="w-3 h-3 rounded-full bg-red-400"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
+            <span class="w-3 h-3 rounded-full bg-green-400"></span>
+            <span class="mx-auto text-xs text-slate-400 dark:text-sidebar-muted font-medium">LittleChat</span>
+          </div>
+
+          <!-- App layout -->
+          <div class="flex h-80 sm:h-96">
+
+            <!-- Sidebar -->
+            <div class="w-52 flex-shrink-0 bg-sidebar text-sidebar-fg flex flex-col">
+              <!-- Workspace header -->
+              <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <span class="flex items-center gap-1.5 font-bold text-sm text-white">
+                  <img src="./favicon.svg" alt="" class="w-5 h-5" />
+                  LittleChat
+                </span>
+                <span class="text-sidebar-muted">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </span>
+              </div>
+
+              <!-- Topics -->
+              <div class="flex-1 overflow-hidden p-2 space-y-0.5">
+                <div class="px-2 py-0.5 text-xs font-semibold text-sidebar-muted uppercase tracking-wider mt-2 mb-1">Topics</div>
+                <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-sidebar-active text-white text-sm font-medium">
+                  <span class="text-sidebar-muted text-xs">#</span> general
+                </div>
+                <div class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sidebar-fg hover:bg-sidebar-active text-sm">
+                  <span class="text-sidebar-muted text-xs">#</span> random
+                </div>
+                <div class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sidebar-fg text-sm">
+                  <span class="text-sidebar-muted text-xs">#</span> dev-talk
+                </div>
+                <div class="px-2 py-0.5 text-xs font-semibold text-sidebar-muted uppercase tracking-wider mt-3 mb-1">Direct Messages</div>
+                <div class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sidebar-fg text-sm">
+                  <span class="relative flex-shrink-0">
+                    <span class="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold">S</span>
+                    <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-sidebar"></span>
+                  </span>
+                  Sarah
+                </div>
+                <div class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sidebar-fg text-sm">
+                  <span class="relative flex-shrink-0">
+                    <span class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">J</span>
+                    <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-slate-500 border border-sidebar"></span>
+                  </span>
+                  James
+                </div>
+              </div>
+
+              <!-- User footer -->
+              <div class="border-t border-white/10 px-3 py-2.5 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-full bg-brand flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">M</span>
+                <span class="text-sm text-sidebar-fg font-medium flex-1 truncate">Matt</span>
+              </div>
+            </div>
+
+            <!-- Main chat area -->
+            <div class="flex-1 flex flex-col bg-white dark:bg-surface">
+              <!-- Channel header -->
+              <div class="px-5 py-3 border-b border-slate-100 dark:border-surface-border flex items-center gap-2">
+                <span class="text-slate-400 font-semibold">#</span>
+                <span class="font-semibold text-slate-900 dark:text-white text-sm">general</span>
+              </div>
+
+              <!-- Messages -->
+              <div class="flex-1 overflow-hidden px-5 py-4 space-y-4">
+
+                <!-- Message 1 -->
+                <div class="flex items-start gap-3">
+                  <span class="w-8 h-8 rounded-full bg-violet-600 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-0.5">S</span>
+                  <div>
+                    <div class="flex items-baseline gap-2 mb-0.5">
+                      <span class="text-sm font-semibold text-slate-900 dark:text-white">Sarah</span>
+                      <span class="text-xs text-slate-400">10:42 AM</span>
+                    </div>
+                    <p class="text-sm text-slate-700 dark:text-slate-300">Hey team! Just pushed the new build 🚀</p>
+                    <div class="mt-1.5 flex gap-1.5">
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-surface-raised border border-slate-200 dark:border-surface-border text-xs">🎉 3</span>
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 dark:bg-brand-light/15 border border-brand/20 dark:border-brand-light/20 text-xs text-brand dark:text-brand-light">👍 2</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Message 2 -->
+                <div class="flex items-start gap-3">
+                  <span class="w-8 h-8 rounded-full bg-sky-600 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-0.5">J</span>
+                  <div>
+                    <div class="flex items-baseline gap-2 mb-0.5">
+                      <span class="text-sm font-semibold text-slate-900 dark:text-white">James</span>
+                      <span class="text-xs text-slate-400">10:44 AM</span>
+                    </div>
+                    <p class="text-sm text-slate-700 dark:text-slate-300">
+                      Nice! <span class="text-brand dark:text-brand-light font-medium">@Matt</span> can you take a look when you get a chance?
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Message 3 (own) -->
+                <div class="flex items-start gap-3">
+                  <span class="w-8 h-8 rounded-full bg-brand flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-0.5">M</span>
+                  <div>
+                    <div class="flex items-baseline gap-2 mb-0.5">
+                      <span class="text-sm font-semibold text-slate-900 dark:text-white">Matt</span>
+                      <span class="text-xs text-slate-400">10:45 AM</span>
+                    </div>
+                    <p class="text-sm text-slate-700 dark:text-slate-300">On it! Also attached the latest design doc 📎</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Input bar -->
+              <div class="px-4 pb-4">
+                <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-surface-border bg-slate-50 dark:bg-surface-raised">
+                  <span class="text-sm text-slate-400 flex-1">Message #general…</span>
+                  <div class="flex items-center gap-2 text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ───────────────────────── FEATURES ───────────────────────── -->
+  <section id="features" class="py-24 px-6 bg-slate-50 dark:bg-surface-raised/40">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
+          Everything your crew needs.
+        </h2>
+        <p class="text-slate-500 dark:text-slate-400 text-lg max-w-xl mx-auto">
+          Built with real use in mind — not hypothetical enterprise workflows.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <!-- Feature card macro -->
+        <!-- Real-time messaging -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Real-time Messaging</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Instant delivery over SignalR WebSockets. Persist-first architecture means no phantom messages — ever.</p>
+        </div>
+
+        <!-- Topics -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Topics &amp; Rooms</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Organise conversations into topics. Drag-and-drop reordering. All members auto-join new rooms — no management overhead.</p>
+        </div>
+
+        <!-- Direct Messages -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Direct Messages</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Private one-on-one conversations that feel personal. DMs are first-class — same real-time stack, same reliability.</p>
+        </div>
+
+        <!-- Reactions -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Emoji Reactions</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">React to any message with any emoji. Live reaction counts sync across all connected clients instantly.</p>
+        </div>
+
+        <!-- File Attachments -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">File Attachments</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Share images, docs, and files up to 200MB. Inline image previews, HEIC support, all stored on your own server.</p>
+        </div>
+
+        <!-- Mentions & Notifications -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">@Mentions &amp; Notifications</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Mention anyone with @name. Browser notifications, unread badges, and a dedicated notification feed keep you in the loop.</p>
+        </div>
+
+        <!-- Markdown -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Rich Markdown Editor</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Compose messages with a live Tiptap editor. Bold, italic, code blocks, and links — rendered beautifully in the feed.</p>
+        </div>
+
+        <!-- Presence -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Live Presence</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">See who's online at a glance. Presence is tracked in Redis for low-latency, accurate online/offline status across all clients.</p>
+        </div>
+
+        <!-- Admin -->
+        <div class="group p-6 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border hover:border-brand/40 dark:hover:border-brand-light/40 hover:shadow-lg transition-all duration-200">
+          <div class="w-11 h-11 rounded-xl bg-brand/10 dark:bg-brand-light/15 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand dark:text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white mb-2">Admin Panel</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Manage users, topics, and audit logs from a built-in admin panel. Full audit trail of all moderation actions.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ───────────────────────── TECH STACK ───────────────────────── -->
+  <section id="stack" class="py-24 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
+          Built on a solid foundation.
+        </h2>
+        <p class="text-slate-500 dark:text-slate-400 text-lg max-w-xl mx-auto">
+          Boring technology choices, intentionally. Reliable, well-understood, production-proven.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+
+        <!-- Backend -->
+        <div class="p-7 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border">
+          <div class="flex items-center gap-2 mb-5">
+            <span class="text-xl">⚙️</span>
+            <h3 class="font-bold text-slate-900 dark:text-white text-lg">Backend</h3>
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">.NET 8 / C#</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-medium">ASP.NET Core</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">SignalR</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">WebSockets</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">PostgreSQL</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 font-medium">EF Core + Npgsql</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Redis / Valkey</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium">Presence + Cache</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">MediatR</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 font-medium">CQRS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Frontend -->
+        <div class="p-7 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border">
+          <div class="flex items-center gap-2 mb-5">
+            <span class="text-xl">🎨</span>
+            <h3 class="font-bold text-slate-900 dark:text-white text-lg">Frontend</h3>
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">React 19 / TypeScript 5.9</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 font-medium">Vite 7</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Tailwind CSS v4</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-medium">shadcn/ui</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Zustand v5</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">State</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Tiptap v2</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 font-medium">Rich editor</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300">@dnd-kit</span>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 font-medium">Drag &amp; drop</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Infrastructure -->
+        <div class="p-7 rounded-2xl bg-white dark:bg-surface-raised border border-slate-200 dark:border-surface-border md:col-span-2">
+          <div class="flex items-center gap-2 mb-5">
+            <span class="text-xl">🐳</span>
+            <h3 class="font-bold text-slate-900 dark:text-white text-lg">Infrastructure</h3>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <span class="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-200 dark:border-surface-border">Docker Compose</span>
+            <span class="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-200 dark:border-surface-border">nginx</span>
+            <span class="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-200 dark:border-surface-border">Authentik OIDC</span>
+<span class="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-200 dark:border-surface-border">SixLabors ImageSharp</span>
+            <span class="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-surface-border text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-200 dark:border-surface-border">IndexedDB outbox</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ───────────────────────── CTA BANNER ───────────────────────── -->
+  <section class="py-20 px-6">
+    <div class="max-w-3xl mx-auto text-center">
+      <div class="relative p-10 rounded-3xl overflow-hidden bg-brand dark:bg-gradient-to-br dark:from-brand dark:to-brand-dim glow-brand">
+        <!-- Background pattern -->
+        <div class="absolute inset-0 opacity-10">
+          <div class="absolute top-0 right-0 w-64 h-64 rounded-full bg-white -translate-y-1/3 translate-x-1/4"></div>
+          <div class="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white translate-y-1/3 -translate-x-1/4"></div>
+        </div>
+        <div class="relative">
+          <h2 class="text-3xl font-extrabold text-white mb-4">See the code.</h2>
+          <p class="text-white/80 text-lg mb-8 max-w-md mx-auto">
+            Browse the source, read the architecture, or just see how it all fits together.
+          </p>
+          <div class="flex flex-wrap justify-center gap-4">
+            <a href="https://github.com/mattlittle16/LittleChat" target="_blank" rel="noopener"
+               class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-brand font-bold text-sm hover:opacity-90 transition-opacity">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.091.683-.217.683-.483 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.461-1.11-1.461-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.53 2.341 1.088 2.91.832.091-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.682-.103-.253-.447-1.27.097-2.646 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.376.202 2.393.1 2.646.64.698 1.027 1.591 1.027 2.682 0 3.841-2.337 4.687-4.565 4.935.359.308.678.919.678 1.852 0 1.335-.012 2.415-.012 2.741 0 .269.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+              </svg>
+              View on GitHub
+            </a>
+            <a href="https://github.com/mattlittle16/LittleChat/wiki" target="_blank" rel="noopener"
+               class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/15 border border-white/30 text-white font-bold text-sm hover:bg-white/25 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+              Read the Wiki
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ───────────────────────── FOOTER ───────────────────────── -->
+  <footer class="border-t border-slate-200 dark:border-surface-border py-10 px-6">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+
+      <div class="flex items-center gap-2.5">
+        <img src="./favicon.svg" alt="LittleChat" class="w-6 h-6" />
+        <span class="font-bold text-slate-700 dark:text-slate-300">LittleChat</span>
+        <span class="text-slate-400 dark:text-slate-600">·</span>
+        <span class="text-sm text-slate-400 dark:text-slate-500">Built by Matt Little</span>
+      </div>
+
+      <div class="flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
+        <a href="https://github.com/mattlittle16/LittleChat" target="_blank" rel="noopener" class="hover:text-slate-900 dark:hover:text-white transition-colors">GitHub</a>
+        <a href="https://github.com/mattlittle16/LittleChat/wiki" target="_blank" rel="noopener" class="hover:text-slate-900 dark:hover:text-white transition-colors">Wiki</a>
+        <a href="https://github.com/mattlittle16/LittleChat/blob/master/LICENSE" target="_blank" rel="noopener" class="hover:text-slate-900 dark:hover:text-white transition-colors">License</a>
+      </div>
+
+    </div>
+  </footer>
+
+
+  <!-- ───────────────────────── SCRIPTS ───────────────────────── -->
+  <script>
+    // Dark mode toggle
+    const toggle = document.getElementById('theme-toggle');
+    const html = document.documentElement;
+
+    // On load: respect saved preference
+    const saved = localStorage.getItem('lc-landing-theme');
+    if (saved === 'light') html.classList.remove('dark');
+
+    toggle.addEventListener('click', () => {
+      const isDark = html.classList.toggle('dark');
+      localStorage.setItem('lc-landing-theme', isDark ? 'dark' : 'light');
+    });
+  </script>
+
+</body>
+</html>

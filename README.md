@@ -202,6 +202,16 @@ docker network create app-network
 
 Configure **GitHub Secrets** for every variable listed in `.env.example` — the CI workflow assembles the `.env` at deploy time. Secrets are never stored on disk between deployments.
 
+### Optional: Analytics & head scripts
+
+The frontend `index.html` contains a `<!-- HEADSCRIPTS -->` placeholder that is replaced at build time. You can inject any `<script>` or `<link>` tags (e.g. an analytics snippet) by setting a **GitHub Actions variable** (not a secret) named `HEADSCRIPTS` on your repository:
+
+> **Settings → Secrets and variables → Actions → Variables → New repository variable**
+> Name: `HEADSCRIPTS`
+> Value: your script tags, e.g. `<script defer src="..."></script>`
+
+If `HEADSCRIPTS` is not set the placeholder is simply removed and the app works with no analytics.
+
 > **Note:** Enable WebSocket proxying on your NPM proxy host for the backend — required for SignalR connections.
 
 ---
