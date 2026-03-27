@@ -51,8 +51,8 @@ describe('fetchAllUsers', () => {
     mockApi.get.mockResolvedValueOnce(USERS)
     await useUserProfileStore.getState().fetchAllUsers()
     const { profiles } = useUserProfileStore.getState()
-    expect(profiles['u1']).toEqual({ displayName: 'Alice', profileImageUrl: null })
-    expect(profiles['u2']).toEqual({ displayName: 'Bob', profileImageUrl: '/img/bob.png' })
+    expect(profiles['u1']).toEqual({ displayName: 'Alice', profileImageUrl: null, status: null })
+    expect(profiles['u2']).toEqual({ displayName: 'Bob', profileImageUrl: '/img/bob.png', status: null })
     expect(mockApi.get).toHaveBeenCalledWith('/api/users')
   })
 
