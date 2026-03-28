@@ -4,6 +4,11 @@ const TOKEN_KEY        = 'littlechat_access_token'
 const TOKEN_EXPIRY_KEY = 'littlechat_access_token_expires_at'
 
 let _refreshTimer: ReturnType<typeof setTimeout> | null = null
+let _refreshInFlight = false
+
+export function isRefreshInFlight(): boolean {
+  return _refreshInFlight
+}
 
 // ── Proactive refresh timer ───────────────────────────────────────────────────
 
@@ -25,6 +30,7 @@ function scheduleTokenRefresh() {
 }
 
 async function proactiveRefresh() {
+  _refreshInFlight = true
   try {
     const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
     if (!res.ok) {
@@ -36,6 +42,8 @@ async function proactiveRefresh() {
     storeToken(access_token)
   } catch {
     // Network error — will retry on next API call via apiClient reactive refresh
+  } finally {
+    _refreshInFlight = false
   }
 }
 
@@ -70,6 +78,7 @@ export function storeToken(token: string) {
   localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiresAt))
   setAccessToken(token)
   scheduleTokenRefresh()
+  window.dispatchEvent(new Event('session-restored'))
 }
 
 export function getToken(): string | null {
