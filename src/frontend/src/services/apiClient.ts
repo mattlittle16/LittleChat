@@ -28,7 +28,22 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function attemptTokenRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
+    if (!res.ok) return false
+    const { access_token } = await res.json()
+    // Update in-memory token immediately so the retry uses the new token
+    setAccessToken(access_token)
+    // Notify authService to update localStorage and reschedule the proactive timer
+    window.dispatchEvent(new CustomEvent<string>('token-refreshed', { detail: access_token }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function request<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
   const token = getAccessToken()
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -39,15 +54,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, { ...init, headers })
 
   if (!response.ok) {
-    let problem: ProblemDetails = { status: response.status }
-    try {
-      problem = await response.json()
-    } catch {
-      // ignore parse errors
-    }
-    if (response.status === 401) {
+    if (response.status === 401 && !isRetry) {
+      const refreshed = await attemptTokenRefresh()
+      if (refreshed) return request<T>(path, init, true)
+      window.dispatchEvent(new Event('session-expired'))
+    } else if (response.status === 401) {
       window.dispatchEvent(new Event('session-expired'))
     }
+
+    let problem: ProblemDetails = { status: response.status }
+    try { problem = await response.json() } catch { /* ignore */ }
     throw new ApiError(response.status, problem)
   }
 

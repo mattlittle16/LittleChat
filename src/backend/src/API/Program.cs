@@ -150,6 +150,7 @@ builder.Services
         options.SaveTokens = true;
         options.GetClaimsFromUserInfoEndpoint = false;
         options.MapInboundClaims = false;
+        options.Scope.Add("offline_access");
 
         if (skipResponseValidation)
             options.ProtocolValidator = new OidcSkipResponseValidator();
@@ -163,7 +164,20 @@ builder.Services
             },
             OnTokenResponseReceived = context =>
             {
-                var accessToken = context.TokenEndpointResponse.AccessToken;
+                var accessToken  = context.TokenEndpointResponse.AccessToken;
+                var refreshToken = context.TokenEndpointResponse.RefreshToken;
+
+                if (!string.IsNullOrEmpty(refreshToken))
+                {
+                    context.Response.Cookies.Append("littlechat_rt", refreshToken, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure   = context.Request.IsHttps,
+                        SameSite = SameSiteMode.Strict,
+                        Path     = "/auth/refresh",
+                    });
+                }
+
                 context.Response.Redirect($"{corsOrigin}/auth/callback?access_token={Uri.EscapeDataString(accessToken)}");
                 context.HandleResponse();
                 return Task.CompletedTask;
@@ -429,6 +443,7 @@ app.UseRateLimiter();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 app.MapIdentityEndpoints();
+app.MapAuthEndpoints();
 app.MapMessagingEndpoints();
 app.MapReactionsEndpoints();
 app.MapSearchEndpoints();

@@ -1,7 +1,50 @@
 import { setAccessToken } from './apiClient'
 
-const TOKEN_KEY = 'littlechat_access_token'
+const TOKEN_KEY        = 'littlechat_access_token'
 const TOKEN_EXPIRY_KEY = 'littlechat_access_token_expires_at'
+
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+// ── Proactive refresh timer ───────────────────────────────────────────────────
+
+function scheduleTokenRefresh() {
+  if (_refreshTimer) clearTimeout(_refreshTimer)
+
+  const expiresAt = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) ?? 0)
+  if (!expiresAt) return
+
+  // Refresh 60 seconds before expiry
+  const delay = expiresAt - Date.now() - 60_000
+  if (delay <= 0) {
+    // Already near/past expiry — refresh immediately
+    void proactiveRefresh()
+    return
+  }
+
+  _refreshTimer = setTimeout(() => void proactiveRefresh(), delay)
+}
+
+async function proactiveRefresh() {
+  try {
+    const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
+    if (!res.ok) {
+      clearSession()
+      window.dispatchEvent(new Event('session-expired'))
+      return
+    }
+    const { access_token } = await res.json()
+    storeToken(access_token)
+  } catch {
+    // Network error — will retry on next API call via apiClient reactive refresh
+  }
+}
+
+// Listen for reactive refreshes performed by apiClient so the timer stays in sync
+window.addEventListener('token-refreshed', (e) => {
+  storeToken((e as CustomEvent<string>).detail)
+})
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 export function login() {
   window.location.href = '/auth/login'
@@ -10,12 +53,12 @@ export function login() {
 export function logout() {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(TOKEN_EXPIRY_KEY)
+  if (_refreshTimer) clearTimeout(_refreshTimer)
   setAccessToken(null)
   window.location.href = '/auth/logout'
 }
 
 export function storeToken(token: string) {
-  // Read expiry from the JWT `exp` claim (seconds since epoch) — authoritative from the IDP
   let expiresAt: number
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -26,6 +69,7 @@ export function storeToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token)
   localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiresAt))
   setAccessToken(token)
+  scheduleTokenRefresh()
 }
 
 export function getToken(): string | null {
@@ -74,6 +118,7 @@ export function getCurrentUserId(): string | null {
 export function clearSession(): void {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(TOKEN_EXPIRY_KEY)
+  if (_refreshTimer) clearTimeout(_refreshTimer)
   setAccessToken(null)
 }
 
@@ -82,6 +127,7 @@ export function restoreSession(): boolean {
   const token = getToken()
   if (token) {
     setAccessToken(token)
+    scheduleTokenRefresh()
     return true
   }
   return false
