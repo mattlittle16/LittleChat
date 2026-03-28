@@ -6,7 +6,7 @@ import { ChatLayout } from './components/layout/ChatLayout'
 import { LandingPage } from './components/LandingPage'
 import { SessionExpiredModal } from './components/SessionExpiredModal'
 import { UpdateBanner } from './components/UpdateBanner'
-import { isAuthenticated, restoreSession } from './services/authService'
+import { isAuthenticated, isRefreshInFlight, restoreSession } from './services/authService'
 import { useAdminAuth } from './hooks/useAdminAuth'
 import { useFaviconBadge } from './hooks/useFaviconBadge'
 import { useUpdateDetection } from './hooks/useUpdateDetection'
@@ -30,9 +30,15 @@ function AuthenticatedApp() {
   }, [])
 
   useEffect(() => {
+    const handler = () => setSessionExpired(false)
+    window.addEventListener('session-restored', handler)
+    return () => window.removeEventListener('session-restored', handler)
+  }, [])
+
+  useEffect(() => {
     if (!authenticated) return
     const interval = setInterval(() => {
-      if (!isAuthenticated()) setSessionExpired(true)
+      if (!isAuthenticated() && !isRefreshInFlight()) setSessionExpired(true)
     }, 5_000)
     return () => clearInterval(interval)
   }, [authenticated])
