@@ -83,7 +83,7 @@ Neither pattern creates a hard dependency on another module's internals, keeping
 | **Styling** | Tailwind CSS v4, shadcn/ui (slate theme) |
 | **State** | Zustand v5 |
 | **Editor** | Tiptap (inline markdown compose box) |
-| **Auth** | OIDC → JWT Bearer tokens |
+| **Auth** | OIDC → JWT Bearer tokens + HttpOnly refresh token cookie (BFF pattern) |
 | **Image processing** | SixLabors.ImageSharp (resize, HEIC/HEIF support) |
 | **Drag & drop** | @dnd-kit (topic sidebar reordering) |
 | **Virtualisation** | — (cursor-based pagination bounds DOM size) |
@@ -225,6 +225,7 @@ A few intentional choices worth understanding:
 - **Hard deletes only** — no soft deletes anywhere in the codebase.
 - **30-day message TTL** — messages are hard-deleted after 30 days by a background cleanup service.
 - **JWT in localStorage** — an accepted tradeoff to support the offline-first IndexedDB outbox.
+- **Refresh tokens never leave the server** — the OIDC refresh token is stored exclusively in an `HttpOnly`, `SameSite=Strict` cookie scoped to `POST /auth/refresh`. The browser cannot read it; only the backend uses it. The frontend only ever receives and stores the short-lived access token. On expiry the frontend calls `/auth/refresh`, which exchanges the cookie for a new access token and rotates the cookie transparently. A proactive timer fires 60 seconds before expiry; a reactive retry fires on any 401 response.
 - **DMs excluded from search** — global search covers public rooms only.
 - **System messages use `user_id = NULL`** — ban notices and system events are stored as regular messages but excluded from unread counts and notifications. The sender name is persisted so it survives page reloads.
 - **Admin audit log** — all admin actions (bans, unbans, member changes, topic create/delete) are recorded with timestamp, actor, and target.

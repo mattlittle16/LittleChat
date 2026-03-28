@@ -40,9 +40,10 @@ public static class IdentityEndpoints
         }).AllowAnonymous();
 
         // Public — terminates the Authentik SSO session via OIDC RP-Initiated Logout
-        app.MapGet("/auth/logout", (IConfiguration config) =>
+        app.MapGet("/auth/logout", (HttpContext ctx, IConfiguration config) =>
         {
             var corsOrigin = config["CORS_ORIGIN"] ?? "http://localhost:3000";
+            ctx.Response.Cookies.Delete("littlechat_rt", new CookieOptions { Path = "/auth/refresh" });
             return Results.SignOut(
                 new AuthenticationProperties { RedirectUri = corsOrigin },
                 ["OpenIdConnect", "Cookies"]);
