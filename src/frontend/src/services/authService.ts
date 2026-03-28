@@ -30,6 +30,7 @@ function scheduleTokenRefresh() {
 }
 
 async function proactiveRefresh() {
+  if (_refreshInFlight) return
   _refreshInFlight = true
   try {
     const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
@@ -41,11 +42,17 @@ async function proactiveRefresh() {
     const { access_token } = await res.json()
     storeToken(access_token)
   } catch {
-    // Network error — will retry on next API call via apiClient reactive refresh
+    // Network not yet ready (e.g. wake from sleep) — reschedule and try again shortly
+    _refreshTimer = setTimeout(() => void proactiveRefresh(), 3_000)
   } finally {
     _refreshInFlight = false
   }
 }
+
+// On wake from sleep the tab becomes visible again — check immediately if refresh is needed
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') scheduleTokenRefresh()
+})
 
 // Listen for reactive refreshes performed by apiClient so the timer stays in sync
 window.addEventListener('token-refreshed', (e) => {
