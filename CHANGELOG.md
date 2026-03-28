@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/mattlittle16/LittleChat/compare/v0.2.0...v0.2.1) (2026-03-28)
+
+
+### Bug Fixes
+
+* refresh on wake from sleep [fix-refresh-take2-electricboogaloo] ([#11](https://github.com/mattlittle16/LittleChat/issues/11)) ([0719fc5](https://github.com/mattlittle16/LittleChat/commit/0719fc5e541d57dc327e0400d66d32b2923712cb))
+* release please [fix-refresh-take3] ([#13](https://github.com/mattlittle16/LittleChat/issues/13)) ([4b26836](https://github.com/mattlittle16/LittleChat/commit/4b268367f6349482b42696a5d53e0754d928f89f))
+
 ## [0.2.0](https://github.com/mattlittle16/LittleChat/compare/v0.1.0...v0.2.0) (2026-03-28)
 
 
