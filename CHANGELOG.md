@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/mattlittle16/LittleChat/compare/v0.2.1...v0.2.2) (2026-03-29)
+
+
+### Bug Fixes
+
+* test [test] ([#14](https://github.com/mattlittle16/LittleChat/issues/14)) ([e5048a0](https://github.com/mattlittle16/LittleChat/commit/e5048a062ffd19924a115fa7eef0aeb8dec8fba2))
+* test [test] ([#16](https://github.com/mattlittle16/LittleChat/issues/16)) ([f4e7f1e](https://github.com/mattlittle16/LittleChat/commit/f4e7f1e90e4918bc42211ea2bfed2f85877b060f))
+
 ## [0.2.1](https://github.com/mattlittle16/LittleChat/compare/v0.2.0...v0.2.1) (2026-03-28)
 
 
