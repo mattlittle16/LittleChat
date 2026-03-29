@@ -16,4 +16,3 @@ jobs:
         with:
           release-type: simple
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          skip-labeling: true
