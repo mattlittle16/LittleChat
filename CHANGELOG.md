@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/mattlittle16/LittleChat/compare/v0.3.0...v0.3.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* fixing deploy triggers [fix-deploy-trigger] ([#21](https://github.com/mattlittle16/LittleChat/issues/21)) ([9860a82](https://github.com/mattlittle16/LittleChat/commit/9860a82dabc542b23dde340b898d7f16c49ccd04))
+
 ## [0.3.0](https://github.com/mattlittle16/LittleChat/compare/v0.2.2...v0.3.0) (2026-03-30)
 
 
