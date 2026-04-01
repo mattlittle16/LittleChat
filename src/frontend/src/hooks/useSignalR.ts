@@ -260,8 +260,24 @@ export function useSignalR(roomId: string | null) {
 
     connect()
 
+    // On wake from sleep the tab becomes visible again — if SignalR is not connected
+    // (e.g. the WebSocket died during sleep and the retry cycle hasn't fired yet),
+    // short-circuit the wait and reconnect immediately.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      const conn = getConnection()
+      if (!conn || conn.state === 'Connected') return
+      if (retryTimer) {
+        clearTimeout(retryTimer)
+        retryTimer = null
+      }
+      connect()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (retryTimer) {
         clearTimeout(retryTimer)
         retryTimer = null

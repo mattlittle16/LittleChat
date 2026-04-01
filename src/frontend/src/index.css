@@ -90,6 +90,13 @@
 .typing-dot:nth-child(2) { animation-delay: 0.18s; }
 .typing-dot:nth-child(3) { animation-delay: 0.36s; }
 
+/* Tailwind Typography adds backtick pseudo-elements around inline code by default — suppress them
+   since we render our own styled <code> elements via the ReactMarkdown components prop. */
+.prose code::before,
+.prose code::after {
+  content: none !important;
+}
+
 /* Grouped messages: collapse prose paragraph margins so consecutive messages stack tightly */
 .grouped-prose p,
 .grouped-prose ul,
