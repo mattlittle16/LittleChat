@@ -7,7 +7,7 @@ on:
 jobs:
   commitlint:
     runs-on: ubuntu-latest
-    if: github.actor != 'release-please[bot]'
+    if: "!startsWith(github.head_ref, 'release-please--')"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,7 +18,7 @@ jobs:
 
   backend-ci:
     needs: [commitlint]
-    if: github.actor != 'release-please[bot]'
+    if: "!startsWith(github.head_ref, 'release-please--')"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -46,7 +46,7 @@ jobs:
 
   frontend-ci:
     needs: [commitlint]
-    if: github.actor != 'release-please[bot]'
+    if: "!startsWith(github.head_ref, 'release-please--')"
     runs-on: ubuntu-latest
     defaults:
       run:
