@@ -23,6 +23,12 @@ services:
         condition: service_healthy
       valkey:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     restart: unless-stopped
     networks:
       - internal
@@ -65,8 +71,15 @@ services:
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - chat-backend
-      - chat-frontend
+      chat-backend:
+        condition: service_healthy
+      chat-frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
     restart: unless-stopped
     networks:
       - app-network
