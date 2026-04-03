@@ -3,8 +3,10 @@ using LittleChat.Modules.Admin.Application.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Shared.Contracts;
+using Shared.Contracts.Interfaces;
 
 namespace LittleChat.Modules.Admin.API;
 
@@ -154,9 +156,90 @@ public static class AdminEndpoints
             var result = await mediator.Send(new GetAuditLogQuery(from, to, page, pageSize));
             return Results.Ok(result);
         });
+
+        group.MapPut("/users/{userId:guid}/display-name", async (
+            Guid userId,
+            HttpContext ctx,
+            IMediator mediator,
+            UpdateDisplayNameRequest body) =>
+        {
+            var adminId = ctx.User.GetInternalUserId();
+            if (!adminId.HasValue) return Results.Unauthorized();
+            var adminName = ctx.User.FindFirst("preferred_username")?.Value
+                ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                ?? "Unknown";
+
+            var result = await mediator.Send(new AdminUpdateDisplayNameCommand(userId, body.DisplayName ?? string.Empty, adminId.Value, adminName));
+            return result.Match(
+                success     => Results.Ok(new { userId = success.UserId, displayName = success.DisplayName }),
+                userNotFound => Results.NotFound(new { error = "User not found." }),
+                invalidName  => Results.BadRequest(new { error = "Display name must be 1–50 characters and cannot contain '@'." }));
+        });
+
+        group.MapDelete("/users/{userId:guid}/avatar", async (
+            Guid userId,
+            HttpContext ctx,
+            IMediator mediator) =>
+        {
+            var adminId = ctx.User.GetInternalUserId();
+            if (!adminId.HasValue) return Results.Unauthorized();
+            var adminName = ctx.User.FindFirst("preferred_username")?.Value
+                ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                ?? "Unknown";
+
+            var result = await mediator.Send(new AdminRemoveAvatarCommand(userId, adminId.Value, adminName));
+            return result.Match(
+                success     => Results.NoContent(),
+                userNotFound => Results.NotFound(new { error = "User not found." }));
+        });
+
+        group.MapPut("/users/{userId:guid}/avatar", async (
+            Guid userId,
+            HttpContext ctx,
+            IMediator mediator,
+            IFileStorageService fileStorage) =>
+        {
+            var adminId = ctx.User.GetInternalUserId();
+            if (!adminId.HasValue) return Results.Unauthorized();
+
+            var bodySizeFeature = ctx.Features.Get<IHttpMaxRequestBodySizeFeature>();
+            if (bodySizeFeature is { IsReadOnly: false })
+                bodySizeFeature.MaxRequestBodySize = 10 * 1024 * 1024;
+
+            if (!ctx.Request.HasFormContentType)
+                return Results.BadRequest(new { error = "Expected multipart/form-data." });
+
+            var form = await ctx.Request.ReadFormAsync(ctx.RequestAborted);
+            var file = form.Files["file"];
+            if (file is null)
+                return Results.BadRequest(new { error = "No file provided." });
+
+            var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp",
+                "image/heic", "image/heif",
+            };
+            if (!allowedTypes.Contains(file.ContentType))
+                return Results.BadRequest(new { error = "Unsupported file type." });
+
+            if (file.Length > 10 * 1024 * 1024)
+                return Results.BadRequest(new { error = "File exceeds 10 MB limit." });
+
+            var adminName = ctx.User.FindFirst("preferred_username")?.Value
+                ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                ?? "Unknown";
+
+            await using var stream = file.OpenReadStream();
+            var result = await mediator.Send(new AdminUpdateAvatarCommand(userId, stream, file.FileName, adminId.Value, adminName));
+            return result.Match(
+                success     => Results.Ok(new { profileImageUrl = success.ProfileImageUrl }),
+                userNotFound => Results.NotFound(new { error = "User not found." }),
+                invalidFile  => Results.BadRequest(new { error = "File does not appear to be a valid image." }));
+        });
     }
 }
 
 public sealed record BanRequest(int BanDurationHours);
 public sealed record TopicMemberRequest(Guid UserId);
 public sealed record CreateTopicRequest(string Name);
+public sealed record UpdateDisplayNameRequest(string? DisplayName);

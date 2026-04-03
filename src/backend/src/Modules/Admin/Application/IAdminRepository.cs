@@ -20,6 +20,11 @@ public interface IAdminRepository
     Task AddTopicMemberAsync(Guid topicId, Guid userId, CancellationToken ct = default);
     Task RemoveTopicMemberAsync(Guid topicId, Guid userId, CancellationToken ct = default);
 
+    Task UpdateUserDisplayNameAsync(Guid userId, string displayName, CancellationToken ct = default);
+    Task<string?> GetUserProfileImagePathAsync(Guid userId, CancellationToken ct = default);
+    Task ClearUserAvatarAsync(Guid userId, CancellationToken ct = default);
+    Task UpdateUserAvatarAsync(Guid userId, string relativePath, CancellationToken ct = default);
+
     Task<Guid> CreateTopicAsync(string name, Guid createdBy, CancellationToken ct = default);
     Task<(string Name, bool IsProtected, bool IsDm)?> GetTopicInfoForDeleteAsync(Guid topicId, CancellationToken ct = default);
     Task DeleteTopicAsync(Guid topicId, CancellationToken ct = default);

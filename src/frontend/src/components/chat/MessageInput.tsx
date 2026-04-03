@@ -99,7 +99,7 @@ export function MessageInput({ roomId, disabled = false, pendingQuote, onClearQu
 
   function detectMention(text: string, cursorPos: number) {
     const before = text.slice(0, cursorPos)
-    const match = before.match(/@(\w*)$/)
+    const match = before.match(/@([^\s]*)$/)
     if (match) {
       setMentionQuery(match[1])
       setMentionIndex(0)
@@ -144,7 +144,7 @@ export function MessageInput({ roomId, disabled = false, pendingQuote, onClearQu
     const text = latestContentRef.current
     const before = text.slice(0, cursorPos)
     const after = text.slice(cursorPos)
-    const newBefore = before.replace(/@\w*$/, `@${displayName} `)
+    const newBefore = before.replace(/@[^\s]*$/, `@${displayName} `)
     const newContent = newBefore + after
     latestContentRef.current = newContent
     setContent(newContent)

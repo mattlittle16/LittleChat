@@ -1,40 +1,32 @@
-import { useEffect, useRef, useState } from 'react'
-import { getMyProfile, updateDisplayName, uploadAvatar, deleteAvatar } from '../../services/profileService'
-import { useUserProfileStore } from '../../stores/userProfileStore'
-import { UserAvatar } from '../common/UserAvatar'
-import { AvatarCropEditor } from './AvatarCropEditor'
-import type { UserProfile } from '../../types'
+import { useRef, useState } from 'react'
+import { X } from 'lucide-react'
+import { updateUserDisplayName, removeUserAvatar, updateUserAvatar, type AdminUser } from '../../services/adminApiService'
+import { AvatarCropEditor } from '../profile/AvatarCropEditor'
+import { AuthedImg } from '../chat/AuthedImg'
 
-interface UserProfileDialogProps {
-  userId: string
+interface Props {
+  user: AdminUser
   onClose: () => void
+  onSuccess: (updated: Partial<AdminUser>) => void
 }
 
-export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [displayName, setDisplayNameInput] = useState('')
-  const [saving, setSaving] = useState(false)
+export function AdminUserEditPanel({ user, onClose, onSuccess }: Props) {
+  const [displayName, setDisplayName] = useState(user.displayName)
+  const [savingName, setSavingName] = useState(false)
+  const [removingAvatar, setRemovingAvatar] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [nameSuccess, setNameSuccess] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const setProfile_ = useUserProfileStore(s => s.setProfile)
-  const updateUser = useUserProfileStore(s => s.updateUser)
 
-  useEffect(() => {
-    getMyProfile()
-      .then(p => {
-        setProfile(p)
-        setDisplayNameInput(p.displayName)
-        setProfile_(p.id, { displayName: p.displayName, profileImageUrl: p.profileImageUrl })
-      })
-      .catch(() => setError('Failed to load profile.'))
-  }, [setProfile_])
+  const profileImageUrl = user.profileImageUrl
+  const avatarUrl = user.avatarUrl
 
   async function handleSaveName() {
     const trimmed = displayName.trim()
-    if (!trimmed || trimmed.length < 1 || trimmed.length > 50) {
+    if (!trimmed || trimmed.length > 50) {
       setError('Display name must be 1–50 characters.')
       return
     }
@@ -42,58 +34,50 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
       setError("Display name cannot contain '@'. Use a name, not an email address.")
       return
     }
-    setSaving(true)
+    setSavingName(true)
     setError(null)
+    setNameSuccess(false)
     try {
-      await updateDisplayName(trimmed)
-      updateUser(userId, { displayName: trimmed })
-      setSuccessMsg('Display name updated.')
-      setTimeout(() => setSuccessMsg(null), 3000)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to update display name.')
+      const res = await updateUserDisplayName(user.id, trimmed)
+      onSuccess({ displayName: res.displayName })
+      setNameSuccess(true)
+    } catch {
+      setError('Failed to update display name.')
     } finally {
-      setSaving(false)
+      setSavingName(false)
     }
   }
 
   async function handleCropConfirm(croppedBlob: Blob) {
     setCropFile(null)
-    setSaving(true)
+    setUploadingAvatar(true)
     setError(null)
     try {
       const file = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' })
-      const result = await uploadAvatar(file, 0, 0, 1)
-      if (profile) {
-        setProfile({ ...profile, profileImageUrl: result.profileImageUrl })
-      }
-      updateUser(userId, { profileImageUrl: result.profileImageUrl })
-      setSuccessMsg('Avatar updated.')
-      setTimeout(() => setSuccessMsg(null), 3000)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to upload avatar.')
+      const res = await updateUserAvatar(user.id, file)
+      onSuccess({ profileImageUrl: res.profileImageUrl })
+    } catch {
+      setError('Failed to upload avatar.')
     } finally {
-      setSaving(false)
+      setUploadingAvatar(false)
     }
   }
 
-  async function handleDeleteAvatar() {
+  async function handleRemoveAvatar() {
     setConfirmRemove(false)
-    setSaving(true)
+    setRemovingAvatar(true)
     setError(null)
     try {
-      await deleteAvatar()
-      if (profile) {
-        setProfile({ ...profile, profileImageUrl: null })
-      }
-      updateUser(userId, { profileImageUrl: null })
-      setSuccessMsg('Photo removed.')
-      setTimeout(() => setSuccessMsg(null), 3000)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to remove photo.')
+      await removeUserAvatar(user.id)
+      onSuccess({ profileImageUrl: null, avatarUrl: null })
+    } catch {
+      setError('Failed to remove avatar.')
     } finally {
-      setSaving(false)
+      setRemovingAvatar(false)
     }
   }
+
+  const isBusy = savingName || removingAvatar || uploadingAvatar
 
   return (
     <>
@@ -104,8 +88,10 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
         <div className="w-96 rounded-lg border bg-background shadow-xl" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <span className="font-semibold text-sm">Profile</span>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+            <span className="font-semibold text-sm">Edit User: {user.displayName}</span>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           <div className="px-4 py-4 flex flex-col gap-4">
@@ -115,36 +101,44 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
                 className="relative group"
                 onClick={() => fileInputRef.current?.click()}
                 title="Change photo"
-                disabled={saving}
+                disabled={isBusy}
               >
-                <UserAvatar
-                  userId={userId}
-                  displayName={profile?.displayName ?? '?'}
-                  profileImageUrl={profile?.profileImageUrl ?? null}
-                  avatarUrl={profile?.avatarUrl}
-                  size={96}
-                />
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-muted border border-border flex items-center justify-center">
+                  {profileImageUrl ? (
+                    <AuthedImg
+                      src={profileImageUrl}
+                      alt={user.displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : avatarUrl ? (
+                    <img src={avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl font-semibold text-muted-foreground">
+                      {user.displayName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
                 <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <span className="text-white text-xs font-medium">Change</span>
                 </div>
               </button>
 
-              {profile?.profileImageUrl && !confirmRemove && (
+              {profileImageUrl && !confirmRemove && (
                 <button
                   onClick={() => setConfirmRemove(true)}
-                  disabled={saving}
+                  disabled={isBusy}
                   className="rounded border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   Remove photo
                 </button>
               )}
 
-              {profile?.profileImageUrl && confirmRemove && (
+              {profileImageUrl && confirmRemove && (
                 <div className="flex items-center gap-2 rounded border border-destructive/40 px-3 py-1.5 bg-destructive/5">
                   <span className="text-xs text-muted-foreground">Remove photo?</span>
                   <button
-                    onClick={handleDeleteAvatar}
-                    disabled={saving}
+                    onClick={handleRemoveAvatar}
+                    disabled={isBusy}
                     className="rounded bg-destructive px-2 py-0.5 text-xs text-destructive-foreground hover:opacity-90"
                   >
                     Yes
@@ -156,6 +150,10 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
                     No
                   </button>
                 </div>
+              )}
+
+              {uploadingAvatar && (
+                <span className="text-xs text-muted-foreground">Uploading…</span>
               )}
 
               <input
@@ -176,34 +174,17 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
               <label className="text-xs font-medium text-muted-foreground">Display Name</label>
               <input
                 value={displayName}
-                onChange={e => setDisplayNameInput(e.target.value)}
+                onChange={e => { setDisplayName(e.target.value); setNameSuccess(false) }}
                 maxLength={50}
+                disabled={isBusy}
                 className="rounded border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                 onKeyDown={e => { if (e.key === 'Enter') handleSaveName() }}
-                disabled={saving}
               />
               <span className="text-xs text-muted-foreground text-right">{displayName.length}/50</span>
             </div>
 
-            {/* Email (read-only) */}
-            {profile?.email && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-muted-foreground">Email</label>
-                <input
-                  value={profile.email}
-                  readOnly
-                  className="rounded border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground outline-none cursor-not-allowed"
-                />
-              </div>
-            )}
-
-            {/* Messages */}
-            {error && (
-              <p className="text-xs text-destructive">{error}</p>
-            )}
-            {successMsg && (
-              <p className="text-xs text-green-600 dark:text-green-400">{successMsg}</p>
-            )}
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            {nameSuccess && <p className="text-xs text-green-600 dark:text-green-400">Display name updated.</p>}
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-1">
@@ -211,14 +192,14 @@ export function UserProfileDialog({ userId, onClose }: UserProfileDialogProps) {
                 onClick={onClose}
                 className="rounded border px-3 py-1.5 text-sm hover:bg-muted/60"
               >
-                Cancel
+                Close
               </button>
               <button
                 onClick={handleSaveName}
-                disabled={saving}
+                disabled={isBusy || displayName.trim() === user.displayName}
                 className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
-                {saving ? 'Saving…' : 'Save'}
+                {savingName ? 'Saving…' : 'Save Name'}
               </button>
             </div>
           </div>

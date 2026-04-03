@@ -43,10 +43,11 @@ async function attemptTokenRefresh(): Promise<boolean> {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, isRetry = false, skipContentType = false): Promise<T> {
   const token = getAccessToken()
+  const baseHeaders: Record<string, string> = skipContentType ? {} : { 'Content-Type': 'application/json' }
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...baseHeaders,
     ...(init.headers as Record<string, string>),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
@@ -56,7 +57,7 @@ async function request<T>(path: string, init: RequestInit = {}, isRetry = false)
   if (!response.ok) {
     if (response.status === 401 && !isRetry) {
       const refreshed = await attemptTokenRefresh()
-      if (refreshed) return request<T>(path, init, true)
+      if (refreshed) return request<T>(path, init, true, skipContentType)
       window.dispatchEvent(new Event('session-expired'))
     } else if (response.status === 401) {
       window.dispatchEvent(new Event('session-expired'))
@@ -82,4 +83,6 @@ export const api = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  putForm: <T>(path: string, body: FormData) =>
+    request<T>(path, { method: 'PUT', body }, false, true),
 }

@@ -25,7 +25,7 @@ public sealed class AdminRepository : IAdminRepository
         var totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
 
         await using var cmd = _dataSource.CreateCommand(@"
-            SELECT id, display_name, avatar_url FROM users
+            SELECT id, display_name, avatar_url, profile_image_path FROM users
             WHERE ($1::text IS NULL OR display_name ILIKE '%' || $1 || '%')
             ORDER BY display_name
             LIMIT $2 OFFSET $3");
@@ -37,10 +37,14 @@ public sealed class AdminRepository : IAdminRepository
         var items = new List<AdminUserDto>();
         while (await reader.ReadAsync(ct))
         {
+            var id = reader.GetGuid(0);
+            var imagePath = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var profileImageUrl = imagePath != null ? $"/api/users/{id}/avatar?v={imagePath.Split('/')[0]}" : null;
             items.Add(new AdminUserDto(
-                reader.GetGuid(0),
+                id,
                 reader.GetString(1),
-                reader.IsDBNull(2) ? null : reader.GetString(2)));
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                profileImageUrl));
         }
 
         return (items, totalCount);
@@ -195,6 +199,40 @@ public sealed class AdminRepository : IAdminRepository
         await using var cmd = _dataSource.CreateCommand(@"
             DELETE FROM rooms WHERE id = $1");
         cmd.Parameters.AddWithValue(topicId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task UpdateUserDisplayNameAsync(Guid userId, string displayName, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(@"
+            UPDATE users SET display_name = $1 WHERE id = $2");
+        cmd.Parameters.AddWithValue(displayName);
+        cmd.Parameters.AddWithValue(userId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task<string?> GetUserProfileImagePathAsync(Guid userId, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(@"
+            SELECT profile_image_path FROM users WHERE id = $1");
+        cmd.Parameters.AddWithValue(userId);
+        return await cmd.ExecuteScalarAsync(ct) as string;
+    }
+
+    public async Task ClearUserAvatarAsync(Guid userId, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(@"
+            UPDATE users SET profile_image_path = NULL, avatar_url = NULL WHERE id = $1");
+        cmd.Parameters.AddWithValue(userId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task UpdateUserAvatarAsync(Guid userId, string relativePath, CancellationToken ct = default)
+    {
+        await using var cmd = _dataSource.CreateCommand(@"
+            UPDATE users SET profile_image_path = $1, avatar_url = NULL WHERE id = $2");
+        cmd.Parameters.AddWithValue(relativePath);
+        cmd.Parameters.AddWithValue(userId);
         await cmd.ExecuteNonQueryAsync(ct);
     }
 }
