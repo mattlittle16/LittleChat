@@ -20,4 +20,5 @@ public interface IChatHubClient
     Task RemovedFromRoom(Guid roomId);
     Task MemberListChanged(Guid roomId);
     Task ForceLogout();
+    Task RoomReadSynced(Guid roomId);
 }

@@ -10,6 +10,7 @@ interface RoomState {
   loadRooms: () => Promise<void>
   setActiveRoom: (id: string | null) => void
   markRead: (roomId: string) => void
+  clearUnread: (roomId: string) => void
   updateUnread: (roomId: string, count: number) => void
   setMention: (roomId: string) => void
   deleteRoom: (roomId: string) => Promise<void>
@@ -51,6 +52,14 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }))
     // Persist last-read position to server (fire-and-forget)
     api.post(`/api/rooms/${roomId}/read`, null).catch(err => console.error('[roomStore] markRead failed', err))
+  },
+
+  clearUnread: (roomId) => {
+    set(s => ({
+      rooms: s.rooms.map(r =>
+        r.id === roomId ? { ...r, unreadCount: 0, hasMention: false } : r
+      ),
+    }))
   },
 
   updateUnread: (roomId, count) => {
