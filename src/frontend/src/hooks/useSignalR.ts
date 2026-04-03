@@ -13,6 +13,9 @@ import type { Message, Notification } from '../types'
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
 const HEARTBEAT_INTERVAL_MS = 15_000
+// How long to wait before playing a chime, giving RoomReadSynced from another
+// device a chance to arrive and cancel it first.
+const CROSS_DEVICE_CHIME_DELAY_MS = 500
 
 export function useSignalR(roomId: string | null) {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
@@ -20,15 +23,18 @@ export function useSignalR(roomId: string | null) {
   const updateMessage = useMessageStore(s => s.updateMessage)
   const removeMessage = useMessageStore(s => s.removeMessage)
   const updateReactions = useMessageStore(s => s.updateReactions)
-  const { updateUnread, clearUnread, activeRoomId, setMention } = useRoomStore()
+  const { updateUnread, clearUnread, setMention } = useRoomStore()
   const { setOnline, setOffline, setInitialPresence } = usePresenceStore()
   const { setTyping } = useTypingStore()
   const prevRoomRef = useRef<string | null>(null)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Pending chime timers keyed by roomId — cancelled if RoomReadSynced arrives first
+  const pendingChimesRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     if (!roomId) return
     const currentRoomId = roomId
+    const pendingChimes = pendingChimesRef.current
 
     let cancelled = false
     let retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -85,27 +91,45 @@ export function useSignalR(roomId: string | null) {
         const isSystemMessage = !msg.author?.id || msg.author.id === '00000000-0000-0000-0000-000000000000'
         if (isSystemMessage) return
 
-        // Update unread badge if this isn't the currently visible room,
-        // or if it is but the tab is hidden (user is in another tab)
-        if (msg.roomId !== activeRoomId || document.hidden) {
+        // Always read activeRoomId fresh — the closure captures the value from when
+        // the effect ran, which goes stale if the user switches rooms.
+        const currentActiveRoomId = useRoomStore.getState().activeRoomId
+        const isVisible = !document.hidden && document.visibilityState === 'visible'
+        const isBeingRead = msg.roomId === currentActiveRoomId && isVisible && document.hasFocus()
+
+        if (isBeingRead) {
+          // This device is actively viewing the room. Signal other devices to clear
+          // their badge/cancel their pending chime via RoomReadSynced.
+          useRoomStore.getState().markRead(msg.roomId)
+        } else {
           updateUnread(msg.roomId, 1)
         }
+
         // Safety net: if the room isn't in our list yet, reload rooms
         if (!useRoomStore.getState().rooms.find(r => r.id === msg.roomId)) {
           useRoomStore.getState().loadRooms()
         }
-        // Play chime and browser notification if not actively viewing this conversation,
-        // or if the user has focus elsewhere (different window/app, tab still visible)
-        if (msg.roomId !== activeRoomId || document.visibilityState !== 'visible' || !document.hasFocus()) {
+
+        // Chime / browser notification — only when not actively reading the room.
+        // Delayed so a RoomReadSynced from another device (which has the room open)
+        // can arrive and cancel it before it fires.
+        if (!isBeingRead) {
           const room = useRoomStore.getState().rooms.find(r => r.id === msg.roomId)
           const isDm = room?.isDm ?? false
           const level = useNotificationPreferencesStore.getState().effectiveLevelForRoom(msg.roomId, isDm)
           if (level === 'all_messages') {
-            playChime()
-            if (document.visibilityState !== 'visible') {
-              const authorName = msg.author?.displayName ?? 'Someone'
-              showBrowserNotification(authorName, msg.content, msg.roomId)
-            }
+            // Cancel any earlier pending chime for this room (burst of messages → one chime)
+            const existing = pendingChimes.get(msg.roomId)
+            if (existing) clearTimeout(existing)
+            const timer = setTimeout(() => {
+              pendingChimes.delete(msg.roomId)
+              playChime()
+              if (document.visibilityState !== 'visible') {
+                const authorName = msg.author?.displayName ?? 'Someone'
+                showBrowserNotification(authorName, msg.content, msg.roomId)
+              }
+            }, CROSS_DEVICE_CHIME_DELAY_MS)
+            pendingChimes.set(msg.roomId, timer)
           }
         }
       })
@@ -245,6 +269,12 @@ export function useSignalR(roomId: string | null) {
 
       connection.on('RoomReadSynced', (roomId: string) => {
         clearUnread(roomId)
+        // Another device (or this one) read the room — cancel any pending chime
+        const timer = pendingChimes.get(roomId)
+        if (timer) {
+          clearTimeout(timer)
+          pendingChimes.delete(roomId)
+        }
       })
 
       // T072: send heartbeat every 15s to keep presence key alive (30s TTL)
@@ -290,6 +320,8 @@ export function useSignalR(roomId: string | null) {
         retryTimer = null
       }
       clearHeartbeat()
+      pendingChimes.forEach(t => clearTimeout(t))
+      pendingChimes.clear()
       const conn = getConnection()
       if (conn) {
         ;[
