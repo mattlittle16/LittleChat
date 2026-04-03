@@ -601,7 +601,7 @@ public static class MessagingEndpoints
 
         // POST /api/rooms/{roomId}/read — mark conversation as fully read (US3)
         app.MapPost("/api/rooms/{roomId:guid}/read",
-            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender, Messaging.Domain.IRoomRepository rooms) =>
+            [Authorize] async (Guid roomId, HttpContext ctx, ISender sender, Messaging.Domain.IRoomRepository rooms, IRealtimeNotifier notifier) =>
             {
                 var userId = ctx.User.GetInternalUserId();
                 if (userId is null)
@@ -612,7 +612,11 @@ public static class MessagingEndpoints
                     return Results.NotFound();
 
                 var isMember = await sender.Send(new MarkRoomReadCommand(roomId, userId.Value), ctx.RequestAborted);
-                return isMember ? Results.NoContent() : Results.Forbid();
+                if (!isMember) return Results.Forbid();
+
+                // Sync read state to all other devices for this user
+                await notifier.SendToUserAsync(userId.Value.ToString(), "RoomReadSynced", roomId, ctx.RequestAborted);
+                return Results.NoContent();
             });
 
         return app;

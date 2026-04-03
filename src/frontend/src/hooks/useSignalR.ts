@@ -20,7 +20,7 @@ export function useSignalR(roomId: string | null) {
   const updateMessage = useMessageStore(s => s.updateMessage)
   const removeMessage = useMessageStore(s => s.removeMessage)
   const updateReactions = useMessageStore(s => s.updateReactions)
-  const { updateUnread, activeRoomId, setMention } = useRoomStore()
+  const { updateUnread, clearUnread, activeRoomId, setMention } = useRoomStore()
   const { setOnline, setOffline, setInitialPresence } = usePresenceStore()
   const { setTyping } = useTypingStore()
   const prevRoomRef = useRef<string | null>(null)
@@ -53,6 +53,8 @@ export function useSignalR(roomId: string | null) {
           if (!cancelled) {
             setStatus('connected')
             useNotificationStore.getState().loadNotifications()
+            // Resync unread counts from server — local additive counters drift during disconnects
+            useRoomStore.getState().loadRooms()
           }
         },
         () => {
@@ -73,6 +75,7 @@ export function useSignalR(roomId: string | null) {
         'RoomMembershipChanged', 'RemovedFromRoom', 'MemberListChanged',
         'PresenceUpdate', 'PresenceSnapshot', 'MessageEdited', 'MessageDeleted',
         'ReactionUpdated', 'UserTyping', 'MentionNotification', 'NotificationReceived',
+        'RoomReadSynced',
       ]
       events.forEach(e => connection.off(e))
 
@@ -240,6 +243,10 @@ export function useSignalR(roomId: string | null) {
         }
       })
 
+      connection.on('RoomReadSynced', (roomId: string) => {
+        clearUnread(roomId)
+      })
+
       // T072: send heartbeat every 15s to keep presence key alive (30s TTL)
       heartbeatRef.current = setInterval(() => {
         if (connection.state === 'Connected') {
@@ -290,6 +297,7 @@ export function useSignalR(roomId: string | null) {
           'RoomMembershipChanged', 'RemovedFromRoom', 'MemberListChanged',
           'PresenceUpdate', 'PresenceSnapshot', 'MessageEdited', 'MessageDeleted',
           'ReactionUpdated', 'UserTyping', 'MentionNotification', 'NotificationReceived',
+          'RoomReadSynced',
         ].forEach(e => conn.off(e))
       }
     }

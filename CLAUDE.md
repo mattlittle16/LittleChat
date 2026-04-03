@@ -3,7 +3,7 @@
 ##MOST IMPORTANT 
 Don't ever assume, guess, or make up stats or theories without investigating the code base first. If you do need to propose a theory, you MUST tell me it's a theory rather than propose it as fact.
 
-##Searching
+##Searching / Reviewing
 You should try to use the LSP plugins as much as possible. It's cheaper and faster than text searching. 
 
 ##Important

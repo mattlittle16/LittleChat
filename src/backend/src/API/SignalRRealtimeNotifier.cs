@@ -60,6 +60,8 @@ public sealed class SignalRRealtimeNotifier : IRealtimeNotifier
                 user.RemovedFromRoom(r.RoomId),
             "ForceLogout" =>
                 user.ForceLogout(),
+            "RoomReadSynced" when payload is Guid syncedRoomId =>
+                user.RoomReadSynced(syncedRoomId),
             _ => Task.CompletedTask,
         };
     }

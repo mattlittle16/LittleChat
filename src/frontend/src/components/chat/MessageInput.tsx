@@ -557,7 +557,7 @@ export function MessageInput({ roomId, disabled = false, pendingQuote, onClearQu
             </div>
           )}
 
-          <div onKeyDown={e => { handleMentionKeyDown(e) }} onClick={() => editorRef.current?.focus()}>
+          <div onKeyDown={e => { handleMentionKeyDown(e) }} onClick={(e) => { if (!(e.target as HTMLElement).closest('.ProseMirror')) editorRef.current?.focus() }}>
             <InlineMarkdownEditor
               ref={editorRef}
               value={content}
