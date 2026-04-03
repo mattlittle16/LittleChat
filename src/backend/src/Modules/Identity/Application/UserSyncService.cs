@@ -28,9 +28,18 @@ public sealed class UserSyncService : IUserSyncService
         if (_cache.TryGetValue(cacheKey, out Guid cachedUserId))
             return (false, cachedUserId);
 
-        var displayName = principal.FindFirstValue("preferred_username")
+        var rawDisplayName = principal.FindFirstValue("preferred_username")
             ?? principal.FindFirstValue("name")
             ?? "Unknown";
+
+        // Strip @ from IdP-supplied names — email addresses are common as preferred_username
+        // and would break the @mention system. Take the local part before the first @.
+        var displayName = rawDisplayName.Contains('@')
+            ? (rawDisplayName.IndexOf('@') > 0
+                ? rawDisplayName[..rawDisplayName.IndexOf('@')]
+                : rawDisplayName.Replace("@", ""))
+            : rawDisplayName;
+
         var avatarUrl = principal.FindFirstValue("picture");
 
         var (isNew, userId) = await _userRepository.UpsertAsync(sub, displayName, avatarUrl, cancellationToken);

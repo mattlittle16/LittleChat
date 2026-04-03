@@ -4,6 +4,7 @@ export interface AdminUser {
   id: string
   displayName: string
   avatarUrl: string | null
+  profileImageUrl: string | null
   bannedUntil: string | null
 }
 
@@ -93,6 +94,20 @@ export function createTopic(name: string): Promise<{ topicId: string; name: stri
 
 export function deleteTopic(topicId: string): Promise<{ topicId: string; name: string }> {
   return api.delete(`/api/admin/topics/${topicId}`)
+}
+
+export function updateUserDisplayName(userId: string, displayName: string): Promise<{ userId: string; displayName: string }> {
+  return api.put(`/api/admin/users/${userId}/display-name`, { displayName })
+}
+
+export function removeUserAvatar(userId: string): Promise<void> {
+  return api.delete(`/api/admin/users/${userId}/avatar`)
+}
+
+export function updateUserAvatar(userId: string, file: File): Promise<{ profileImageUrl: string }> {
+  const form = new FormData()
+  form.append('file', file)
+  return api.putForm(`/api/admin/users/${userId}/avatar`, form)
 }
 
 export function getAuditLog(params: { from?: string; to?: string; page?: number; pageSize?: number } = {}): Promise<PaginatedResult<AuditLogEntry>> {

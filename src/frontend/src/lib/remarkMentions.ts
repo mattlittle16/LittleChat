@@ -2,8 +2,8 @@ import { visit } from 'unist-util-visit'
 import type { Root, Text } from 'mdast'
 import type { Plugin } from 'unified'
 
-// Matches @username or @topic (word chars only)
-const MENTION_RE = /(@(?:topic|\w+))/g
+// Matches @username or @topic; non-whitespace after @ allows names containing special chars (e.g. legacy email-as-name)
+const MENTION_RE = /(@(?:topic|[^\s@]\S*))/g
 
 /**
  * Remark plugin that transforms @mention and @topic tokens inside paragraph

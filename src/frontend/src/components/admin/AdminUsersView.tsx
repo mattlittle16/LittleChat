@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { getUsers, unbanUser, type AdminUser, type PaginatedResult } from '../../services/adminApiService'
 import { ForceLogoutConfirmDialog } from './ForceLogoutConfirmDialog'
+import { AdminUserEditPanel } from './AdminUserEditPanel'
 import { getCurrentUserId } from '../../services/authService'
 
 export function AdminUsersView() {
@@ -11,6 +12,7 @@ export function AdminUsersView() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logoutTarget, setLogoutTarget] = useState<AdminUser | null>(null)
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null)
   const [unbanningId, setUnbanningId] = useState<string | null>(null)
 
   function formatBanExpiry(bannedUntil: string): string {
@@ -89,7 +91,7 @@ export function AdminUsersView() {
                 <thead className="bg-muted/90 dark:bg-white/[0.06] border-b border-border">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-foreground">Display Name</th>
-                    <th className="px-4 py-3" />
+                    <th className="text-right px-4 py-3 font-semibold text-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,22 +118,30 @@ export function AdminUsersView() {
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right align-top">
-                        {user.bannedUntil ? (
+                        <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleUnban(user)}
-                            disabled={unbanningId === user.id}
-                            className="text-xs px-3 py-1 rounded bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
+                            onClick={() => setEditTarget(user)}
+                            className="text-xs px-3 py-1 rounded bg-muted text-foreground hover:bg-muted/70 transition-colors"
                           >
-                            {unbanningId === user.id ? 'Unbanning…' : 'Unban'}
+                            Edit
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => setLogoutTarget(user)}
-                            className="text-xs px-3 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                          >
-                            Ban
-                          </button>
-                        )}
+                          {user.bannedUntil ? (
+                            <button
+                              onClick={() => handleUnban(user)}
+                              disabled={unbanningId === user.id}
+                              className="text-xs px-3 py-1 rounded bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
+                            >
+                              {unbanningId === user.id ? 'Unbanning…' : 'Unban'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setLogoutTarget(user)}
+                              className="text-xs px-3 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                            >
+                              Ban
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -174,6 +184,21 @@ export function AdminUsersView() {
           onSuccess={() => {
             setLogoutTarget(null)
             fetchUsers(search, page)
+          }}
+        />
+      )}
+
+      {/* User edit panel */}
+      {editTarget && (
+        <AdminUserEditPanel
+          user={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={(updated) => {
+            setEditTarget(prev => prev ? { ...prev, ...updated } : null)
+            setResult(prev => prev ? {
+              ...prev,
+              items: prev.items.map(u => u.id === editTarget.id ? { ...u, ...updated } : u),
+            } : null)
           }}
         />
       )}

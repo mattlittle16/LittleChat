@@ -100,6 +100,8 @@ public static class IdentityEndpoints
             var displayName = body.DisplayName?.Trim();
             if (string.IsNullOrEmpty(displayName) || displayName.Length < 1 || displayName.Length > 50)
                 return Results.BadRequest(new { error = "Display name must be 1–50 characters." });
+            if (displayName.Contains('@'))
+                return Results.BadRequest(new { error = "Display name cannot contain '@'. Use a name, not an email address." });
 
             await users.UpdateDisplayNameAsync(userId.Value, displayName, ctx.RequestAborted);
 

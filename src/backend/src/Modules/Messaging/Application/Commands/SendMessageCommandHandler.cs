@@ -11,7 +11,7 @@ namespace Messaging.Application.Commands;
 public sealed class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, SendMessageResult>
 {
     private const int MaxContentLength = 4_000;
-    private static readonly Regex MentionRegex = new(@"@(\w+)", RegexOptions.Compiled);
+    private static readonly Regex MentionRegex = new(@"@([^\s@]\S*)", RegexOptions.Compiled);
     private static readonly Regex TopicRegex   = new(@"@topic\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly IMessageRepository _messages;
