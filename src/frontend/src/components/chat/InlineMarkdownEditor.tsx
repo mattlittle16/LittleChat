@@ -8,6 +8,7 @@ import { TextSelection } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { DelimiterRevealExtension } from './DelimiterRevealExtension'
 import { EmojiShortcodeExtension } from './EmojiShortcodeExtension'
+import { EditorEmojiSizeExtension } from './EditorEmojiSizeExtension'
 
 // Italic: only _text_ (not *text*, which is reserved for bold like Slack)
 const SlackItalic = Italic.extend({
@@ -137,6 +138,7 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
         SlackItalic,
         DelimiterRevealExtension,
         EmojiShortcodeExtension,
+        EditorEmojiSizeExtension,
       ],
       content: markdownToHtml(value),
       autofocus: autoFocus ? 'end' : false,
@@ -206,7 +208,10 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
       if (!editor) return
       if (value === lastSerializedRef.current) return
       lastSerializedRef.current = value
+      const wasFocused = editor.isFocused
       editor.commands.setContent(markdownToHtml(value), { emitUpdate: false })
+      // setContent replaces all DOM content and blurs the editor — restore focus
+      if (wasFocused) editor.commands.focus()
     }, [editor, value])
 
     // Keep the editor's editable state in sync with the disabled prop
@@ -239,7 +244,7 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
 
     return (
       <div
-        className={`relative rounded-md border bg-background text-sm focus-within:ring-2 focus-within:ring-ring${disabled ? ' opacity-50 cursor-not-allowed' : ' cursor-text'}`}
+        className={`relative rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring${disabled ? ' opacity-50 cursor-not-allowed' : ' cursor-text'}`}
         style={{ minHeight, maxHeight, overflowY: 'auto' }}
         onClick={(e) => {
           // Only focus-to-end when clicking empty space (the wrapper div itself),
@@ -249,7 +254,7 @@ export const InlineMarkdownEditor = forwardRef<InlineMarkdownEditorRef, Props>(
       >
         <EditorContent
           editor={editor}
-          className="prose prose-sm dark:prose-invert max-w-none px-3 py-2"
+          className="prose dark:prose-invert max-w-none px-3 py-2"
         />
         {isEmpty && placeholder && (
           <span className="pointer-events-none absolute inset-0 px-3 py-2 text-muted-foreground select-none">

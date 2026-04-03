@@ -3,6 +3,7 @@ import { getAccessToken } from './apiClient'
 import { clearSession } from './authService'
 import { useOutboxStore } from '../stores/outboxStore'
 import { useUserProfileStore } from '../stores/userProfileStore'
+import { useRoomStore } from '../stores/roomStore'
 import { usePollStore } from '../stores/pollStore'
 import { useHighlightStore } from '../stores/highlightStore'
 import { useLinkPreviewStore } from '../stores/linkPreviewStore'
@@ -70,6 +71,7 @@ export async function startConnection(
   _connection.off('UserProfileUpdated')
   _connection.on('UserProfileUpdated', ({ userId, displayName, profileImageUrl }: { userId: string; displayName: string; profileImageUrl: string | null }) => {
     useUserProfileStore.getState().updateUser(userId, { displayName, profileImageUrl })
+    useRoomStore.getState().updateOtherUserDisplayName(userId, displayName)
   })
 
   _connection.off('ForceLogout')

@@ -370,10 +370,12 @@ export function MessageInput({ roomId, disabled = false, pendingQuote, onClearQu
       await submitWithFiles()
       return
     }
-    const trimmed = latestContentRef.current.trim()
+    let trimmed = latestContentRef.current.trim()
     if (!trimmed || trimmed.length > MAX_LENGTH) return
     // Don't send the raw /klipy command — it's a GIF picker trigger, not a message
     if (trimmed.startsWith('/klipy')) return
+    // Resolve any :shortcode: patterns not yet converted by the InputRule (e.g. typed without trailing space)
+    trimmed = trimmed.replace(/:([+\w-]+):/g, (match, code) => emojiMap[code] ?? match)
     setContent('')
     const quoteId = pendingQuote?.messageId
     onClearQuote?.()
