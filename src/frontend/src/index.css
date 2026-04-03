@@ -157,9 +157,16 @@
   background-color: hsl(var(--muted-foreground) / 0.8);
 }
 
+/* Emoji sizing in the message composer (ProseMirror decoration) */
+.editor-emoji {
+  font-size: 1.5em;
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+
 /* Emoji sizing in chat messages */
 .chat-emoji {
-  font-size: 1.4em;
+  font-size: 1.6em;
   line-height: 1;
   display: inline-block;
   vertical-align: middle;

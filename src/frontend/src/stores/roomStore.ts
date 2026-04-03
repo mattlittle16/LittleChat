@@ -16,6 +16,7 @@ interface RoomState {
   deleteRoom: (roomId: string) => Promise<void>
   removeRoom: (roomId: string) => void
   addRoom: (room: Room) => void
+  updateOtherUserDisplayName: (userId: string, displayName: string) => void
   // 012-topics-overhaul
   createTopic: (name: string, isPrivate?: boolean, invitedUserIds?: string[]) => Promise<Room>
   inviteToTopic: (roomId: string, targetUserId: string) => Promise<void>
@@ -102,6 +103,14 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       if (s.rooms.some(r => r.id === room.id)) return s
       return { rooms: [...s.rooms, room] }
     })
+  },
+
+  updateOtherUserDisplayName: (userId, displayName) => {
+    set(s => ({
+      rooms: s.rooms.map(r =>
+        r.otherUserId === userId ? { ...r, otherUserDisplayName: displayName } : r
+      ),
+    }))
   },
 
   createTopic: async (name, isPrivate = false, invitedUserIds = []) => {

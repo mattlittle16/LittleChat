@@ -12,11 +12,15 @@ export const EmojiShortcodeExtension = Extension.create({
         // Matches :shortcode: followed by a space at end of input
         // Shortcodes may contain word chars, +, or -  (e.g. :+1:, :-1:)
         find: /:([\w+-]+): $/,
-        handler({ state, range, match }) {
+        // Arrow function so `this` refers to the extension (gives us this.editor)
+        handler: ({ state, range, match }) => {
           const emoji = emojiMap[match[1]]
           if (!emoji) return null
           const { tr } = state
           tr.replaceWith(range.from, range.to, state.schema.text(emoji + ' '))
+          // After the transaction is dispatched, React may re-render and blur the
+          // editor. Restore focus in the next task so it runs after any re-render.
+          setTimeout(() => this.editor.commands.focus(), 0)
         },
       }),
     ]
