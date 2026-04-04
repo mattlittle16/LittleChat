@@ -450,7 +450,6 @@ app.MapSearchEndpoints();
 app.MapFilesEndpoints();
 app.MapNotificationsEndpoints();
 app.MapGifEndpoints();
-app.MapVideoTokenEndpoints();
 app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 app.MapAdminEndpoints();
 app.MapEnrichedMessagingEndpoints();
