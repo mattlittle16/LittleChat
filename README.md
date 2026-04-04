@@ -50,6 +50,20 @@
 
 ---
 
+## 📸 Screenshots
+
+<div align="center">
+
+| | |
+|---|---|
+| <img src="docs/Login.png" alt="Login" width="420" /> | <img src="docs/InAppLight.png" alt="In-app (light mode)" width="420" /> |
+| <img src="docs/InAppDark.png" alt="In-app (dark mode)" width="420" /> | <img src="docs/Highlights.png" alt="Highlights" width="420" /> |
+| <img src="docs/Bookmarks.png" alt="Bookmarks" width="420" /> | <img src="docs/Notifications.png" alt="Notifications" width="420" /> |
+
+</div>
+
+---
+
 ## 🏗️ Architecture
 
 ```mermaid
