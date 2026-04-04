@@ -47,6 +47,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-01
 - PostgreSQL — no new tables; existing `user_notifications` table via `NotificationsDbContext` (018-reaction-notifications)
 - C# / .NET 8 (backend); TypeScript 5.9 / React 19 (frontend) + ASP.NET Core minimal API, MediatR, StackExchange.Redis (already present), EF Core + Npgsql, Zustand v5, Tailwind CSS v4, shadcn/ui, lucide-reac (019-admin-panel)
 - PostgreSQL (EF Core for new `admin_audit_log` table via `AdminDbContext`); Redis/Valkey for token blocklist (existing instance) (019-admin-panel)
+- C# / .NET 8 + ASP.NET Core Minimal API, Npgsql 8.0.3 (022-api-repo-refactor)
+- PostgreSQL — read-only queries against existing tables (`message_attachments`, `messages`, `room_memberships`) (022-api-repo-refactor)
 
 - C# (.NET 8 or 9) — backend; TypeScript — frontend + ASP.NET Core SignalR + `Microsoft.AspNetCore.SignalR.StackExchangeRedis`; Entity Framework Core; MediatR; `Microsoft.AspNetCore.Authentication.JwtBearer`; React; `@microsoft/signalr`; `idb`; Zustand; Tailwind CSS; shadcn/ui (001-chat-mvp)
 
@@ -66,9 +68,9 @@ npm test && npm run lint
 C# (.NET 8 or 9) — backend; TypeScript — frontend: Follow standard conventions
 
 ## Recent Changes
+- 022-api-repo-refactor: Added C# / .NET 8 + ASP.NET Core Minimal API, Npgsql 8.0.3
 - 019-admin-panel: Added C# / .NET 8 (backend); TypeScript 5.9 / React 19 (frontend) + ASP.NET Core minimal API, MediatR, StackExchange.Redis (already present), EF Core + Npgsql, Zustand v5, Tailwind CSS v4, shadcn/ui, lucide-reac
 - 018-reaction-notifications: Added C# (.NET 8) backend; TypeScript 5.9 / React 19 frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, lucide-reac
-- 017-mentions-notifs-mobile: Added C# (.NET 8) — backend; TypeScript 5.9 / React 19 — frontend + ASP.NET Core SignalR, MediatR, EF Core (Npgsql), Zustand v5, Tailwind CSS v4, shadcn/ui (Sheet component already installed), lucide-react (`Bell` icon already available), react-markdown + remark-gfm (already in use)
 
 
 <!-- MANUAL ADDITIONS START -->

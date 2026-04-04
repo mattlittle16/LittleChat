@@ -1,10 +1,12 @@
+using Files.Application;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Mvc;
-using Npgsql;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Shared.Contracts;
 
-namespace API;
+namespace Files.API;
 
 public static class VideoTokenEndpoints
 {
@@ -18,7 +20,7 @@ public static class VideoTokenEndpoints
             [Authorize] async (
                 Guid attachmentId,
                 HttpContext ctx,
-                NpgsqlDataSource db,
+                IAttachmentRepository repo,
                 IDataProtectionProvider dataProtection,
                 CancellationToken cancellationToken) =>
             {
@@ -26,34 +28,16 @@ public static class VideoTokenEndpoints
                 if (userId is null)
                     return Results.Unauthorized();
 
-                // Fetch attachment metadata + room
-                await using var cmd = db.CreateCommand(
-                    """
-                    SELECT a.content_type, m.room_id
-                    FROM message_attachments a
-                    JOIN messages m ON m.id = a.message_id
-                    WHERE a.id = $1
-                    """);
-                cmd.Parameters.AddWithValue(attachmentId);
-
-                await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-                if (!await reader.ReadAsync(cancellationToken))
+                var attachment = await repo.GetAttachmentWithRoomAsync(attachmentId, cancellationToken);
+                if (attachment is null)
                     return Results.NotFound();
 
-                var contentType = reader.GetString(0);
-                var roomId = reader.GetGuid(1);
-                await reader.CloseAsync();
-
                 // Only issue tokens for video attachments
-                if (!contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                if (!attachment.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
                     return Results.NotFound();
 
                 // Validate room membership
-                await using var memberCmd = db.CreateCommand(
-                    "SELECT 1 FROM room_memberships WHERE room_id = $1 AND user_id = $2");
-                memberCmd.Parameters.AddWithValue(roomId);
-                memberCmd.Parameters.AddWithValue(userId.Value);
-                var isMember = await memberCmd.ExecuteScalarAsync(cancellationToken) is not null;
+                var isMember = await repo.IsUserRoomMemberAsync(attachment.RoomId, userId.Value, cancellationToken);
                 if (!isMember)
                     return Results.Forbid();
 
