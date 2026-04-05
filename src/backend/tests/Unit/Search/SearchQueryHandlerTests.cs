@@ -16,9 +16,9 @@ public class SearchQueryHandlerTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null!)]
-    public async Task Returns_empty_list_for_empty_or_whitespace_query(string q)
+    public async Task Returns_empty_list_for_empty_or_whitespace_query(string? q)
     {
-        var query  = new SearchQuery(Guid.NewGuid(), q, "global", null);
+        var query  = new SearchQuery(Guid.NewGuid(), q ?? string.Empty, "global", null);
         var result = await Build().Handle(query, default);
 
         Assert.Empty(result);

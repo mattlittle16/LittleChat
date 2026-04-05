@@ -65,7 +65,7 @@ public sealed class LinkPreviewFetcherService : ILinkPreviewFetcher
             $"//meta[@property='{property}']") ??
             doc.DocumentNode.SelectSingleNode(
             $"//meta[@name='{property}']");
-        return node?.GetAttributeValue("content", null);
+        return node?.GetAttributeValue("content", null!);
     }
 }
 
