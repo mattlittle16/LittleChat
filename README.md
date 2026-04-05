@@ -5,7 +5,7 @@
 **Self-hosted real-time group chat. Own your conversations.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -90,7 +90,7 @@ Neither pattern creates a hard dependency on another module's internals, keeping
 
 | Layer | Technology |
 |---|---|
-| **Backend** | C# / .NET 8, ASP.NET Core, MediatR 12.x |
+| **Backend** | C# / .NET 10, ASP.NET Core, MediatR 12.x |
 | **Real-time** | ASP.NET Core SignalR + Valkey (Redis-compatible) backplane |
 | **Database** | PostgreSQL — raw SQL via Npgsql, EF Core for migrations |
 | **Frontend** | React 19, TypeScript 5.9, Vite 7 |
@@ -111,7 +111,7 @@ Neither pattern creates a hard dependency on another module's internals, keeping
 ### Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [.NET SDK 8.x](https://dotnet.microsoft.com/download) *(backend development only)*
+- [.NET SDK 10.x](https://dotnet.microsoft.com/download) *(backend development only)*
 - [Node.js 20+](https://nodejs.org/) *(frontend development only)*
 - An OIDC-compliant identity provider (e.g. Authentik, Keycloak, Auth0)
 
