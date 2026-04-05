@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.0](https://github.com/mattlittle16/LittleChat/compare/v0.3.0...v1.0.0) (2026-04-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* dotnet10 docs [dotnet10-docs] ([#34](https://github.com/mattlittle16/LittleChat/issues/34))
+
+### Features
+
+* .net 10 upgrade [023-upgrade-dotnet10] ([#33](https://github.com/mattlittle16/LittleChat/issues/33)) ([e3511af](https://github.com/mattlittle16/LittleChat/commit/e3511af1a8e38af95b1a3fe20a3ec6e550d9ba64))
+* dotnet10 docs [dotnet10-docs] ([#34](https://github.com/mattlittle16/LittleChat/issues/34)) ([92fd0c1](https://github.com/mattlittle16/LittleChat/commit/92fd0c1e28658d67e2e174cb8b36e3d3225880cb))
+
+
+### Bug Fixes
+
+* admin updates and name fixes [admin-updates] ([#29](https://github.com/mattlittle16/LittleChat/issues/29)) ([cbbec64](https://github.com/mattlittle16/LittleChat/commit/cbbec64edff54881d52ab722633991ca1a1f25a4))
+* fixing ci/cd steps [ci-cd-fixes] ([#24](https://github.com/mattlittle16/LittleChat/issues/24)) ([a5b90ac](https://github.com/mattlittle16/LittleChat/commit/a5b90ac9ce10463148c27a2389d83329fdb4b9c3))
+* fixing ci/cd steps [ci-cd-fixesv2] ([#25](https://github.com/mattlittle16/LittleChat/issues/25)) ([6701875](https://github.com/mattlittle16/LittleChat/commit/6701875ce6549b7e1822b2d854436a8ec9441244))
+* fixing cursor and notification issues [fixes] ([#26](https://github.com/mattlittle16/LittleChat/issues/26)) ([d420349](https://github.com/mattlittle16/LittleChat/commit/d420349146aa917ab1e965c8cde34d8f582fcc30))
+* fixing deploy triggers [fix-deploy-trigger] ([#21](https://github.com/mattlittle16/LittleChat/issues/21)) ([9860a82](https://github.com/mattlittle16/LittleChat/commit/9860a82dabc542b23dde340b898d7f16c49ccd04))
+* fixing wake from sleep and code block back ticks [fix-code-block… ([#23](https://github.com/mattlittle16/LittleChat/issues/23)) ([2862e26](https://github.com/mattlittle16/LittleChat/commit/2862e265429756566577426937998de62e4f9f0d))
+* minor visual tweaks [fixes] ([#28](https://github.com/mattlittle16/LittleChat/issues/28)) ([dce1dd7](https://github.com/mattlittle16/LittleChat/commit/dce1dd79a2c8ced909e1086c46115e70daf8e0db))
+* minor visual tweaks [minor-tweaks] ([#27](https://github.com/mattlittle16/LittleChat/issues/27)) ([01c7271](https://github.com/mattlittle16/LittleChat/commit/01c7271565466d435be1e9b208f108f709ee3460))
+* reorganizing direct SQL out of minimal api handlers. [022-api-repo-refactor] ([#31](https://github.com/mattlittle16/LittleChat/issues/31)) ([4f34ccb](https://github.com/mattlittle16/LittleChat/commit/4f34ccb8ebdff48763b2c10309d39559f14e1fd1))
+
 ## [0.3.0](https://github.com/mattlittle16/LittleChat/compare/v0.2.2...v0.3.0) (2026-03-30)
 
 
