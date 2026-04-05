@@ -106,7 +106,7 @@ public sealed class PresenceService : IPresenceService
         var result = new List<Guid>(members.Length);
         foreach (var m in members)
         {
-            if (Guid.TryParse(m, out var id))
+            if (Guid.TryParse((string?)m, out var id))
                 result.Add(id);
         }
         return result;
